@@ -42,7 +42,6 @@
             -webkit-tap-highlight-color: transparent;
         }
 
-        /* Fondo decorativo sutil */
         body::before {
             content: '';
             position: fixed;
@@ -68,7 +67,6 @@
             gap: 32px;
         }
 
-        /* Título principal */
         .titulo {
             font-size: clamp(48px, 10vw, 80px);
             font-weight: 900;
@@ -81,7 +79,6 @@
 
         .titulo .acento {
             color: var(--dorado);
-            display: inline;
         }
 
         .subtitulo {
@@ -93,7 +90,6 @@
             margin-top: -16px;
         }
 
-        /* Tarjeta de reglamento */
         .reglamento {
             background: rgba(0, 0, 0, 0.35);
             backdrop-filter: blur(12px);
@@ -141,7 +137,6 @@
             font-weight: 600;
         }
 
-        /* Botones */
         .boton {
             display: inline-block;
             padding: 16px 48px;
@@ -197,7 +192,6 @@
             background: rgba(200, 168, 78, 0.08);
         }
 
-        /* Footer */
         .footer {
             font-size: 12px;
             color: rgba(255, 255, 255, 0.35);
@@ -205,7 +199,6 @@
             margin-top: 8px;
         }
 
-        /* Responsive */
         @media (max-width: 480px) {
             .contenedor {
                 gap: 24px;
@@ -239,17 +232,15 @@
 </head>
 <body>
     <div class="contenedor">
-        <!-- Título -->
         <h1 class="titulo">GOLAZO</h1>
         <p class="subtitulo">El juego de cartas de fútbol</p>
 
-        <!-- Reglamento -->
         <div class="reglamento">
             <h2>⚽ Reglamento</h2>
 
             <div class="seccion">
                 <h3>🎯 Objetivo</h3>
-                <p>Partido de <span class="destacado">9 manos</span> (10' a 90'). Cada mano se juega con 4 cartas. Sumá <span class="destacado">3 puntos</span> para convertir un gol. ¡Gana quien haga más goles!</p>
+                <p>Partido de <span class="destacado">9 manos</span> (0' a 80'). Cada mano se juega con 4 cartas. Sumá <span class="destacado">3 puntos</span> para convertir un gol. ¡Gana quien haga más goles!</p>
             </div>
 
             <div class="seccion">
@@ -279,16 +270,13 @@
             </div>
         </div>
 
-        <!-- Botones -->
         <a href="play.html" class="boton boton-jugar">⚽ JUGAR</a>
         <a href="https://link.mercadopago.com.ar/dinaponki" target="_blank" rel="noopener" class="boton boton-donar" id="btnDonar">💛 DONAR</a>
 
-        <!-- Footer -->
         <p class="footer">© Golazo - Dinaponki. Todos los derechos reservados.</p>
     </div>
 
     <script>
-        // Constante fácil de modificar para el enlace de donación
         const ENLACE_DONACION = 'https://link.mercadopago.com.ar/dinaponki';
         document.getElementById('btnDonar').href = ENLACE_DONACION;
     </script>
