@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Golazo | Dinaponki</title>
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <style>
+        :root {
+            --verde-fondo: #1a3c2a;
+            --verde-mesa: #1e4430;
+            --verde-oscuro: #0f2b1a;
+            --verde-claro: #2d5a3f;
+            --dorado: #c8a84e;
+            --dorado-claro: #d4b356;
+            --blanco: #f5f5f0;
+            --negro: #111;
+            --rojo: #c0392b;
+            --rojo-oscuro: #962d22;
+            --azul: #2980b9;
+            --gris-oscuro: #1a1a1a;
+            --gris-medio: #333;
+            --gris-claro: #888;
+            --borde-carta: #1a1a1a;
+            --sombra-carta: 0 8px 24px rgba(0, 0, 0, 0.5);
+            --sombra-suave: 0 4px 16px rgba(0, 0, 0, 0.35);
+            --transicion: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --transicion-rapida: 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+            --borde-redondo: 14px;
+            --borde-redondo-carta: 10px;
+            --altura-carta-pc: 100px;
+            --altura-carta-mesa: 120px;
+            --altura-carta-mano: 130px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--verde-fondo);
+            color: var(--blanco);
+            min-height: 100vh;
+            min-height: 100dvh;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        /* Contenedor principal del juego */
+        .juego {
+            display: grid;
+            grid-template-rows: auto 1fr auto auto;
+            grid-template-columns: 1fr;
+            min-height: 100vh;
+            min-height: 100dvh;
+            max-width: 100vw;
+            position: relative;
+            gap: 8px;
+            padding: 8px;
+        }
+
+        /* --- ZONA SUPERIOR: CPU --- */
+        .zona-cpu {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 8px 4px;
+        }
+
+        .zona-cpu .etiqueta {
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            color: rgba(255, 255, 255, 0.5);
+            text-transform: uppercase;
+        }
+
+        .mano-cpu {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        /* --- ZONA CENTRAL: MESA --- */
+        .zona-mesa {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            min-height: 160px;
+            background: radial-gradient(ellipse at center, rgba(30, 68, 48, 0.6) 0%, transparent 70%);
+            border-radius: var(--borde-redondo);
+            margin: 0 8px;
+        }
+
+        .mesa-cartas {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            flex-wrap: wrap;
+            padding: 8px;
+        }
+
+        .mesa-cartas .carta-contenedor {
+            position: relative;
+            transition: var(--transicion);
+        }
+
+        .mesa-cartas .carta-contenedor.ganadora {
+            z-index: 3;
+            transform: translateY(-8px);
+        }
+
+        .mesa-cartas .carta-contenedor.perdedora {
+            z-index: 1;
+            transform: translateY(6px);
+            opacity: 0.85;
+        }
+
+        /* --- BOTONES LATERALES --- */
+        .botones-laterales {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            padding: 4px 16px;
+            flex-wrap: wrap;
+        }
+
+        .grupo-botones {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn-accion {
+            padding: 10px 18px;
+            border-radius: 50px;
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: var(--transicion-rapida);
+            background: var(--gris-medio);
+            color: var(--blanco);
+            white-space: nowrap;
+            position: relative;
+            min-width: 70px;
+            text-align: center;
+        }
+
+        .btn-accion:active:not(:disabled) {
+            transform: scale(0.95);
+        }
+
+        .btn-accion:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            filter: grayscale(0.5);
+        }
+
+        .btn-penal {
+            background: var(--rojo);
+            border-color: var(--rojo-oscuro);
+        }
+        .btn-penal:not(:disabled):hover {
+            background: #d44235;
+            box-shadow: 0 4px 16px rgba(192, 57, 43, 0.4);
+        }
+
+        .btn-gol {
+            background: var(--dorado);
+            border-color: #a8883a;
+            color: #1a2a10;
+        }
+        .btn-gol:not(:disabled):hover {
+            background: var(--dorado-claro);
+            box-shadow: 0 4px 16px rgba(200, 168, 78, 0.5);
+        }
+
+        .btn-golazo {
+            background: #e67e22;
+            border-color: #c0651f;
+            color: #fff;
+        }
+        .btn-golazo:not(:disabled):hover {
+            background: #f08c34;
+            box-shadow: 0 4px 16px rgba(230, 126, 34, 0.5);
+        }
+
+        .btn-quiero {
+            background: #27ae60;
+            border-color: #1e8449;
+        }
+        .btn-quiero:not(:disabled):hover {
+            background: #2ecc71;
+            box-shadow: 0 4px 16px rgba(39, 174, 96, 0.4);
+        }
+
+        .btn-no-quiero {
+            background: #7f8c8d;
+            border-color: #6c7a7a;
+        }
+        .btn-no-quiero:not(:disabled):hover {
+            background: #95a5a6;
+        }
+
+        .btn-var {
+            background: #2980b9;
+            border-color: #1f6da0;
+        }
+        .btn-var:not(:disabled):hover {
+            background: #3498db;
+            box-shadow: 0 4px 16px rgba(41, 128, 185, 0.4);
+        }
+
+        /* --- ZONA INFERIOR: JUGADOR --- */
+        .zona-jugador {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 8px 8px;
+        }
+
+        .zona-jugador .etiqueta {
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            color: rgba(255, 255, 255, 0.7);
+            text-transform: uppercase;
+        }
+
+        .mano-jugador {
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            position: relative;
+            height: calc(var(--altura-carta-mano) * 0.85 + 30px);
+            min-height: 130px;
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .mano-jugador .carta-contenedor {
+            position: absolute;
+            transition: var(--transicion);
+            cursor: pointer;
+            transform-origin: bottom center;
+        }
+
+        .mano-jugador .carta-contenedor.seleccionada {
+            transform: translateY(-20px) scale(1.06);
+            z-index: 10 !important;
+            filter: brightness(1.1);
+        }
+
+        /* --- PANEL MARCADOR --- */
+        .panel-marcador {
+            background: var(--gris-oscuro);
+            border-radius: var(--borde-redondo);
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin: 4px 8px;
+            box-shadow: var(--sombra-suave);
+            cursor: pointer;
+            transition: var(--transicion);
+        }
+
+        .panel-marcador:hover {
+            background: #222;
+        }
+        .panel-marcador:active {
+            transform: scale(0.98);
+        }
+
+        .panel-marcador .jugador-info,
+        .panel-marcador .cpu-info {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            min-width: 60px;
+        }
+
+        .panel-marcador .nombre {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .panel-marcador .goles-numero {
+            font-size: 28px;
+            font-weight: 900;
+            color: var(--blanco);
+            line-height: 1;
+        }
+
+        .panel-marcador .estrellas {
+            display: flex;
+            gap: 4px;
+            font-size: 16px;
+        }
+
+        .panel-marcador .estrellas .estrella {
+            color: rgba(255, 255, 255, 0.2);
+            transition: var(--transicion);
+        }
+
+        .panel-marcador .estrellas .estrella.encendida {
+            color: var(--dorado);
+            text-shadow: 0 0 8px rgba(200, 168, 78, 0.5);
+        }
+
+        .panel-marcador .centro-marcador {
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            color: rgba(255, 255, 255, 0.4);
+            text-align: center;
+        }
+
+        .panel-marcador .minuto {
+            font-size: 12px;
+            color: var(--dorado);
+        }
+
+        /* --- CARTAS --- */
+        .carta-img {
+            display: block;
+            border-radius: var(--borde-redondo-carta);
+            border: 2px solid var(--borde-carta);
+            box-shadow: var(--sombra-carta);
+            background: #fff;
+            object-fit: contain;
+            transition: var(--transicion);
+        }
+
+        .carta-img.dorso {
+            border-color: #2a2a2a;
+        }
+
+        /* Tamaños de carta según zona */
+        .mano-cpu .carta-img {
+            width: 62px;
+            height: auto;
+            max-height: var(--altura-carta-pc);
+        }
+
+        .mesa-cartas .carta-img {
+            width: 80px;
+            height: auto;
+            max-height: var(--altura-carta-mesa);
+        }
+
+        .mano-jugador .carta-img {
+            width: 78px;
+            height: auto;
+            max-height: var(--altura-carta-mano);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+        }
+
+        /* --- OVERLAY MARCADOR DETALLADO --- */
+        .overlay-marcador {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.92);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .overlay-marcador.oculto {
+            display: none;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        .overlay-marcador .tabla-marcador {
+            width: 100%;
+            max-width: 500px;
+            border-collapse: collapse;
+        }
+
+        .overlay-marcador .tabla-marcador th,
+        .overlay-marcador .tabla-marcador td {
+            padding: 10px 8px;
+            text-align: center;
+            font-size: 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .overlay-marcador .tabla-marcador th {
+            font-size: 12px;
+            letter-spacing: 0.06em;
+            color: rgba(255, 255, 255, 0.5);
+            text-transform: uppercase;
+        }
+
+        .overlay-marcador .tabla-marcador .fila-actual {
+            background: rgba(200, 168, 78, 0.15);
+            border-radius: 8px;
+        }
+
+        .overlay-marcador .tabla-marcador .fila-actual td {
+            color: var(--dorado);
+            font-weight: 700;
+        }
+
+        .overlay-marcador .btn-volver {
+            margin-top: 24px;
+            padding: 14px 40px;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            background: var(--blanco);
+            color: var(--negro);
+            border: none;
+            cursor: pointer;
+            transition: var(--transicion);
+        }
+
+        .overlay-marcador .btn-volver:hover {
+            background: #fff;
+            box-shadow: 0 4px 20px rgba(255, 255, 255, 0.2);
+        }
+
+        /* --- OVERLAY FIN DE PARTIDO --- */
+        .overlay-fin {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            padding: 20px;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .overlay-fin.oculto {
+            display: none;
+        }
+
+        .overlay-fin .resultado-titulo {
+            font-size: clamp(36px, 8vw, 60px);
+            font-weight: 900;
+            letter-spacing: -0.02em;
+            text-align: center;
+        }
+
+        .overlay-fin .resultado-titulo.ganaste {
+            color: #2ecc71;
+        }
+        .overlay-fin .resultado-titulo.perdiste {
+            color: #e74c3c;
+        }
+        .overlay-fin .resultado-titulo.empate {
+            color: var(--dorado);
+        }
+
+        .overlay-fin .resultado-marcador {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--blanco);
+        }
+
+        .overlay-fin .botones-fin {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .overlay-fin .btn-fin {
+            padding: 14px 32px;
+            border-radius: 50px;
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            border: none;
+            transition: var(--transicion);
+        }
+
+        .btn-revancha {
+            background: var(--dorado);
+            color: #1a2a10;
+        }
+        .btn-revancha:hover {
+            background: var(--dorado-claro);
+            box-shadow: 0 4px 20px rgba(200, 168, 78, 0.4);
+        }
+
+        .btn-inicio {
+            background: transparent;
+            color: var(--blanco);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+        .btn-inicio:hover {
+            border-color: var(--blanco);
+        }
+
+        /* --- MENSAJE FLOTANTE --- */
+        .mensaje-flotante {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            background: rgba(0, 0, 0, 0.9);
+            color: var(--dorado);
+            padding: 16px 28px;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            z-index: 150;
+            pointer-events: none;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            text-align: center;
+        }
+
+        .mensaje-flotante.mostrar {
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        /* --- RESPONSIVE --- */
+        @media (min-width: 768px) {
+            .juego {
+                grid-template-rows: auto auto 1fr auto;
+                grid-template-columns: 140px 1fr 140px;
+                grid-template-areas:
+                    "cpu cpu cpu"
+                    "mesa mesa mesa"
+                    "botones-izq mesa-central botones-der"
+                    "jugador jugador jugador"
+                    "marcador marcador marcador";
+                gap: 12px;
+                padding: 12px 16px;
+                max-width: 1100px;
+                margin: 0 auto;
+            }
+
+            .zona-cpu {
+                grid-area: cpu;
+            }
+            .zona-mesa {
+                grid-area: mesa;
+                min-height: 200px;
+            }
+            .botones-laterales.izquierda {
+                grid-area: botones-izq;
+                flex-direction: column;
+                align-items: flex-end;
+                justify-content: center;
+            }
+            .botones-laterales.derecha {
+                grid-area: botones-der;
+                flex-direction: column;
+                align-items: flex-start;
+                justify-content: center;
+            }
+            .zona-jugador {
+                grid-area: jugador;
+            }
+            .panel-marcador {
+                grid-area: marcador;
+            }
+
+            .mano-cpu .carta-img {
+                width: 70px;
+                max-height: 110px;
+            }
+            .mesa-cartas .carta-img {
+                width: 90px;
+                max-height: 140px;
+            }
+            .mano-jugador .carta-img {
+                width: 88px;
+                max-height: 148px;
+            }
+
+            .btn-accion {
+                padding: 12px 16px;
+                font-size: 13px;
+                min-width: 100px;
+            }
+
+            .panel-marcador .goles-numero {
+                font-size: 34px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .juego {
+                grid-template-columns: 160px 1fr 160px;
+                max-width: 1200px;
+                gap: 16px;
+            }
+
+            .mano-cpu .carta-img {
+                width: 78px;
+                max-height: 118px;
+            }
+            .mesa-cartas .carta-img {
+                width: 100px;
+                max-height: 155px;
+            }
+            .mano-jugador .carta-img {
+                width: 96px;
+                max-height: 160px;
+            }
+
+            .btn-accion {
+                padding: 14px 20px;
+                font-size: 14px;
+                min-width: 120px;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .mano-cpu .carta-img {
+                width: 50px;
+                max-height: 80px;
+            }
+            .mesa-cartas .carta-img {
+                width: 60px;
+                max-height: 100px;
+            }
+            .mano-jugador .carta-img {
+                width: 60px;
+                max-height: 110px;
+            }
+            .btn-accion {
+                padding: 8px 12px;
+                font-size: 11px;
+                min-width: 55px;
+            }
+            .panel-marcador .goles-numero {
+                font-size: 22px;
+            }
+            .panel-marcador {
+                padding: 8px 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Overlay de marcador detallado (oculto inicialmente) -->
+    <div class="overlay-marcador oculto" id="overlayMarcador">
+        <table class="tabla-marcador" id="tablaMarcador">
+            <thead>
+                <tr>
+                    <th>Minuto</th>
+                    <th>Jugador</th>
+                    <th></th>
+                    <th>CPU</th>
+                </tr>
+            </thead>
+            <tbody id="cuerpoTablaMarcador"></tbody>
+        </table>
+        <button class="btn-volver" id="btnVolverMarcador">VOLVER</button>
+    </div>
+
+    <!-- Overlay de fin de partido (oculto inicialmente) -->
+    <div class="overlay-fin oculto" id="overlayFin">
+        <div class="resultado-titulo" id="resultadoTitulo"></div>
+        <div class="resultado-marcador" id="resultadoMarcador"></div>
+        <div class="botones-fin">
+            <button class="btn-fin btn-revancha" id="btnRevancha">⚽ Jugar otra vez</button>
+            <button class="btn-fin btn-inicio" id="btnInicio">🏠 Volver al inicio</button>
+        </div>
+    </div>
+
+    <!-- Mensaje flotante -->
+    <div class="mensaje-flotante" id="mensajeFlotante"></div>
+
+    <!-- Contenedor del juego -->
+    <div class="juego" id="juego">
+        <!-- Zona CPU -->
+        <div class="zona-cpu">
+            <span class="etiqueta">Turno del CPU</span>
+            <div class="mano-cpu" id="manoCpu"></div>
+        </div>
+
+        <!-- Zona mesa -->
+        <div class="zona-mesa">
+            <div class="mesa-cartas" id="mesaCartas"></div>
+        </div>
+
+        <!-- Botones izquierda -->
+        <div class="botones-laterales izquierda" id="botonesIzquierda">
+            <button class="btn-accion btn-penal" id="btnPenal" disabled>⚡ Penal</button>
+            <button class="btn-accion btn-quiero" id="btnQuieroIzq" disabled>✓ Quiero</button>
+            <button class="btn-accion btn-no-quiero" id="btnNoQuieroIzq" disabled>✗ No quiero</button>
+            <button class="btn-accion btn-var" id="btnVar" disabled>📺 VAR</button>
+        </div>
+
+        <!-- Botones derecha -->
+        <div class="botones-laterales derecha" id="botonesDerecha">
+            <button class="btn-accion btn-gol" id="btnGol" disabled>🥅 Gol</button>
+            <button class="btn-accion btn-quiero" id="btnQuieroDer" disabled>✓ Quiero</button>
+            <button class="btn-accion btn-no-quiero" id="btnNoQuieroDer" disabled>✗ No quiero</button>
+            <button class="btn-accion btn-golazo" id="btnGolazo" disabled>💥 Golazo</button>
+        </div>
+
+        <!-- Zona jugador -->
+        <div class="zona-jugador">
+            <span class="etiqueta">Turno del jugador</span>
+            <div class="mano-jugador" id="manoJugador"></div>
+        </div>
+
+        <!-- Panel marcador -->
+        <div class="panel-marcador" id="panelMarcador">
+            <div class="jugador-info">
+                <span class="nombre">Jugador</span>
+                <span class="goles-numero" id="golesJugador">0</span>
+                <span class="estrellas" id="estrellasJugador">
+                    <span class="estrella">★</span><span class="estrella">★</span><span class="estrella">★</span>
+                </span>
+            </div>
+            <div class="centro-marcador">
+                <div>⚽</div>
+                <div class="minuto" id="minutoActual">10'</div>
+            </div>
+            <div class="cpu-info">
+                <span class="nombre">CPU</span>
+                <span class="goles-numero" id="golesCpu">0</span>
+                <span class="estrellas" id="estrellasCpu">
+                    <span class="estrella">★</span><span class="estrella">★</span><span class="estrella">★</span>
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        // Continuación en PARTE 3 (JavaScript)
+        // ============================================================
+    </script>
+</body>
+</html>

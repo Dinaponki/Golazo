@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Golazo | Dinaponki</title>
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <style>
+        :root {
+            --verde-oscuro: #1a3c2a;
+            --verde-medio: #2d5a3f;
+            --verde-claro: #3d7a52;
+            --dorado: #c8a84e;
+            --blanco: #f5f5f0;
+            --negro: #111;
+            --gris: #666;
+            --sombra: 0 4px 20px rgba(0, 0, 0, 0.3);
+            --borde-redondo: 16px;
+            --transicion: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(160deg, #0f2b1a 0%, #1a3c2a 30%, #163825 60%, #0d2416 100%);
+            color: var(--blanco);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Fondo decorativo sutil */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(ellipse at center, rgba(200, 168, 78, 0.03) 0%, transparent 70%),
+                radial-gradient(ellipse at 30% 20%, rgba(255, 255, 255, 0.02) 0%, transparent 60%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .contenedor {
+            position: relative;
+            z-index: 1;
+            max-width: 560px;
+            width: 100%;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 32px;
+        }
+
+        /* Título principal */
+        .titulo {
+            font-size: clamp(48px, 10vw, 80px);
+            font-weight: 900;
+            letter-spacing: -0.02em;
+            color: var(--blanco);
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+            line-height: 1;
+            margin-top: 20px;
+        }
+
+        .titulo .acento {
+            color: var(--dorado);
+            display: inline;
+        }
+
+        .subtitulo {
+            font-size: clamp(14px, 3vw, 18px);
+            font-weight: 400;
+            color: rgba(255, 255, 255, 0.6);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-top: -16px;
+        }
+
+        /* Tarjeta de reglamento */
+        .reglamento {
+            background: rgba(0, 0, 0, 0.35);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--borde-redondo);
+            padding: 28px 24px;
+            text-align: left;
+            width: 100%;
+            box-shadow: var(--sombra);
+        }
+
+        .reglamento h2 {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--dorado);
+            margin-bottom: 16px;
+            text-align: center;
+            letter-spacing: 0.04em;
+        }
+
+        .reglamento .seccion {
+            margin-bottom: 14px;
+        }
+
+        .reglamento .seccion:last-child {
+            margin-bottom: 0;
+        }
+
+        .reglamento .seccion h3 {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--blanco);
+            margin-bottom: 4px;
+        }
+
+        .reglamento .seccion p {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.5;
+        }
+
+        .reglamento .seccion .destacado {
+            color: var(--dorado);
+            font-weight: 600;
+        }
+
+        /* Botones */
+        .boton {
+            display: inline-block;
+            padding: 16px 48px;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            cursor: pointer;
+            border: none;
+            transition: var(--transicion);
+            text-decoration: none;
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+            max-width: 320px;
+            text-align: center;
+        }
+
+        .boton-jugar {
+            background: var(--dorado);
+            color: #1a2a10;
+            box-shadow: 0 6px 24px rgba(200, 168, 78, 0.35);
+            font-size: 22px;
+            padding: 20px 48px;
+            letter-spacing: 0.06em;
+        }
+
+        .boton-jugar:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 32px rgba(200, 168, 78, 0.5);
+            background: #d4b356;
+        }
+
+        .boton-jugar:active {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(200, 168, 78, 0.3);
+            transition: 0.1s;
+        }
+
+        .boton-donar {
+            background: transparent;
+            color: var(--blanco);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            font-size: 15px;
+            padding: 12px 36px;
+            letter-spacing: 0.06em;
+        }
+
+        .boton-donar:hover {
+            border-color: var(--dorado);
+            color: var(--dorado);
+            background: rgba(200, 168, 78, 0.08);
+        }
+
+        /* Footer */
+        .footer {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.35);
+            letter-spacing: 0.04em;
+            margin-top: 8px;
+        }
+
+        /* Responsive */
+        @media (max-width: 480px) {
+            .contenedor {
+                gap: 24px;
+                padding: 0 8px;
+            }
+
+            .reglamento {
+                padding: 20px 16px;
+            }
+
+            .boton {
+                max-width: 100%;
+            }
+
+            .boton-jugar {
+                font-size: 20px;
+                padding: 18px 36px;
+            }
+        }
+
+        @media (min-width: 1200px) {
+            .contenedor {
+                max-width: 600px;
+            }
+
+            .titulo {
+                font-size: 88px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="contenedor">
+        <!-- Título -->
+        <h1 class="titulo">GOL<span class="acento">A</span>ZO</h1>
+        <p class="subtitulo">El juego de cartas de fútbol</p>
+
+        <!-- Reglamento -->
+        <div class="reglamento">
+            <h2>⚽ Reglamento</h2>
+
+            <div class="seccion">
+                <h3>🎯 Objetivo</h3>
+                <p>Partido de <span class="destacado">9 manos</span> (10' a 90'). Cada mano se juega con 4 cartas. Sumá <span class="destacado">3 puntos</span> para convertir un gol. ¡Gana quien haga más goles!</p>
+            </div>
+
+            <div class="seccion">
+                <h3>🃏 Las cartas</h3>
+                <p>40 cartas divididas en 4 posiciones: <span class="destacado">Arquero</span>, <span class="destacado">Defensor</span>,
+                    <span class="destacado">Volante</span> y <span class="destacado">Delantero</span>. Cada una va del 1 al 10. El número más alto gana la ronda.</p>
+            </div>
+
+            <div class="seccion">
+                <h3>⚡ Penal</h3>
+                <p>Solo en la <span class="destacado">primera ronda</span> de cada mano. El atacante usa su mejor delantero, el defensor su mejor arquero. Delantero &gt; Arquero = Gol. Arquero ≥ Delantero = +2 puntos para el defensor.</p>
+            </div>
+
+            <div class="seccion">
+                <h3>📺 VAR</h3>
+                <p>Se declara en voz alta el número más alto entre Arquero y Delantero. <span class="destacado">Mentir = derrota automática</span> (gol para el rival). Si gana quien pidió VAR, se ejecuta el Penal.</p>
+            </div>
+
+            <div class="seccion">
+                <h3>🥅 Gol</h3>
+                <p>Desde la <span class="destacado">segunda ronda</span>. Similar al Penal. El defensor puede usar defensor o arquero. El rival puede responder con <span class="destacado">Golazo</span> (misma mecánica).</p>
+            </div>
+
+            <div class="seccion">
+                <h3>⭐ Puntos y goles</h3>
+                <p>Cada ronda ganada = +1 punto. <span class="destacado">3 puntos = 1 gol</span>. Las estrellas se reinician y sigue la misma mano hasta agotar las 4 cartas.</p>
+            </div>
+        </div>
+
+        <!-- Botones -->
+        <a href="play.html" class="boton boton-jugar">⚽ JUGAR</a>
+        <a href="https://link.mercadopago.com.ar/dinaponki" target="_blank" rel="noopener" class="boton boton-donar" id="btnDonar">💛 DONAR</a>
+
+        <!-- Footer -->
+        <p class="footer">© Golazo - Dinaponki. Todos los derechos reservados.</p>
+    </div>
+
+    <script>
+        // Constante fácil de modificar para el enlace de donación
+        const ENLACE_DONACION = 'https://link.mercadopago.com.ar/dinaponki';
+        document.getElementById('btnDonar').href = ENLACE_DONACION;
+    </script>
+</body>
+</html>
