@@ -774,8 +774,1086 @@
 
     <script>
         // ============================================================
-        // Continuación en PARTE 3 (JavaScript)
-        // ============================================================
+// GOLAZO - JUEGO DE CARTAS DE FÚTBOL
+// Dinaponki - Todos los derechos reservados
+// ============================================================
+
+// --- CONSTANTES Y CONFIGURACIÓN ---
+const POSICIONES = ['Arq', 'Def', 'Vol', 'Del'];
+const NUMEROS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+const CARTAS_POR_JUGADOR = 4;
+const TOTAL_MANOS = 9;
+const PUNTOS_PARA_GOL = 3;
+const MINUTOS = [10, 20, 30, 40, 50, 60, 70, 80, 90];
+const RUTA_IMAGENES = 'img/';
+const RUTA_DORSO = 'img/dorso.png';
+
+// --- ESTADO GLOBAL DEL JUEGO ---
+const estado = {
+    mazo: [],
+    manoJugador: [],
+    manoCpu: [],
+    golesJugador: 0,
+    golesCpu: 0,
+    puntosJugador: 0,
+    puntosCpu: 0,
+    manoActual: 0,
+    rondaActual: 0,
+    turnoInicial: 'jugador',
+    turnoActual: 'jugador',
+    cartasEnMesa: [],
+    cartaSeleccionada: null,
+    cartaCpuElegida: null,
+    fase: 'esperando_seleccion',
+    penalUsado: false,
+    golUsado: false,
+    golazoUsado: false,
+    cantoPedidoPor: null,
+    cantoActual: null,
+    varDeclaraciones: { jugador: null, cpu: null },
+    varTurnoDeclarar: null,
+    esperandoRespuestaDe: null,
+    historialManos: [],
+    pausado: false,
+};
+
+// --- REFERENCIAS AL DOM (cache) ---
+const dom = {};
+function cacheDom() {
+    dom.manoCpu = document.getElementById('manoCpu');
+    dom.manoJugador = document.getElementById('manoJugador');
+    dom.mesaCartas = document.getElementById('mesaCartas');
+    dom.golesJugador = document.getElementById('golesJugador');
+    dom.golesCpu = document.getElementById('golesCpu');
+    dom.estrellasJugador = document.getElementById('estrellasJugador');
+    dom.estrellasCpu = document.getElementById('estrellasCpu');
+    dom.minutoActual = document.getElementById('minutoActual');
+    dom.panelMarcador = document.getElementById('panelMarcador');
+    dom.overlayMarcador = document.getElementById('overlayMarcador');
+    dom.cuerpoTablaMarcador = document.getElementById('cuerpoTablaMarcador');
+    dom.btnVolverMarcador = document.getElementById('btnVolverMarcador');
+    dom.overlayFin = document.getElementById('overlayFin');
+    dom.resultadoTitulo = document.getElementById('resultadoTitulo');
+    dom.resultadoMarcador = document.getElementById('resultadoMarcador');
+    dom.btnRevancha = document.getElementById('btnRevancha');
+    dom.btnInicio = document.getElementById('btnInicio');
+    dom.mensajeFlotante = document.getElementById('mensajeFlotante');
+    dom.btnPenal = document.getElementById('btnPenal');
+    dom.btnQuieroIzq = document.getElementById('btnQuieroIzq');
+    dom.btnNoQuieroIzq = document.getElementById('btnNoQuieroIzq');
+    dom.btnVar = document.getElementById('btnVar');
+    dom.btnGol = document.getElementById('btnGol');
+    dom.btnQuieroDer = document.getElementById('btnQuieroDer');
+    dom.btnNoQuieroDer = document.getElementById('btnNoQuieroDer');
+    dom.btnGolazo = document.getElementById('btnGolazo');
+}
+
+// --- UTILIDADES ---
+function crearCarta(posicion, numero) {
+    const nombresPos = { Arq: 'Arquero', Def: 'Defensor', Vol: 'Volante', Del: 'Delantero' };
+    return {
+        id: `${posicion}${numero}`,
+        posicion: posicion,
+        numero: numero,
+        nombre: `${nombresPos[posicion]} ${numero}`,
+        imagen: `${RUTA_IMAGENES}${posicion}${numero}.png`,
+    };
+}
+
+function crearMazo() {
+    const mazo = [];
+    for (const pos of POSICIONES) {
+        for (const num of NUMEROS) {
+            mazo.push(crearCarta(pos, num));
+        }
+    }
+    return mazo;
+}
+
+function mezclarMazo(mazo) {
+    const copia = [...mazo];
+    for (let i = copia.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copia[i], copia[j]] = [copia[j], copia[i]];
+    }
+    return copia;
+}
+
+function repartir(mazo) {
+    const manoJ = [];
+    const manoC = [];
+    const mazoRestante = [...mazo];
+    for (let i = 0; i < CARTAS_POR_JUGADOR; i++) {
+        manoJ.push(mazoRestante.pop());
+        manoC.push(mazoRestante.pop());
+    }
+    return { manoJ, manoC, mazoRestante };
+}
+
+function ordenarMano(mano) {
+    const ordenPos = { Arq: 0, Def: 1, Vol: 2, Del: 3 };
+    return [...mano].sort((a, b) => {
+        if (ordenPos[a.posicion] !== ordenPos[b.posicion]) {
+            return ordenPos[a.posicion] - ordenPos[b.posicion];
+        }
+        return b.numero - a.numero;
+    });
+}
+
+function mejorCartaDe(mano, posicion) {
+    const cartas = mano.filter(c => c.posicion === posicion);
+    if (cartas.length === 0) return null;
+    return cartas.reduce((mejor, c) => (c.numero > mejor.numero ? c : mejor), cartas[0]);
+}
+
+function mejorCartaDeVarias(mano, posiciones) {
+    let mejor = null;
+    for (const pos of posiciones) {
+        const carta = mejorCartaDe(mano, pos);
+        if (carta && (!mejor || carta.numero > mejor.numero)) {
+            mejor = carta;
+        }
+    }
+    return mejor;
+}
+
+function numeroMasAltoArqDel(mano) {
+    const arq = mejorCartaDe(mano, 'Arq');
+    const del = mejorCartaDe(mano, 'Del');
+    let max = 0;
+    if (arq && arq.numero > max) max = arq.numero;
+    if (del && del.numero > max) max = del.numero;
+    return max;
+}
+
+// --- RENDERIZADO ---
+function renderizarManoCpu() {
+    dom.manoCpu.innerHTML = '';
+    const numCartas = estado.manoCpu.length;
+    for (let i = 0; i < numCartas; i++) {
+        const contenedor = document.createElement('div');
+        contenedor.className = 'carta-contenedor';
+        const img = document.createElement('img');
+        img.src = RUTA_DORSO;
+        img.alt = 'Dorso';
+        img.className = 'carta-img dorso';
+        img.draggable = false;
+        contenedor.appendChild(img);
+        dom.manoCpu.appendChild(contenedor);
+    }
+}
+
+function renderizarManoJugador() {
+    dom.manoJugador.innerHTML = '';
+    const mano = estado.manoJugador;
+    const numCartas = mano.length;
+    if (numCartas === 0) return;
+
+    const anchoTotal = Math.min(400, window.innerWidth - 40);
+    const anchoCarta = Math.min(78, anchoTotal / (numCartas + 0.5));
+    const superposicion = anchoCarta * 0.55;
+    const alturaCarta = anchoCarta * 1.55;
+    dom.manoJugador.style.height = (alturaCarta * 0.85 + 30) + 'px';
+    dom.manoJugador.style.setProperty('--altura-carta-mano', alturaCarta + 'px');
+
+    mano.forEach((carta, index) => {
+        const contenedor = document.createElement('div');
+        contenedor.className = 'carta-contenedor';
+        contenedor.dataset.index = index;
+        contenedor.style.zIndex = index;
+        contenedor.style.left = `${index * superposicion + (anchoTotal - (numCartas - 1) * superposicion - anchoCarta) / 2}px`;
+
+        if (estado.cartaSeleccionada === index) {
+            contenedor.classList.add('seleccionada');
+            contenedor.style.zIndex = 20;
+        }
+
+        const img = document.createElement('img');
+        img.src = carta.imagen;
+        img.alt = carta.nombre;
+        img.className = 'carta-img';
+        img.draggable = false;
+        img.style.width = anchoCarta + 'px';
+        img.style.maxHeight = alturaCarta + 'px';
+
+        contenedor.appendChild(img);
+
+        contenedor.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (estado.fase !== 'esperando_seleccion' || estado.pausado) return;
+            seleccionarCarta(index);
+        });
+
+        contenedor.addEventListener('dblclick', (e) => {
+            e.stopPropagation();
+            if (estado.fase !== 'esperando_seleccion' || estado.pausado) return;
+            if (estado.cartaSeleccionada === index) {
+                jugarCartaSeleccionada();
+            }
+        });
+
+        dom.manoJugador.appendChild(contenedor);
+    });
+}
+
+function renderizarMesa() {
+    dom.mesaCartas.innerHTML = '';
+    const cartas = estado.cartasEnMesa;
+    if (cartas.length === 0) return;
+
+    cartas.forEach((item, index) => {
+        const contenedor = document.createElement('div');
+        contenedor.className = 'carta-contenedor';
+
+        const esUltimoPar = index >= cartas.length - 2;
+        if (esUltimoPar && cartas.length >= 2) {
+            const ultima = cartas[cartas.length - 1];
+            const penultima = cartas[cartas.length - 2];
+            if (ultima.origen !== penultima.origen) {
+                if (ultima.numero > penultima.numero) {
+                    if (item === ultima) contenedor.classList.add('ganadora');
+                    if (item === penultima) contenedor.classList.add('perdedora');
+                } else if (penultima.numero > ultima.numero) {
+                    if (item === penultima) contenedor.classList.add('ganadora');
+                    if (item === ultima) contenedor.classList.add('perdedora');
+                }
+            }
+        }
+
+        const img = document.createElement('img');
+        img.src = item.carta.imagen;
+        img.alt = item.carta.nombre;
+        img.className = 'carta-img';
+        img.draggable = false;
+
+        contenedor.appendChild(img);
+        dom.mesaCartas.appendChild(contenedor);
+    });
+}
+
+function renderizarEstrellas() {
+    const estrellasJ = dom.estrellasJugador.querySelectorAll('.estrella');
+    estrellasJ.forEach((el, i) => {
+        el.classList.toggle('encendida', i < estado.puntosJugador);
+    });
+    const estrellasC = dom.estrellasCpu.querySelectorAll('.estrella');
+    estrellasC.forEach((el, i) => {
+        el.classList.toggle('encendida', i < estado.puntosCpu);
+    });
+}
+
+function renderizarMarcador() {
+    dom.golesJugador.textContent = estado.golesJugador;
+    dom.golesCpu.textContent = estado.golesCpu;
+    dom.minutoActual.textContent = MINUTOS[estado.manoActual] + "'";
+    renderizarEstrellas();
+}
+
+function renderizarTodo() {
+    renderizarManoCpu();
+    renderizarManoJugador();
+    renderizarMesa();
+    renderizarMarcador();
+    actualizarBotones();
+}
+
+// --- ACTUALIZACIÓN DE BOTONES ---
+function actualizarBotones() {
+    const fase = estado.fase;
+    const esPrimeraRonda = estado.rondaActual === 0;
+    const esRondaDosOmas = estado.rondaActual >= 1;
+    const quedanCartas = estado.manoJugador.length > 0;
+
+    const todosBotones = [
+        dom.btnPenal, dom.btnQuieroIzq, dom.btnNoQuieroIzq, dom.btnVar,
+        dom.btnGol, dom.btnQuieroDer, dom.btnNoQuieroDer, dom.btnGolazo
+    ];
+    todosBotones.forEach(b => b.disabled = true);
+
+    if (estado.pausado) return;
+
+    switch (fase) {
+        case 'esperando_seleccion':
+            if (esPrimeraRonda && !estado.penalUsado && quedanCartas && estado.turnoActual === 'jugador') {
+                dom.btnPenal.disabled = false;
+            }
+            if (esRondaDosOmas && !estado.golUsado && quedanCartas && estado.turnoActual === 'jugador') {
+                dom.btnGol.disabled = false;
+            }
+            break;
+
+        case 'penal_pedido':
+            if (estado.esperandoRespuestaDe === 'jugador') {
+                dom.btnQuieroIzq.disabled = false;
+                dom.btnNoQuieroIzq.disabled = false;
+                dom.btnVar.disabled = false;
+            }
+            break;
+
+        case 'gol_pedido':
+            if (estado.esperandoRespuestaDe === 'jugador') {
+                dom.btnQuieroDer.disabled = false;
+                dom.btnNoQuieroDer.disabled = false;
+                dom.btnGolazo.disabled = false;
+            }
+            break;
+
+        case 'golazo_pedido':
+            if (estado.esperandoRespuestaDe === 'jugador') {
+                dom.btnQuieroDer.disabled = false;
+                dom.btnNoQuieroDer.disabled = false;
+            }
+            break;
+
+        case 'var_pedido':
+            if (estado.varTurnoDeclarar === 'jugador') {
+                dom.btnVar.disabled = false;
+                dom.btnVar.textContent = '📢 DECLARAR';
+            } else {
+                dom.btnVar.textContent = '📺 VAR';
+            }
+            break;
+
+        default:
+            break;
+    }
+}
+
+// --- SELECCIÓN Y JUEGO DE CARTA ---
+function seleccionarCarta(index) {
+    if (estado.fase !== 'esperando_seleccion' || estado.pausado) return;
+    estado.cartaSeleccionada = index;
+    renderizarManoJugador();
+}
+
+function jugarCartaSeleccionada() {
+    if (estado.fase !== 'esperando_seleccion' || estado.cartaSeleccionada === null || estado.pausado) return;
+
+    const index = estado.cartaSeleccionada;
+    const carta = estado.manoJugador[index];
+    estado.manoJugador.splice(index, 1);
+    estado.cartaSeleccionada = null;
+    estado.cartasEnMesa.push({ carta, origen: 'jugador', numero: carta.numero });
+    estado.fase = 'esperando_cpu';
+    estado.turnoActual = 'cpu';
+    renderizarTodo();
+    setTimeout(() => turnoCpu(), 600 + Math.random() * 500);
+}
+
+// --- TURNO DE LA CPU ---
+function turnoCpu() {
+    if (estado.fase !== 'esperando_cpu' || estado.pausado) return;
+
+    const carta = iaElegirCarta();
+    if (!carta) return;
+    estado.cartaCpuElegida = carta;
+    const indexCpu = estado.manoCpu.findIndex(c => c.id === carta.id);
+    if (indexCpu >= 0) estado.manoCpu.splice(indexCpu, 1);
+    estado.cartasEnMesa.push({ carta, origen: 'cpu', numero: carta.numero });
+    estado.cartaCpuElegida = null;
+    estado.fase = 'resolviendo';
+    renderizarTodo();
+    setTimeout(() => resolverRonda(), 500);
+}
+
+// --- IA ---
+function iaElegirCarta() {
+    const mano = estado.manoCpu;
+    if (mano.length === 0) return null;
+    const rand = Math.random();
+    if (rand < 0.4) {
+        return mano.reduce((max, c) => (c.numero > max.numero ? c : max), mano[0]);
+    } else if (rand < 0.7) {
+        return mano.reduce((min, c) => (c.numero < min.numero ? c : min), mano[0]);
+    } else {
+        return mano[Math.floor(Math.random() * mano.length)];
+    }
+}
+
+function iaDecidirCantarPenal() {
+    if (estado.penalUsado || estado.rondaActual !== 0) return false;
+    const delantero = mejorCartaDe(estado.manoCpu, 'Del');
+    const tieneBuenDelantero = delantero && delantero.numero >= 7;
+    return tieneBuenDelantero || Math.random() < 0.2;
+}
+
+function iaDecidirCantarGol() {
+    if (estado.golUsado || estado.rondaActual < 1) return false;
+    const delantero = mejorCartaDe(estado.manoCpu, 'Del');
+    const tieneBuenDelantero = delantero && delantero.numero >= 6;
+    return tieneBuenDelantero || Math.random() < 0.25;
+}
+
+function iaResponderCanto(tipo) {
+    const rand = Math.random();
+    if (tipo === 'penal') {
+        const arquero = mejorCartaDe(estado.manoCpu, 'Arq');
+        if (arquero && arquero.numero >= 6) return Math.random() < 0.7 ? 'quiero' : 'var';
+        if (rand < 0.3) return 'quiero';
+        if (rand < 0.55) return 'var';
+        return 'no_quiero';
+    }
+    if (tipo === 'gol') {
+        const defensor = mejorCartaDeVarias(estado.manoCpu, ['Def', 'Arq']);
+        if (defensor && defensor.numero >= 5) return Math.random() < 0.6 ? 'quiero' : 'no_quiero';
+        if (rand < 0.25) return 'golazo';
+        if (rand < 0.5) return 'quiero';
+        return 'no_quiero';
+    }
+    if (tipo === 'golazo') {
+        const defensor = mejorCartaDeVarias(estado.manoCpu, ['Arq', 'Def']);
+        if (defensor && defensor.numero >= 6) return 'quiero';
+        return rand < 0.4 ? 'quiero' : 'no_quiero';
+    }
+    return 'no_quiero';
+}
+
+function iaDeclararVar() {
+    return numeroMasAltoArqDel(estado.manoCpu);
+}
+
+// --- RESOLUCIÓN DE RONDA ---
+function resolverRonda() {
+    const cartas = estado.cartasEnMesa;
+    const ultimaJugador = cartas.filter(c => c.origen === 'jugador').pop();
+    const ultimaCpu = cartas.filter(c => c.origen === 'cpu').pop();
+    if (!ultimaJugador || !ultimaCpu) return;
+
+    let ganador = null;
+    if (ultimaJugador.numero > ultimaCpu.numero) {
+        ganador = 'jugador';
+        estado.puntosJugador++;
+    } else if (ultimaCpu.numero > ultimaJugador.numero) {
+        ganador = 'cpu';
+        estado.puntosCpu++;
+    } else {
+        ganador = 'empate';
+    }
+
+    if (ganador === 'jugador') estado.turnoInicial = 'jugador';
+    else if (ganador === 'cpu') estado.turnoInicial = 'cpu';
+    estado.turnoActual = estado.turnoInicial;
+    estado.rondaActual++;
+
+    renderizarTodo();
+    mostrarMensaje(ganador === 'jugador' ? '¡Ganaste la ronda!' : ganador === 'cpu' ? 'CPU gana la ronda' : 'Empate');
+
+    setTimeout(() => verificarGolYContinuar(), 800);
+}
+
+function verificarGolYContinuar() {
+    let golConvertido = false;
+    if (estado.puntosJugador >= PUNTOS_PARA_GOL) {
+        estado.golesJugador++;
+        estado.puntosJugador = 0;
+        golConvertido = true;
+        mostrarMensaje('⚽ ¡GOL DEL JUGADOR!');
+    }
+    if (estado.puntosCpu >= PUNTOS_PARA_GOL) {
+        estado.golesCpu++;
+        estado.puntosCpu = 0;
+        golConvertido = true;
+        if (!golConvertido) mostrarMensaje('⚽ Gol de la CPU');
+        else mostrarMensaje('⚽ ¡GOLES!');
+    }
+    renderizarTodo();
+
+    if (estado.manoJugador.length === 0 && estado.manoCpu.length === 0) {
+        setTimeout(() => finalizarMano(), 1000);
+        return;
+    }
+
+    if (golConvertido) {
+        estado.puntosJugador = Math.min(estado.puntosJugador, PUNTOS_PARA_GOL - 1);
+        estado.puntosCpu = Math.min(estado.puntosCpu, PUNTOS_PARA_GOL - 1);
+    }
+
+    if (estado.manoJugador.length > 0 && estado.manoCpu.length > 0) {
+        estado.fase = 'esperando_seleccion';
+        estado.cartaSeleccionada = null;
+        setTimeout(() => verificarCantosCpu(), 400);
+        renderizarTodo();
+    } else {
+        finalizarMano();
+    }
+}
+
+function verificarCantosCpu() {
+    if (estado.fase !== 'esperando_seleccion' || estado.pausado) return;
+    if (estado.turnoActual === 'cpu') {
+        if (estado.rondaActual === 0 && !estado.penalUsado && iaDecidirCantarPenal()) {
+            cpuPidePenal();
+            return;
+        }
+        if (estado.rondaActual >= 1 && !estado.golUsado && iaDecidirCantarGol()) {
+            cpuPideGol();
+            return;
+        }
+    }
+    if (estado.turnoActual === 'jugador') {
+        estado.fase = 'esperando_seleccion';
+        renderizarTodo();
+    } else {
+        estado.fase = 'esperando_cpu';
+        estado.turnoActual = 'cpu';
+        renderizarTodo();
+        setTimeout(() => turnoCpu(), 500 + Math.random() * 400);
+    }
+}
+
+// --- CANTOS DEL JUGADOR ---
+function jugadorPidePenal() {
+    if (estado.fase !== 'esperando_seleccion' || estado.rondaActual !== 0 || estado.penalUsado) return;
+    estado.fase = 'penal_pedido';
+    estado.cantoActual = 'penal';
+    estado.cantoPedidoPor = 'jugador';
+    estado.esperandoRespuestaDe = 'cpu';
+    estado.penalUsado = true;
+    renderizarTodo();
+    setTimeout(() => {
+        const respuesta = iaResponderCanto('penal');
+        procesarRespuestaCpu(respuesta);
+    }, 800 + Math.random() * 600);
+}
+
+function cpuPidePenal() {
+    estado.fase = 'penal_pedido';
+    estado.cantoActual = 'penal';
+    estado.cantoPedidoPor = 'cpu';
+    estado.esperandoRespuestaDe = 'jugador';
+    estado.penalUsado = true;
+    renderizarTodo();
+}
+
+function jugadorPideGol() {
+    if (estado.fase !== 'esperando_seleccion' || estado.rondaActual < 1 || estado.golUsado) return;
+    estado.fase = 'gol_pedido';
+    estado.cantoActual = 'gol';
+    estado.cantoPedidoPor = 'jugador';
+    estado.esperandoRespuestaDe = 'cpu';
+    estado.golUsado = true;
+    renderizarTodo();
+    setTimeout(() => {
+        const respuesta = iaResponderCanto('gol');
+        procesarRespuestaCpu(respuesta);
+    }, 800 + Math.random() * 600);
+}
+
+function cpuPideGol() {
+    estado.fase = 'gol_pedido';
+    estado.cantoActual = 'gol';
+    estado.cantoPedidoPor = 'cpu';
+    estado.esperandoRespuestaDe = 'jugador';
+    estado.golUsado = true;
+    renderizarTodo();
+}
+
+// --- RESPUESTAS DEL JUGADOR ---
+function jugadorRespondeQuiero() {
+    if (estado.esperandoRespuestaDe !== 'jugador') return;
+    procesarRespuestaJugador('quiero');
+}
+function jugadorRespondeNoQuiero() {
+    if (estado.esperandoRespuestaDe !== 'jugador') return;
+    procesarRespuestaJugador('no_quiero');
+}
+function jugadorRespondeVar() {
+    if (estado.esperandoRespuestaDe !== 'jugador' || estado.cantoActual !== 'penal') return;
+    procesarRespuestaJugador('var');
+}
+function jugadorRespondeGolazo() {
+    if (estado.esperandoRespuestaDe !== 'jugador' || estado.cantoActual !== 'gol') return;
+    procesarRespuestaJugador('golazo');
+}
+
+function procesarRespuestaJugador(respuesta) {
+    const cantoActual = estado.cantoActual;
+    const pedidoPor = estado.cantoPedidoPor;
+
+    if (respuesta === 'no_quiero') {
+        if (cantoActual === 'penal' || cantoActual === 'gol') {
+            sumarPuntos(pedidoPor, 1);
+            mostrarMensaje('No quiso - +1 punto');
+        } else if (cantoActual === 'golazo') {
+            sumarPuntos(pedidoPor, 2);
+            mostrarMensaje('No quiso - +2 puntos');
+        }
+        finalizarCanto();
+        return;
+    }
+    if (respuesta === 'var' && cantoActual === 'penal') {
+        iniciarVar();
+        return;
+    }
+    if (respuesta === 'golazo' && cantoActual === 'gol') {
+        estado.fase = 'golazo_pedido';
+        estado.cantoActual = 'golazo';
+        estado.cantoPedidoPor = (pedidoPor === 'jugador') ? 'cpu' : 'jugador';
+        estado.esperandoRespuestaDe = pedidoPor;
+        estado.golazoUsado = true;
+        renderizarTodo();
+        if (estado.esperandoRespuestaDe === 'cpu') {
+            setTimeout(() => {
+                const resp = iaResponderCanto('golazo');
+                procesarRespuestaCpu(resp);
+            }, 800 + Math.random() * 600);
+        }
+        return;
+    }
+    if (respuesta === 'quiero') {
+        ejecutarCanto(cantoActual, pedidoPor);
+    }
+}
+
+function procesarRespuestaCpu(respuesta) {
+    const cantoActual = estado.cantoActual;
+    const pedidoPor = estado.cantoPedidoPor;
+
+    if (respuesta === 'no_quiero') {
+        if (cantoActual === 'penal' || cantoActual === 'gol') {
+            sumarPuntos(pedidoPor, 1);
+        } else if (cantoActual === 'golazo') {
+            sumarPuntos(pedidoPor, 2);
+        }
+        mostrarMensaje('CPU: No quiero');
+        finalizarCanto();
+        return;
+    }
+    if (respuesta === 'var' && cantoActual === 'penal') {
+        iniciarVar();
+        return;
+    }
+    if (respuesta === 'golazo' && cantoActual === 'gol') {
+        estado.fase = 'golazo_pedido';
+        estado.cantoActual = 'golazo';
+        estado.cantoPedidoPor = 'cpu';
+        estado.esperandoRespuestaDe = 'jugador';
+        estado.golazoUsado = true;
+        renderizarTodo();
+        return;
+    }
+    if (respuesta === 'quiero') {
+        ejecutarCanto(cantoActual, pedidoPor);
+    }
+}
+
+// --- EJECUCIÓN DE CANTOS (Penal, Gol, Golazo) ---
+function ejecutarCanto(tipo, pedidoPor) {
+    let atacante, defensor;
+
+    if (tipo === 'penal') {
+        if (pedidoPor === 'jugador') {
+            atacante = mejorCartaDe(estado.manoJugador, 'Del');
+            defensor = mejorCartaDe(estado.manoCpu, 'Arq');
+        } else {
+            atacante = mejorCartaDe(estado.manoCpu, 'Del');
+            defensor = mejorCartaDe(estado.manoJugador, 'Arq');
+        }
+        if (!atacante && !defensor) {
+            sumarPuntos(pedidoPor === 'jugador' ? 'cpu' : 'jugador', 2);
+            mostrarMensaje('Atacante sin delantero - +2 defensor');
+        } else if (!atacante) {
+            sumarPuntos(pedidoPor === 'jugador' ? 'cpu' : 'jugador', 2);
+            mostrarMensaje('Atacante sin delantero - +2 defensor');
+        } else if (!defensor) {
+            convertirGol(pedidoPor);
+            mostrarMensaje('⚽ ¡GOL! Defensor sin arquero');
+        } else if (atacante.numero > defensor.numero) {
+            convertirGol(pedidoPor);
+            mostrarMensaje('⚽ ¡GOL! Delantero supera al arquero');
+        } else {
+            sumarPuntos(pedidoPor === 'jugador' ? 'cpu' : 'jugador', 2);
+            mostrarMensaje('Atajado - +2 defensor');
+        }
+    } else if (tipo === 'gol' || tipo === 'golazo') {
+        if (pedidoPor === 'jugador') {
+            atacante = mejorCartaDe(estado.manoJugador, 'Del');
+            defensor = mejorCartaDeVarias(estado.manoCpu, ['Def', 'Arq']);
+        } else {
+            atacante = mejorCartaDe(estado.manoCpu, 'Del');
+            defensor = mejorCartaDeVarias(estado.manoJugador, ['Def', 'Arq']);
+        }
+        if (!atacante && !defensor) {
+            const manoAtacante = pedidoPor === 'jugador' ? estado.manoJugador : estado.manoCpu;
+            const manoDefensor = pedidoPor === 'jugador' ? estado.manoCpu : estado.manoJugador;
+            const maxAtacante = manoAtacante.length > 0 ? Math.max(...manoAtacante.map(c => c.numero)) : 0;
+            const maxDefensor = manoDefensor.length > 0 ? Math.max(...manoDefensor.map(c => c.numero)) : 0;
+            if (maxAtacante > maxDefensor) {
+                convertirGol(pedidoPor);
+                mostrarMensaje('⚽ ¡GOL!');
+            } else if (maxDefensor > maxAtacante) {
+                sumarPuntos(pedidoPor === 'jugador' ? 'cpu' : 'jugador', 2);
+                mostrarMensaje('Defendido - +2 puntos');
+            } else {
+                mostrarMensaje('Empate - sin puntos');
+            }
+        } else if (!atacante) {
+            sumarPuntos(pedidoPor === 'jugador' ? 'cpu' : 'jugador', 2);
+            mostrarMensaje('Atacante sin delantero - +2 defensor');
+        } else if (!defensor) {
+            convertirGol(pedidoPor);
+            mostrarMensaje('⚽ ¡GOL! Defensor sin cobertura');
+        } else if (atacante.numero > defensor.numero) {
+            convertirGol(pedidoPor);
+            mostrarMensaje('⚽ ¡GOL!');
+        } else {
+            sumarPuntos(pedidoPor === 'jugador' ? 'cpu' : 'jugador', 2);
+            mostrarMensaje('Defendido - +2 defensor');
+        }
+    }
+    finalizarCanto();
+}
+
+// --- VAR ---
+function iniciarVar() {
+    estado.fase = 'var_pedido';
+    estado.varTurnoDeclarar = 'jugador';
+    estado.varDeclaraciones.jugador = null;
+    estado.varDeclaraciones.cpu = iaDeclararVar();
+    renderizarTodo();
+    setTimeout(() => declararVarJugador(), 300);
+}
+
+function declararVarJugador() {
+    const numeroReal = numeroMasAltoArqDel(estado.manoJugador);
+    const declaradoStr = prompt(`VAR: Declará tu número más alto entre Arquero y Delantero.\n(Tenés: ${numeroReal})\n\nIngresá el número que querés declarar (0-10):`, numeroReal.toString());
+    let declarado = parseInt(declaradoStr);
+    if (isNaN(declarado) || declarado < 0 || declarado > 10) declarado = 0;
+    estado.varDeclaraciones.jugador = declarado;
+
+    if (declarado !== numeroReal) {
+        estado.golesCpu++;
+        estado.puntosJugador = 0;
+        estado.puntosCpu = 0;
+        mostrarMensaje('📺 VAR: ¡Mentiste! Gol para la CPU');
+        finalizarCanto();
+        setTimeout(() => finalizarMano(), 1200);
+        return;
+    }
+
+    const declJug = estado.varDeclaraciones.jugador;
+    const declCpu = estado.varDeclaraciones.cpu;
+    if (declJug > declCpu) {
+        mostrarMensaje('📺 VAR: Ganaste - Se ejecuta el Penal');
+        ejecutarCanto('penal', estado.cantoPedidoPor);
+    } else if (declCpu > declJug) {
+        sumarPuntos(estado.cantoPedidoPor === 'jugador' ? 'cpu' : 'jugador', 2);
+        mostrarMensaje('📺 VAR: CPU gana - +2 puntos');
+        finalizarCanto();
+    } else {
+        if (estado.turnoInicial === 'jugador') {
+            mostrarMensaje('📺 VAR: Empate - Gana jugador por mano');
+            ejecutarCanto('penal', estado.cantoPedidoPor);
+        } else {
+            sumarPuntos(estado.cantoPedidoPor === 'jugador' ? 'cpu' : 'jugador', 2);
+            mostrarMensaje('📺 VAR: Empate - Gana CPU por mano');
+            finalizarCanto();
+        }
+    }
+}
+
+// --- UTILIDADES DE PUNTUACIÓN ---
+function convertirGol(quien) {
+    if (quien === 'jugador') {
+        estado.golesJugador++;
+    } else {
+        estado.golesCpu++;
+    }
+    estado.puntosJugador = Math.min(estado.puntosJugador, PUNTOS_PARA_GOL - 1);
+    estado.puntosCpu = Math.min(estado.puntosCpu, PUNTOS_PARA_GOL - 1);
+}
+
+function sumarPuntos(quien, cantidad) {
+    for (let i = 0; i < cantidad; i++) {
+        if (quien === 'jugador') {
+            estado.puntosJugador++;
+            if (estado.puntosJugador >= PUNTOS_PARA_GOL) {
+                estado.golesJugador++;
+                estado.puntosJugador = 0;
+                mostrarMensaje('⚽ ¡GOL DEL JUGADOR!');
+            }
+        } else {
+            estado.puntosCpu++;
+            if (estado.puntosCpu >= PUNTOS_PARA_GOL) {
+                estado.golesCpu++;
+                estado.puntosCpu = 0;
+                mostrarMensaje('⚽ Gol de la CPU');
+            }
+        }
+    }
+}
+
+function finalizarCanto() {
+    estado.cantoActual = null;
+    estado.cantoPedidoPor = null;
+    estado.esperandoRespuestaDe = null;
+    estado.varDeclaraciones = { jugador: null, cpu: null };
+    estado.varTurnoDeclarar = null;
+    renderizarTodo();
+
+    if (estado.manoJugador.length === 0 && estado.manoCpu.length === 0) {
+        setTimeout(() => finalizarMano(), 800);
+        return;
+    }
+    estado.fase = 'esperando_seleccion';
+    estado.turnoActual = estado.turnoInicial;
+    estado.cartaSeleccionada = null;
+    if (estado.turnoActual === 'cpu') {
+        estado.fase = 'esperando_cpu';
+        renderizarTodo();
+        setTimeout(() => turnoCpu(), 500 + Math.random() * 400);
+    } else {
+        renderizarTodo();
+    }
+}
+
+// --- FIN DE MANO Y PARTIDO ---
+function finalizarMano() {
+    estado.historialManos.push({
+        minuto: MINUTOS[estado.manoActual],
+        golesJugador: estado.golesJugador,
+        golesCpu: estado.golesCpu,
+        puntosJugador: estado.puntosJugador,
+        puntosCpu: estado.puntosCpu,
+    });
+    estado.manoActual++;
+    if (estado.manoActual >= TOTAL_MANOS) {
+        estado.fase = 'fin_partido';
+        renderizarTodo();
+        setTimeout(() => mostrarFinPartido(), 600);
+        return;
+    }
+    iniciarNuevaMano();
+}
+
+function iniciarNuevaMano() {
+    estado.puntosJugador = 0;
+    estado.puntosCpu = 0;
+    estado.rondaActual = 0;
+    estado.cartasEnMesa = [];
+    estado.cartaSeleccionada = null;
+    estado.cartaCpuElegida = null;
+    estado.penalUsado = false;
+    estado.golUsado = false;
+    estado.golazoUsado = false;
+    estado.cantoActual = null;
+    estado.cantoPedidoPor = null;
+    estado.esperandoRespuestaDe = null;
+    estado.varDeclaraciones = { jugador: null, cpu: null };
+    estado.varTurnoDeclarar = null;
+
+    const mazo = mezclarMazo(crearMazo());
+    const reparto = repartir(mazo);
+    estado.mazo = reparto.mazoRestante;
+    estado.manoJugador = ordenarMano(reparto.manoJ);
+    estado.manoCpu = ordenarMano(reparto.manoC);
+    estado.turnoInicial = (estado.manoActual % 2 === 0) ? 'jugador' : 'cpu';
+    estado.turnoActual = estado.turnoInicial;
+    estado.fase = 'esperando_seleccion';
+    renderizarTodo();
+
+    if (estado.turnoActual === 'cpu') {
+        estado.fase = 'esperando_cpu';
+        renderizarTodo();
+        setTimeout(() => turnoCpu(), 600 + Math.random() * 500);
+    }
+}
+
+// --- OVERLAY MARCADOR DETALLADO ---
+function mostrarMarcadorDetallado() {
+    estado.pausado = true;
+    dom.overlayMarcador.classList.remove('oculto');
+    dom.cuerpoTablaMarcador.innerHTML = '';
+
+    for (let i = 0; i < TOTAL_MANOS; i++) {
+        const minuto = MINUTOS[i];
+        const fila = document.createElement('tr');
+        if (i === estado.manoActual && estado.fase !== 'fin_partido') {
+            fila.classList.add('fila-actual');
+        }
+        const hist = estado.historialManos.find(h => h.minuto === minuto);
+        const golesJ = hist ? hist.golesJugador : '-';
+        const golesC = hist ? hist.golesCpu : '-';
+        const puntosJ = hist ? hist.puntosJugador : 0;
+        const puntosC = hist ? hist.puntosCpu : 0;
+        let estrellasJ = '', estrellasC = '';
+        for (let s = 0; s < 3; s++) {
+            estrellasJ += s < puntosJ ? '★' : '☆';
+            estrellasC += s < puntosC ? '★' : '☆';
+        }
+        fila.innerHTML = `
+            <td>${minuto}'</td>
+            <td>${estrellasJ} ⚽${golesJ}</td>
+            <td style="color:rgba(255,255,255,0.3)">vs</td>
+            <td>⚽${golesC} ${estrellasC}</td>
+        `;
+        dom.cuerpoTablaMarcador.appendChild(fila);
+    }
+}
+
+function ocultarMarcadorDetallado() {
+    estado.pausado = false;
+    dom.overlayMarcador.classList.add('oculto');
+    if (estado.fase !== 'fin_partido') {
+        renderizarTodo();
+        if (estado.fase === 'esperando_cpu' && estado.turnoActual === 'cpu') {
+            setTimeout(() => turnoCpu(), 400);
+        }
+    }
+}
+
+// --- FIN DE PARTIDO ---
+function mostrarFinPartido() {
+    estado.pausado = true;
+    dom.overlayFin.classList.remove('oculto');
+    const golesJ = estado.golesJugador;
+    const golesC = estado.golesCpu;
+    if (golesJ > golesC) {
+        dom.resultadoTitulo.textContent = '¡GANASTE!';
+        dom.resultadoTitulo.className = 'resultado-titulo ganaste';
+    } else if (golesC > golesJ) {
+        dom.resultadoTitulo.textContent = 'PERDISTE';
+        dom.resultadoTitulo.className = 'resultado-titulo perdiste';
+    } else {
+        dom.resultadoTitulo.textContent = 'EMPATE';
+        dom.resultadoTitulo.className = 'resultado-titulo empate';
+    }
+    dom.resultadoMarcador.textContent = `Jugador ${golesJ} - ${golesC} CPU`;
+}
+
+function reiniciarPartido() {
+    dom.overlayFin.classList.add('oculto');
+    estado.pausado = false;
+    estado.golesJugador = 0;
+    estado.golesCpu = 0;
+    estado.puntosJugador = 0;
+    estado.puntosCpu = 0;
+    estado.manoActual = 0;
+    estado.rondaActual = 0;
+    estado.cartasEnMesa = [];
+    estado.cartaSeleccionada = null;
+    estado.cartaCpuElegida = null;
+    estado.historialManos = [];
+    estado.penalUsado = false;
+    estado.golUsado = false;
+    estado.golazoUsado = false;
+    estado.cantoActual = null;
+    estado.cantoPedidoPor = null;
+    estado.esperandoRespuestaDe = null;
+    estado.varDeclaraciones = { jugador: null, cpu: null };
+    estado.varTurnoDeclarar = null;
+    estado.turnoInicial = 'jugador';
+    estado.turnoActual = 'jugador';
+    estado.fase = 'esperando_seleccion';
+
+    const mazo = mezclarMazo(crearMazo());
+    const reparto = repartir(mazo);
+    estado.mazo = reparto.mazoRestante;
+    estado.manoJugador = ordenarMano(reparto.manoJ);
+    estado.manoCpu = ordenarMano(reparto.manoC);
+    renderizarTodo();
+    dom.overlayFin.classList.add('oculto');
+    dom.overlayMarcador.classList.add('oculto');
+}
+
+// --- MENSAJE FLOTANTE ---
+let timeoutMensaje = null;
+function mostrarMensaje(texto) {
+    if (timeoutMensaje) clearTimeout(timeoutMensaje);
+    dom.mensajeFlotante.textContent = texto;
+    dom.mensajeFlotante.classList.add('mostrar');
+    timeoutMensaje = setTimeout(() => {
+        dom.mensajeFlotante.classList.remove('mostrar');
+        timeoutMensaje = null;
+    }, 1800);
+}
+
+// --- INICIALIZACIÓN Y EVENTOS ---
+function inicializarJuego() {
+    cacheDom();
+
+    const mazo = mezclarMazo(crearMazo());
+    const reparto = repartir(mazo);
+    estado.mazo = reparto.mazoRestante;
+    estado.manoJugador = ordenarMano(reparto.manoJ);
+    estado.manoCpu = ordenarMano(reparto.manoC);
+    estado.turnoInicial = 'jugador';
+    estado.turnoActual = 'jugador';
+    estado.fase = 'esperando_seleccion';
+
+    dom.btnPenal.addEventListener('click', () => {
+        if (!dom.btnPenal.disabled) jugadorPidePenal();
+    });
+    dom.btnQuieroIzq.addEventListener('click', () => {
+        if (!dom.btnQuieroIzq.disabled) jugadorRespondeQuiero();
+    });
+    dom.btnNoQuieroIzq.addEventListener('click', () => {
+        if (!dom.btnNoQuieroIzq.disabled) jugadorRespondeNoQuiero();
+    });
+    dom.btnVar.addEventListener('click', () => {
+        if (!dom.btnVar.disabled) {
+            if (estado.fase === 'var_pedido' && estado.varTurnoDeclarar === 'jugador') {
+                declararVarJugador();
+            } else if (estado.fase === 'penal_pedido') {
+                jugadorRespondeVar();
+            }
+        }
+    });
+    dom.btnGol.addEventListener('click', () => {
+        if (!dom.btnGol.disabled) jugadorPideGol();
+    });
+    dom.btnQuieroDer.addEventListener('click', () => {
+        if (!dom.btnQuieroDer.disabled) jugadorRespondeQuiero();
+    });
+    dom.btnNoQuieroDer.addEventListener('click', () => {
+        if (!dom.btnNoQuieroDer.disabled) jugadorRespondeNoQuiero();
+    });
+    dom.btnGolazo.addEventListener('click', () => {
+        if (!dom.btnGolazo.disabled) jugadorRespondeGolazo();
+    });
+
+    dom.panelMarcador.addEventListener('click', () => {
+        if (!estado.pausado || !dom.overlayMarcador.classList.contains('oculto')) {
+            mostrarMarcadorDetallado();
+        }
+    });
+    dom.btnVolverMarcador.addEventListener('click', ocultarMarcadorDetallado);
+    dom.btnRevancha.addEventListener('click', reiniciarPartido);
+    dom.btnInicio.addEventListener('click', () => {
+        window.location.href = 'index.html';
+    });
+
+    window.addEventListener('resize', () => {
+        if (!estado.pausado) renderizarTodo();
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            if (!dom.overlayMarcador.classList.contains('oculto')) {
+                ocultarMarcadorDetallado();
+            }
+        }
+        if (e.key === 'Enter' && estado.fase === 'esperando_seleccion' && estado.cartaSeleccionada !== null) {
+            jugarCartaSeleccionada();
+        }
+    });
+
+    document.addEventListener('touchstart', function(e) {
+        if (e.touches.length > 1) e.preventDefault();
+    }, { passive: false });
+
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', function(e) {
+        const now = Date.now();
+        if (now - lastTouchEnd <= 300) e.preventDefault();
+        lastTouchEnd = now;
+    }, false);
+
+    renderizarTodo();
+}
+
+// --- INICIAR ---
+document.addEventListener('DOMContentLoaded', inicializarJuego);
     </script>
 </body>
 </html>
