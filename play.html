@@ -805,7 +805,7 @@
 
     <script>
         // ============================================================
-// GOLAZO - JUEGO DE CARTAS DE FÚTBOL (CORREGIDO Y OPTIMIZADO)
+// GOLAZO - JUEGO DE CARTAS DE FÚTBOL (FLUJO CORREGIDO FINAL)
 // Dinaponki - Todos los derechos reservados
 // ============================================================
 
@@ -830,7 +830,7 @@ const estado = {
     rondaActual: 0,
     turnoInicial: 'jugador',
     turnoActual: 'jugador',
-    cartasEnMesa: [],        // { carta, origen }
+    cartasEnMesa: [],
     cartaSeleccionada: null,
     fase: 'esperando_seleccion',
     penalUsado: false,
@@ -939,7 +939,7 @@ function numeroMasAltoArqDel(mano) {
     return Math.max(arq?.numero || 0, del?.numero || 0);
 }
 
-// --- RENDERIZADO ---
+// --- RENDERIZADO (sin cambios) ---
 function renderizarManoCpu() {
     dom.manoCpu.innerHTML = '';
     estado.manoCpu.forEach(() => {
@@ -960,7 +960,7 @@ function renderizarManoJugador() {
     if (!mano.length) return;
 
     const anchoTotal = Math.min(420, window.innerWidth - 40);
-    const anchoCarta = Math.min(88, anchoTotal / (mano.length + 0.5));
+    const anchoCarta = Math.min(100, anchoTotal / (mano.length + 0.5));
     const superposicion = anchoCarta * 0.55;
     dom.manoJugador.style.height = (anchoCarta * 1.55 * 0.85 + 30) + 'px';
 
@@ -984,7 +984,6 @@ function renderizarManoJugador() {
         img.style.width = anchoCarta + 'px';
         cont.appendChild(img);
 
-        // Click: selecciona/desselecciona o juega si ya estaba seleccionada
         cont.addEventListener('click', (e) => {
             e.stopPropagation();
             if (estado.fase !== 'esperando_seleccion' || estado.pausado) return;
@@ -1004,23 +1003,20 @@ function renderizarMesa() {
     const cartas = estado.cartasEnMesa;
     if (!cartas.length) return;
 
-    // Separar por origen
     const cpuCartas = cartas.filter(c => c.origen === 'cpu');
     const jugadorCartas = cartas.filter(c => c.origen === 'jugador');
 
-    // Fila CPU (arriba)
     const filaCpu = document.createElement('div');
     filaCpu.className = 'mesa-fila cpu-fila';
-    cpuCartas.forEach((item, idx) => {
-        const cont = crearContenedorCartaMesa(item, idx === cpuCartas.length - 1, cartas);
+    cpuCartas.forEach((item) => {
+        const cont = crearContenedorCartaMesa(item, cartas);
         filaCpu.appendChild(cont);
     });
 
-    // Fila Jugador (abajo)
     const filaJug = document.createElement('div');
     filaJug.className = 'mesa-fila jugador-fila';
-    jugadorCartas.forEach((item, idx) => {
-        const cont = crearContenedorCartaMesa(item, idx === jugadorCartas.length - 1, cartas);
+    jugadorCartas.forEach((item) => {
+        const cont = crearContenedorCartaMesa(item, cartas);
         filaJug.appendChild(cont);
     });
 
@@ -1028,22 +1024,20 @@ function renderizarMesa() {
     dom.mesaCartas.appendChild(filaJug);
 }
 
-function crearContenedorCartaMesa(item, esUltima, todasLasCartas) {
+function crearContenedorCartaMesa(item, todasLasCartas) {
     const cont = document.createElement('div');
     cont.className = 'carta-contenedor';
 
     // Determinar ganadora/perdedora entre el último par jugado
-    if (todasLasCartas.length >= 2) {
-        const ultimaCpu = todasLasCartas.filter(c => c.origen === 'cpu').pop();
-        const ultimaJug = todasLasCartas.filter(c => c.origen === 'jugador').pop();
-        if (ultimaCpu && ultimaJug && item.carta === ultimaCpu.carta || item.carta === ultimaJug.carta) {
-            if (ultimaCpu.numero > ultimaJug.numero) {
-                if (item.origen === 'cpu') cont.classList.add('ganadora');
-                else cont.classList.add('perdedora');
-            } else if (ultimaJug.numero > ultimaCpu.numero) {
-                if (item.origen === 'jugador') cont.classList.add('ganadora');
-                else cont.classList.add('perdedora');
-            }
+    const ultimaCpu = todasLasCartas.filter(c => c.origen === 'cpu').pop();
+    const ultimaJug = todasLasCartas.filter(c => c.origen === 'jugador').pop();
+    if (ultimaCpu && ultimaJug && (item.carta === ultimaCpu.carta || item.carta === ultimaJug.carta)) {
+        if (ultimaCpu.numero > ultimaJug.numero) {
+            if (item.origen === 'cpu') cont.classList.add('ganadora');
+            else cont.classList.add('perdedora');
+        } else if (ultimaJug.numero > ultimaCpu.numero) {
+            if (item.origen === 'jugador') cont.classList.add('ganadora');
+            else cont.classList.add('perdedora');
         }
     }
 
@@ -1090,7 +1084,6 @@ function actualizarBotones() {
     const fase = estado.fase;
     const quedan = estado.manoJugador.length > 0;
 
-    // Botón jugar carta (solo cuando hay selección y es turno del jugador)
     dom.btnJugarCarta.disabled = !(fase === 'esperando_seleccion' && estado.cartaSeleccionada !== null && estado.turnoActual === 'jugador');
 
     switch (fase) {
@@ -1211,11 +1204,10 @@ function iaDeclararVar() {
     return numeroMasAltoArqDel(estado.manoCpu);
 }
 
-// --- RESOLUCIÓN ---
+// --- RESOLUCIÓN DE RONDA NORMAL ---
 function resolverRonda() {
-    const cartas = estado.cartasEnMesa;
-    const uj = cartas.filter(c => c.origen === 'jugador').pop();
-    const uc = cartas.filter(c => c.origen === 'cpu').pop();
+    const uj = estado.cartasEnMesa.filter(c => c.origen === 'jugador').pop();
+    const uc = estado.cartasEnMesa.filter(c => c.origen === 'cpu').pop();
     if (!uj || !uc) return;
 
     if (uj.carta.numero > uc.carta.numero) {
@@ -1227,8 +1219,8 @@ function resolverRonda() {
         estado.turnoInicial = 'cpu';
         mostrarMensaje('CPU gana la ronda');
     } else {
-        // empate: mantiene quien inició
         mostrarMensaje('Empate');
+        // turnoInicial no cambia
     }
     estado.rondaActual++;
     renderizarTodo();
@@ -1261,17 +1253,16 @@ function verificarGolYContinuar() {
         return;
     }
 
-    // Siguiente ronda
+    // Preparar siguiente ronda
     estado.turnoActual = estado.turnoInicial;
     estado.fase = 'esperando_seleccion';
     estado.cartaSeleccionada = null;
-    setTimeout(() => verificarCantosCpu(), 400);
-    renderizarTodo();
+    verificarCantosCpu(); // llamado directo, sin setTimeout
 }
 
 function verificarCantosCpu() {
-    if (estado.fase !== 'esperando_seleccion' || estado.pausado) return;
-    if (estado.turnoActual === 'cpu') {
+    // Solo actúa si el turno es de la CPU
+    if (estado.turnoActual === 'cpu' && estado.fase === 'esperando_seleccion' && !estado.pausado) {
         if (estado.rondaActual === 0 && !estado.penalUsado && iaDecidirCantarPenal()) {
             cpuPidePenal();
             return;
@@ -1280,14 +1271,14 @@ function verificarCantosCpu() {
             cpuPideGol();
             return;
         }
-    }
-    if (estado.turnoActual === 'jugador') {
-        estado.fase = 'esperando_seleccion';
-    } else {
+        // Si no canta, juega normalmente
         estado.fase = 'esperando_cpu';
+        renderizarTodo();
         setTimeout(() => turnoCpu(), 500 + Math.random() * 400);
+    } else {
+        // Turno del jugador o fase no esperada, simplemente renderizar
+        renderizarTodo();
     }
-    renderizarTodo();
 }
 
 // --- CANTOS ---
@@ -1394,28 +1385,21 @@ function ejecutarCanto(tipo, pedidoPor) {
         defensor = mejorCartaDeVarias(defensorMano, ['Def', 'Arq']);
     }
 
-    // Quitar las cartas de las manos y ponerlas en la mesa
+    // Mostrar cartas en la mesa
     if (atacante) {
-        if (origenAtacante === 'jugador') {
-            estado.manoJugador = estado.manoJugador.filter(c => c.id !== atacante.id);
-        } else {
-            estado.manoCpu = estado.manoCpu.filter(c => c.id !== atacante.id);
-        }
+        if (origenAtacante === 'jugador') estado.manoJugador = estado.manoJugador.filter(c => c.id !== atacante.id);
+        else estado.manoCpu = estado.manoCpu.filter(c => c.id !== atacante.id);
         estado.cartasEnMesa.push({ carta: atacante, origen: origenAtacante });
     }
     if (defensor) {
-        if (origenDefensor === 'jugador') {
-            estado.manoJugador = estado.manoJugador.filter(c => c.id !== defensor.id);
-        } else {
-            estado.manoCpu = estado.manoCpu.filter(c => c.id !== defensor.id);
-        }
+        if (origenDefensor === 'jugador') estado.manoJugador = estado.manoJugador.filter(c => c.id !== defensor.id);
+        else estado.manoCpu = estado.manoCpu.filter(c => c.id !== defensor.id);
         estado.cartasEnMesa.push({ carta: defensor, origen: origenDefensor });
     }
 
     renderizarTodo();
     mostrarMensaje('⚡ ¡' + (tipo === 'penal' ? 'Penal' : tipo === 'golazo' ? 'Golazo' : 'Gol') + '!');
 
-    // Después de mostrar las cartas, resolver
     setTimeout(() => {
         let gol = false;
         if (!atacante && !defensor) {
@@ -1437,7 +1421,6 @@ function ejecutarCanto(tipo, pedidoPor) {
             gol = true;
             mostrarMensaje('⚽ ¡GOL! Defensor sin cobertura');
         } else {
-            // Comparar las cartas que están en la mesa
             if (atacante.numero > defensor.numero) {
                 convertirGol(pedidoPor);
                 gol = true;
@@ -1449,7 +1432,6 @@ function ejecutarCanto(tipo, pedidoPor) {
         }
 
         if (gol) {
-            // Si hubo gol, la mano termina inmediatamente
             setTimeout(() => finalizarMano(), 700);
         } else {
             finalizarCanto();
@@ -1536,23 +1518,16 @@ function finalizarCanto() {
     estado.varDeclaraciones = { jugador: null, cpu: null };
     estado.varTurnoDeclarar = null;
 
-    // Si se acabaron las cartas, termina la mano
     if (estado.manoJugador.length === 0 && estado.manoCpu.length === 0) {
         setTimeout(() => finalizarMano(), 800);
         return;
     }
 
-    estado.fase = 'esperando_seleccion';
+    // Reanudar juego normal con turno del ganador de la última ronda
     estado.turnoActual = estado.turnoInicial;
+    estado.fase = 'esperando_seleccion';
     estado.cartaSeleccionada = null;
-
-    if (estado.turnoActual === 'cpu') {
-        estado.fase = 'esperando_cpu';
-        renderizarTodo();
-        setTimeout(() => turnoCpu(), 500);
-    } else {
-        renderizarTodo();
-    }
+    verificarCantosCpu(); // directo
 }
 
 function finalizarMano() {
@@ -1591,6 +1566,7 @@ function iniciarNuevaMano() {
     const { manoJ, manoC } = repartir(mazo);
     estado.manoJugador = ordenarMano(manoJ);
     estado.manoCpu = ordenarMano(manoC);
+    // Quien inicia la nueva mano se alterna por mano, como en el fútbol real
     estado.turnoInicial = (estado.manoActual % 2 === 0) ? 'jugador' : 'cpu';
     estado.turnoActual = estado.turnoInicial;
     estado.fase = 'esperando_seleccion';
@@ -1601,7 +1577,7 @@ function iniciarNuevaMano() {
     }
 }
 
-// --- OVERLAYS Y MENSAJES ---
+// --- OVERLAYS Y MENSAJES (sin cambios) ---
 function mostrarMarcadorDetallado() {
     estado.pausado = true;
     dom.overlayMarcador.classList.remove('oculto');
@@ -1679,7 +1655,7 @@ function mostrarMensaje(texto) {
     }, 1800);
 }
 
-// --- INICIALIZACIÓN ---
+// --- INICIALIZACIÓN (sin cambios en eventos) ---
 function inicializarJuego() {
     cacheDom();
     const mazo = mezclarMazo(crearMazo());
