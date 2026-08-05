@@ -92,43 +92,72 @@
         }
 
         /* --- ZONA CENTRAL: MESA --- */
-        .zona-mesa {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            min-height: 160px;
-            background: radial-gradient(ellipse at center, rgba(30, 68, 48, 0.6) 0%, transparent 70%);
-            border-radius: var(--borde-redondo);
-            margin: 0 8px;
-        }
+.zona-mesa {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    min-height: 220px;
+    background: radial-gradient(ellipse at center, rgba(30, 68, 48, 0.7) 0%, transparent 70%);
+    border-radius: var(--borde-redondo);
+    margin: 0 8px;
+    overflow: visible;
+}
 
-        .mesa-cartas {
-            display: flex;
-            gap: 16px;
-            justify-content: center;
-            align-items: center;
-            position: relative;
-            flex-wrap: wrap;
-            padding: 8px;
-        }
+.mesa-cartas {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
 
-        .mesa-cartas .carta-contenedor {
-            position: relative;
-            transition: var(--transicion);
-        }
+.mesa-fila {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    min-height: 80px;
+    align-items: center;
+}
 
-        .mesa-cartas .carta-contenedor.ganadora {
-            z-index: 3;
-            transform: translateY(-8px);
-        }
+.mesa-fila.cpu-fila {
+    /* arriba */
+}
 
-        .mesa-cartas .carta-contenedor.perdedora {
-            z-index: 1;
-            transform: translateY(6px);
-            opacity: 0.85;
-        }
+.mesa-fila.jugador-fila {
+    /* abajo */
+}
 
+.mesa-cartas .carta-contenedor {
+    position: relative;
+    transition: var(--transicion);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.mesa-cartas .carta-contenedor.ganadora {
+    z-index: 3;
+    transform: translateY(-10px);
+    filter: drop-shadow(0 8px 12px rgba(200,168,78,0.5));
+}
+
+.mesa-cartas .carta-contenedor.perdedora {
+    z-index: 1;
+    transform: translateY(4px);
+    opacity: 0.85;
+}
+
+/* Tamaños de carta en mesa aumentados */
+.mesa-cartas .carta-img {
+    width: 110px;
+    height: auto;
+    max-height: 160px;
+    border-radius: 12px;
+}
         /* --- BOTONES LATERALES --- */
         .botones-laterales {
             display: flex;
@@ -223,6 +252,14 @@
             background: #2980b9;
             border-color: #1f6da0;
         }
+	.btn-jugar-carta {
+    background: #8e44ad;
+    border-color: #6c3483;
+}
+.btn-jugar-carta:not(:disabled):hover {
+    background: #9b59b6;
+    box-shadow: 0 4px 16px rgba(142, 68, 173, 0.4);
+}
         .btn-var:not(:disabled):hover {
             background: #3498db;
             box-shadow: 0 4px 16px rgba(41, 128, 185, 0.4);
@@ -360,24 +397,24 @@
         }
 
         /* Tamaños de carta según zona */
-        .mano-cpu .carta-img {
-            width: 62px;
-            height: auto;
-            max-height: var(--altura-carta-pc);
-        }
+.mano-cpu .carta-img {
+    width: 72px;
+    height: auto;
+    max-height: 110px;
+}
 
-        .mesa-cartas .carta-img {
-            width: 80px;
-            height: auto;
-            max-height: var(--altura-carta-mesa);
-        }
+.mesa-cartas .carta-img {
+    width: 110px;
+    height: auto;
+    max-height: 160px;
+}
 
-        .mano-jugador .carta-img {
-            width: 78px;
-            height: auto;
-            max-height: var(--altura-carta-mano);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
-        }
+.mano-jugador .carta-img {
+    width: 88px;
+    height: auto;
+    max-height: 148px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
 
         /* --- OVERLAY MARCADOR DETALLADO --- */
         .overlay-marcador {
@@ -728,12 +765,14 @@
         </div>
 
         <!-- Botones izquierda -->
-        <div class="botones-laterales izquierda" id="botonesIzquierda">
-            <button class="btn-accion btn-penal" id="btnPenal" disabled>⚡ Penal</button>
-            <button class="btn-accion btn-quiero" id="btnQuieroIzq" disabled>✓ Quiero</button>
-            <button class="btn-accion btn-no-quiero" id="btnNoQuieroIzq" disabled>✗ No quiero</button>
-            <button class="btn-accion btn-var" id="btnVar" disabled>📺 VAR</button>
-        </div>
+<div class="botones-laterales izquierda" id="botonesIzquierda">
+    <button class="btn-accion btn-penal" id="btnPenal" disabled>⚡ Penal</button>
+    <button class="btn-accion btn-quiero" id="btnQuieroIzq" disabled>✓ Quiero</button>
+    <button class="btn-accion btn-no-quiero" id="btnNoQuieroIzq" disabled>✗ No quiero</button>
+    <button class="btn-accion btn-var" id="btnVar" disabled>📺 VAR</button>
+    <!-- NUEVO BOTÓN JUGAR -->
+    <button class="btn-accion btn-jugar-carta" id="btnJugarCarta" disabled>🃏 Jugar</button>
+</div>
 
         <!-- Botones derecha -->
         <div class="botones-laterales derecha" id="botonesDerecha">
@@ -772,13 +811,11 @@
         </div>
     </div>
 
-    <script>
-        // ============================================================
-// GOLAZO - JUEGO DE CARTAS DE FÚTBOL
+    // ============================================================
+// GOLAZO - JUEGO DE CARTAS DE FÚTBOL (CORREGIDO Y OPTIMIZADO)
 // Dinaponki - Todos los derechos reservados
 // ============================================================
 
-// --- CONSTANTES Y CONFIGURACIÓN ---
 const POSICIONES = ['Arq', 'Def', 'Vol', 'Del'];
 const NUMEROS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 const CARTAS_POR_JUGADOR = 4;
@@ -788,7 +825,6 @@ const MINUTOS = [10, 20, 30, 40, 50, 60, 70, 80, 90];
 const RUTA_IMAGENES = 'img/';
 const RUTA_DORSO = 'img/dorso.png';
 
-// --- ESTADO GLOBAL DEL JUEGO ---
 const estado = {
     mazo: [],
     manoJugador: [],
@@ -801,9 +837,8 @@ const estado = {
     rondaActual: 0,
     turnoInicial: 'jugador',
     turnoActual: 'jugador',
-    cartasEnMesa: [],
+    cartasEnMesa: [],        // { carta, origen }
     cartaSeleccionada: null,
-    cartaCpuElegida: null,
     fase: 'esperando_seleccion',
     penalUsado: false,
     golUsado: false,
@@ -817,7 +852,6 @@ const estado = {
     pausado: false,
 };
 
-// --- REFERENCIAS AL DOM (cache) ---
 const dom = {};
 function cacheDom() {
     dom.manoCpu = document.getElementById('manoCpu');
@@ -846,6 +880,7 @@ function cacheDom() {
     dom.btnQuieroDer = document.getElementById('btnQuieroDer');
     dom.btnNoQuieroDer = document.getElementById('btnNoQuieroDer');
     dom.btnGolazo = document.getElementById('btnGolazo');
+    dom.btnJugarCarta = document.getElementById('btnJugarCarta');
 }
 
 // --- UTILIDADES ---
@@ -853,8 +888,7 @@ function crearCarta(posicion, numero) {
     const nombresPos = { Arq: 'Arquero', Def: 'Defensor', Vol: 'Volante', Del: 'Delantero' };
     return {
         id: `${posicion}${numero}`,
-        posicion: posicion,
-        numero: numero,
+        posicion, numero,
         nombre: `${nombresPos[posicion]} ${numero}`,
         imagen: `${RUTA_IMAGENES}${posicion}${numero}.png`,
     };
@@ -862,11 +896,9 @@ function crearCarta(posicion, numero) {
 
 function crearMazo() {
     const mazo = [];
-    for (const pos of POSICIONES) {
-        for (const num of NUMEROS) {
+    for (const pos of POSICIONES)
+        for (const num of NUMEROS)
             mazo.push(crearCarta(pos, num));
-        }
-    }
     return mazo;
 }
 
@@ -880,8 +912,7 @@ function mezclarMazo(mazo) {
 }
 
 function repartir(mazo) {
-    const manoJ = [];
-    const manoC = [];
+    const manoJ = [], manoC = [];
     const mazoRestante = [...mazo];
     for (let i = 0; i < CARTAS_POR_JUGADOR; i++) {
         manoJ.push(mazoRestante.pop());
@@ -892,27 +923,19 @@ function repartir(mazo) {
 
 function ordenarMano(mano) {
     const ordenPos = { Arq: 0, Def: 1, Vol: 2, Del: 3 };
-    return [...mano].sort((a, b) => {
-        if (ordenPos[a.posicion] !== ordenPos[b.posicion]) {
-            return ordenPos[a.posicion] - ordenPos[b.posicion];
-        }
-        return b.numero - a.numero;
-    });
+    return [...mano].sort((a, b) => ordenPos[a.posicion] - ordenPos[b.posicion] || b.numero - a.numero);
 }
 
 function mejorCartaDe(mano, posicion) {
     const cartas = mano.filter(c => c.posicion === posicion);
-    if (cartas.length === 0) return null;
-    return cartas.reduce((mejor, c) => (c.numero > mejor.numero ? c : mejor), cartas[0]);
+    return cartas.length ? cartas.reduce((a, b) => a.numero > b.numero ? a : b) : null;
 }
 
 function mejorCartaDeVarias(mano, posiciones) {
     let mejor = null;
     for (const pos of posiciones) {
         const carta = mejorCartaDe(mano, pos);
-        if (carta && (!mejor || carta.numero > mejor.numero)) {
-            mejor = carta;
-        }
+        if (carta && (!mejor || carta.numero > mejor.numero)) mejor = carta;
     }
     return mejor;
 }
@@ -920,52 +943,44 @@ function mejorCartaDeVarias(mano, posiciones) {
 function numeroMasAltoArqDel(mano) {
     const arq = mejorCartaDe(mano, 'Arq');
     const del = mejorCartaDe(mano, 'Del');
-    let max = 0;
-    if (arq && arq.numero > max) max = arq.numero;
-    if (del && del.numero > max) max = del.numero;
-    return max;
+    return Math.max(arq?.numero || 0, del?.numero || 0);
 }
 
 // --- RENDERIZADO ---
 function renderizarManoCpu() {
     dom.manoCpu.innerHTML = '';
-    const numCartas = estado.manoCpu.length;
-    for (let i = 0; i < numCartas; i++) {
-        const contenedor = document.createElement('div');
-        contenedor.className = 'carta-contenedor';
+    estado.manoCpu.forEach(() => {
+        const cont = document.createElement('div');
+        cont.className = 'carta-contenedor';
         const img = document.createElement('img');
         img.src = RUTA_DORSO;
-        img.alt = 'Dorso';
         img.className = 'carta-img dorso';
         img.draggable = false;
-        contenedor.appendChild(img);
-        dom.manoCpu.appendChild(contenedor);
-    }
+        cont.appendChild(img);
+        dom.manoCpu.appendChild(cont);
+    });
 }
 
 function renderizarManoJugador() {
     dom.manoJugador.innerHTML = '';
     const mano = estado.manoJugador;
-    const numCartas = mano.length;
-    if (numCartas === 0) return;
+    if (!mano.length) return;
 
-    const anchoTotal = Math.min(400, window.innerWidth - 40);
-    const anchoCarta = Math.min(78, anchoTotal / (numCartas + 0.5));
+    const anchoTotal = Math.min(420, window.innerWidth - 40);
+    const anchoCarta = Math.min(88, anchoTotal / (mano.length + 0.5));
     const superposicion = anchoCarta * 0.55;
-    const alturaCarta = anchoCarta * 1.55;
-    dom.manoJugador.style.height = (alturaCarta * 0.85 + 30) + 'px';
-    dom.manoJugador.style.setProperty('--altura-carta-mano', alturaCarta + 'px');
+    dom.manoJugador.style.height = (anchoCarta * 1.55 * 0.85 + 30) + 'px';
 
     mano.forEach((carta, index) => {
-        const contenedor = document.createElement('div');
-        contenedor.className = 'carta-contenedor';
-        contenedor.dataset.index = index;
-        contenedor.style.zIndex = index;
-        contenedor.style.left = `${index * superposicion + (anchoTotal - (numCartas - 1) * superposicion - anchoCarta) / 2}px`;
+        const cont = document.createElement('div');
+        cont.className = 'carta-contenedor';
+        cont.dataset.index = index;
+        cont.style.zIndex = index;
+        cont.style.left = `${index * superposicion + (anchoTotal - (mano.length - 1) * superposicion - anchoCarta) / 2}px`;
 
         if (estado.cartaSeleccionada === index) {
-            contenedor.classList.add('seleccionada');
-            contenedor.style.zIndex = 20;
+            cont.classList.add('seleccionada');
+            cont.style.zIndex = 20;
         }
 
         const img = document.createElement('img');
@@ -974,70 +989,84 @@ function renderizarManoJugador() {
         img.className = 'carta-img';
         img.draggable = false;
         img.style.width = anchoCarta + 'px';
-        img.style.maxHeight = alturaCarta + 'px';
+        cont.appendChild(img);
 
-        contenedor.appendChild(img);
-
-        contenedor.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (estado.fase !== 'esperando_seleccion' || estado.pausado) return;
-            seleccionarCarta(index);
-        });
-
-        contenedor.addEventListener('dblclick', (e) => {
+        // Click: selecciona/desselecciona o juega si ya estaba seleccionada
+        cont.addEventListener('click', (e) => {
             e.stopPropagation();
             if (estado.fase !== 'esperando_seleccion' || estado.pausado) return;
             if (estado.cartaSeleccionada === index) {
                 jugarCartaSeleccionada();
+            } else {
+                seleccionarCarta(index);
             }
         });
 
-        dom.manoJugador.appendChild(contenedor);
+        dom.manoJugador.appendChild(cont);
     });
 }
 
 function renderizarMesa() {
     dom.mesaCartas.innerHTML = '';
     const cartas = estado.cartasEnMesa;
-    if (cartas.length === 0) return;
+    if (!cartas.length) return;
 
-    cartas.forEach((item, index) => {
-        const contenedor = document.createElement('div');
-        contenedor.className = 'carta-contenedor';
+    // Separar por origen
+    const cpuCartas = cartas.filter(c => c.origen === 'cpu');
+    const jugadorCartas = cartas.filter(c => c.origen === 'jugador');
 
-        const esUltimoPar = index >= cartas.length - 2;
-        if (esUltimoPar && cartas.length >= 2) {
-            const ultima = cartas[cartas.length - 1];
-            const penultima = cartas[cartas.length - 2];
-            if (ultima.origen !== penultima.origen) {
-                if (ultima.numero > penultima.numero) {
-                    if (item === ultima) contenedor.classList.add('ganadora');
-                    if (item === penultima) contenedor.classList.add('perdedora');
-                } else if (penultima.numero > ultima.numero) {
-                    if (item === penultima) contenedor.classList.add('ganadora');
-                    if (item === ultima) contenedor.classList.add('perdedora');
-                }
+    // Fila CPU (arriba)
+    const filaCpu = document.createElement('div');
+    filaCpu.className = 'mesa-fila cpu-fila';
+    cpuCartas.forEach((item, idx) => {
+        const cont = crearContenedorCartaMesa(item, idx === cpuCartas.length - 1, cartas);
+        filaCpu.appendChild(cont);
+    });
+
+    // Fila Jugador (abajo)
+    const filaJug = document.createElement('div');
+    filaJug.className = 'mesa-fila jugador-fila';
+    jugadorCartas.forEach((item, idx) => {
+        const cont = crearContenedorCartaMesa(item, idx === jugadorCartas.length - 1, cartas);
+        filaJug.appendChild(cont);
+    });
+
+    dom.mesaCartas.appendChild(filaCpu);
+    dom.mesaCartas.appendChild(filaJug);
+}
+
+function crearContenedorCartaMesa(item, esUltima, todasLasCartas) {
+    const cont = document.createElement('div');
+    cont.className = 'carta-contenedor';
+
+    // Determinar ganadora/perdedora entre el último par jugado
+    if (todasLasCartas.length >= 2) {
+        const ultimaCpu = todasLasCartas.filter(c => c.origen === 'cpu').pop();
+        const ultimaJug = todasLasCartas.filter(c => c.origen === 'jugador').pop();
+        if (ultimaCpu && ultimaJug && item.carta === ultimaCpu.carta || item.carta === ultimaJug.carta) {
+            if (ultimaCpu.numero > ultimaJug.numero) {
+                if (item.origen === 'cpu') cont.classList.add('ganadora');
+                else cont.classList.add('perdedora');
+            } else if (ultimaJug.numero > ultimaCpu.numero) {
+                if (item.origen === 'jugador') cont.classList.add('ganadora');
+                else cont.classList.add('perdedora');
             }
         }
+    }
 
-        const img = document.createElement('img');
-        img.src = item.carta.imagen;
-        img.alt = item.carta.nombre;
-        img.className = 'carta-img';
-        img.draggable = false;
-
-        contenedor.appendChild(img);
-        dom.mesaCartas.appendChild(contenedor);
-    });
+    const img = document.createElement('img');
+    img.src = item.carta.imagen;
+    img.className = 'carta-img';
+    img.draggable = false;
+    cont.appendChild(img);
+    return cont;
 }
 
 function renderizarEstrellas() {
-    const estrellasJ = dom.estrellasJugador.querySelectorAll('.estrella');
-    estrellasJ.forEach((el, i) => {
+    dom.estrellasJugador.querySelectorAll('.estrella').forEach((el, i) => {
         el.classList.toggle('encendida', i < estado.puntosJugador);
     });
-    const estrellasC = dom.estrellasCpu.querySelectorAll('.estrella');
-    estrellasC.forEach((el, i) => {
+    dom.estrellasCpu.querySelectorAll('.estrella').forEach((el, i) => {
         el.classList.toggle('encendida', i < estado.puntosCpu);
     });
 }
@@ -1057,31 +1086,27 @@ function renderizarTodo() {
     actualizarBotones();
 }
 
-// --- ACTUALIZACIÓN DE BOTONES ---
+// --- BOTONES ---
 function actualizarBotones() {
-    const fase = estado.fase;
-    const esPrimeraRonda = estado.rondaActual === 0;
-    const esRondaDosOmas = estado.rondaActual >= 1;
-    const quedanCartas = estado.manoJugador.length > 0;
-
-    const todosBotones = [
-        dom.btnPenal, dom.btnQuieroIzq, dom.btnNoQuieroIzq, dom.btnVar,
-        dom.btnGol, dom.btnQuieroDer, dom.btnNoQuieroDer, dom.btnGolazo
-    ];
-    todosBotones.forEach(b => b.disabled = true);
+    const todos = [dom.btnPenal, dom.btnQuieroIzq, dom.btnNoQuieroIzq, dom.btnVar,
+                   dom.btnGol, dom.btnQuieroDer, dom.btnNoQuieroDer, dom.btnGolazo, dom.btnJugarCarta];
+    todos.forEach(b => b.disabled = true);
 
     if (estado.pausado) return;
 
+    const fase = estado.fase;
+    const quedan = estado.manoJugador.length > 0;
+
+    // Botón jugar carta (solo cuando hay selección y es turno del jugador)
+    dom.btnJugarCarta.disabled = !(fase === 'esperando_seleccion' && estado.cartaSeleccionada !== null && estado.turnoActual === 'jugador');
+
     switch (fase) {
         case 'esperando_seleccion':
-            if (esPrimeraRonda && !estado.penalUsado && quedanCartas && estado.turnoActual === 'jugador') {
+            if (estado.rondaActual === 0 && !estado.penalUsado && quedan && estado.turnoActual === 'jugador')
                 dom.btnPenal.disabled = false;
-            }
-            if (esRondaDosOmas && !estado.golUsado && quedanCartas && estado.turnoActual === 'jugador') {
+            if (estado.rondaActual >= 1 && !estado.golUsado && quedan && estado.turnoActual === 'jugador')
                 dom.btnGol.disabled = false;
-            }
             break;
-
         case 'penal_pedido':
             if (estado.esperandoRespuestaDe === 'jugador') {
                 dom.btnQuieroIzq.disabled = false;
@@ -1089,7 +1114,6 @@ function actualizarBotones() {
                 dom.btnVar.disabled = false;
             }
             break;
-
         case 'gol_pedido':
             if (estado.esperandoRespuestaDe === 'jugador') {
                 dom.btnQuieroDer.disabled = false;
@@ -1097,60 +1121,48 @@ function actualizarBotones() {
                 dom.btnGolazo.disabled = false;
             }
             break;
-
         case 'golazo_pedido':
             if (estado.esperandoRespuestaDe === 'jugador') {
                 dom.btnQuieroDer.disabled = false;
                 dom.btnNoQuieroDer.disabled = false;
             }
             break;
-
         case 'var_pedido':
             if (estado.varTurnoDeclarar === 'jugador') {
                 dom.btnVar.disabled = false;
                 dom.btnVar.textContent = '📢 DECLARAR';
-            } else {
-                dom.btnVar.textContent = '📺 VAR';
-            }
-            break;
-
-        default:
+            } else dom.btnVar.textContent = '📺 VAR';
             break;
     }
 }
 
-// --- SELECCIÓN Y JUEGO DE CARTA ---
+// --- ACCIONES ---
 function seleccionarCarta(index) {
     if (estado.fase !== 'esperando_seleccion' || estado.pausado) return;
     estado.cartaSeleccionada = index;
     renderizarManoJugador();
+    actualizarBotones();
 }
 
 function jugarCartaSeleccionada() {
     if (estado.fase !== 'esperando_seleccion' || estado.cartaSeleccionada === null || estado.pausado) return;
-
-    const index = estado.cartaSeleccionada;
-    const carta = estado.manoJugador[index];
-    estado.manoJugador.splice(index, 1);
+    const idx = estado.cartaSeleccionada;
+    const carta = estado.manoJugador[idx];
+    estado.manoJugador.splice(idx, 1);
     estado.cartaSeleccionada = null;
-    estado.cartasEnMesa.push({ carta, origen: 'jugador', numero: carta.numero });
+    estado.cartasEnMesa.push({ carta, origen: 'jugador' });
     estado.fase = 'esperando_cpu';
     estado.turnoActual = 'cpu';
     renderizarTodo();
-    setTimeout(() => turnoCpu(), 600 + Math.random() * 500);
+    setTimeout(() => turnoCpu(), 600 + Math.random() * 400);
 }
 
-// --- TURNO DE LA CPU ---
 function turnoCpu() {
     if (estado.fase !== 'esperando_cpu' || estado.pausado) return;
-
     const carta = iaElegirCarta();
     if (!carta) return;
-    estado.cartaCpuElegida = carta;
-    const indexCpu = estado.manoCpu.findIndex(c => c.id === carta.id);
-    if (indexCpu >= 0) estado.manoCpu.splice(indexCpu, 1);
-    estado.cartasEnMesa.push({ carta, origen: 'cpu', numero: carta.numero });
-    estado.cartaCpuElegida = null;
+    estado.manoCpu = estado.manoCpu.filter(c => c.id !== carta.id);
+    estado.cartasEnMesa.push({ carta, origen: 'cpu' });
     estado.fase = 'resolviendo';
     renderizarTodo();
     setTimeout(() => resolverRonda(), 500);
@@ -1159,51 +1171,45 @@ function turnoCpu() {
 // --- IA ---
 function iaElegirCarta() {
     const mano = estado.manoCpu;
-    if (mano.length === 0) return null;
-    const rand = Math.random();
-    if (rand < 0.4) {
-        return mano.reduce((max, c) => (c.numero > max.numero ? c : max), mano[0]);
-    } else if (rand < 0.7) {
-        return mano.reduce((min, c) => (c.numero < min.numero ? c : min), mano[0]);
-    } else {
-        return mano[Math.floor(Math.random() * mano.length)];
-    }
+    if (!mano.length) return null;
+    const r = Math.random();
+    if (r < 0.45) return mano.reduce((a, b) => a.numero > b.numero ? a : b);
+    if (r < 0.75) return mano.reduce((a, b) => a.numero < b.numero ? a : b);
+    return mano[Math.floor(Math.random() * mano.length)];
 }
 
 function iaDecidirCantarPenal() {
     if (estado.penalUsado || estado.rondaActual !== 0) return false;
-    const delantero = mejorCartaDe(estado.manoCpu, 'Del');
-    const tieneBuenDelantero = delantero && delantero.numero >= 7;
-    return tieneBuenDelantero || Math.random() < 0.2;
+    const del = mejorCartaDe(estado.manoCpu, 'Del');
+    return (del && del.numero >= 7) || Math.random() < 0.2;
 }
 
 function iaDecidirCantarGol() {
     if (estado.golUsado || estado.rondaActual < 1) return false;
-    const delantero = mejorCartaDe(estado.manoCpu, 'Del');
-    const tieneBuenDelantero = delantero && delantero.numero >= 6;
-    return tieneBuenDelantero || Math.random() < 0.25;
+    const del = mejorCartaDe(estado.manoCpu, 'Del');
+    return (del && del.numero >= 6) || Math.random() < 0.25;
 }
 
 function iaResponderCanto(tipo) {
-    const rand = Math.random();
+    const r = Math.random();
     if (tipo === 'penal') {
-        const arquero = mejorCartaDe(estado.manoCpu, 'Arq');
-        if (arquero && arquero.numero >= 6) return Math.random() < 0.7 ? 'quiero' : 'var';
-        if (rand < 0.3) return 'quiero';
-        if (rand < 0.55) return 'var';
+        const arq = mejorCartaDe(estado.manoCpu, 'Arq');
+        if (arq && arq.numero >= 6) return Math.random() < 0.7 ? 'quiero' : 'var';
+        if (r < 0.3) return 'quiero';
+        if (r < 0.55) return 'var';
         return 'no_quiero';
     }
     if (tipo === 'gol') {
-        const defensor = mejorCartaDeVarias(estado.manoCpu, ['Def', 'Arq']);
-        if (defensor && defensor.numero >= 5) return Math.random() < 0.6 ? 'quiero' : 'no_quiero';
-        if (rand < 0.25) return 'golazo';
-        if (rand < 0.5) return 'quiero';
+        const def = mejorCartaDeVarias(estado.manoCpu, ['Def', 'Arq']);
+        if (def && def.numero >= 5) return Math.random() < 0.6 ? 'quiero' : 'no_quiero';
+        if (r < 0.25) return 'golazo';
+        if (r < 0.5) return 'quiero';
         return 'no_quiero';
     }
     if (tipo === 'golazo') {
-        const defensor = mejorCartaDeVarias(estado.manoCpu, ['Arq', 'Def']);
-        if (defensor && defensor.numero >= 6) return 'quiero';
-        return rand < 0.4 ? 'quiero' : 'no_quiero';
+        const def = mejorCartaDeVarias(estado.manoCpu, ['Arq', 'Def']);
+        if (def && def.numero >= 6) return 'quiero';
+        return r < 0.4 ? 'quiero' : 'no_quiero';
     }
     return 'no_quiero';
 }
@@ -1212,70 +1218,64 @@ function iaDeclararVar() {
     return numeroMasAltoArqDel(estado.manoCpu);
 }
 
-// --- RESOLUCIÓN DE RONDA ---
+// --- RESOLUCIÓN ---
 function resolverRonda() {
     const cartas = estado.cartasEnMesa;
-    const ultimaJugador = cartas.filter(c => c.origen === 'jugador').pop();
-    const ultimaCpu = cartas.filter(c => c.origen === 'cpu').pop();
-    if (!ultimaJugador || !ultimaCpu) return;
+    const uj = cartas.filter(c => c.origen === 'jugador').pop();
+    const uc = cartas.filter(c => c.origen === 'cpu').pop();
+    if (!uj || !uc) return;
 
-    let ganador = null;
-    if (ultimaJugador.numero > ultimaCpu.numero) {
-        ganador = 'jugador';
+    if (uj.carta.numero > uc.carta.numero) {
         estado.puntosJugador++;
-    } else if (ultimaCpu.numero > ultimaJugador.numero) {
-        ganador = 'cpu';
+        estado.turnoInicial = 'jugador';
+        mostrarMensaje('¡Ganaste la ronda!');
+    } else if (uc.carta.numero > uj.carta.numero) {
         estado.puntosCpu++;
+        estado.turnoInicial = 'cpu';
+        mostrarMensaje('CPU gana la ronda');
     } else {
-        ganador = 'empate';
+        // empate: mantiene quien inició
+        mostrarMensaje('Empate');
     }
-
-    if (ganador === 'jugador') estado.turnoInicial = 'jugador';
-    else if (ganador === 'cpu') estado.turnoInicial = 'cpu';
-    estado.turnoActual = estado.turnoInicial;
     estado.rondaActual++;
-
     renderizarTodo();
-    mostrarMensaje(ganador === 'jugador' ? '¡Ganaste la ronda!' : ganador === 'cpu' ? 'CPU gana la ronda' : 'Empate');
-
     setTimeout(() => verificarGolYContinuar(), 800);
 }
 
 function verificarGolYContinuar() {
-    let golConvertido = false;
+    let gol = false;
     if (estado.puntosJugador >= PUNTOS_PARA_GOL) {
         estado.golesJugador++;
         estado.puntosJugador = 0;
-        golConvertido = true;
+        gol = true;
         mostrarMensaje('⚽ ¡GOL DEL JUGADOR!');
     }
     if (estado.puntosCpu >= PUNTOS_PARA_GOL) {
         estado.golesCpu++;
         estado.puntosCpu = 0;
-        golConvertido = true;
-        if (!golConvertido) mostrarMensaje('⚽ Gol de la CPU');
-        else mostrarMensaje('⚽ ¡GOLES!');
+        gol = true;
+        mostrarMensaje('⚽ Gol de la CPU');
     }
     renderizarTodo();
 
+    // Si hubo gol, la mano termina inmediatamente
+    if (gol) {
+        setTimeout(() => finalizarMano(), 800);
+        return;
+    }
+
+    // Si se acabaron las cartas, termina la mano
     if (estado.manoJugador.length === 0 && estado.manoCpu.length === 0) {
         setTimeout(() => finalizarMano(), 1000);
         return;
     }
 
-    if (golConvertido) {
-        estado.puntosJugador = Math.min(estado.puntosJugador, PUNTOS_PARA_GOL - 1);
-        estado.puntosCpu = Math.min(estado.puntosCpu, PUNTOS_PARA_GOL - 1);
-    }
-
-    if (estado.manoJugador.length > 0 && estado.manoCpu.length > 0) {
-        estado.fase = 'esperando_seleccion';
-        estado.cartaSeleccionada = null;
-        setTimeout(() => verificarCantosCpu(), 400);
-        renderizarTodo();
-    } else {
-        finalizarMano();
-    }
+    // Continuar con siguiente ronda
+    estado.turnoActual = estado.turnoInicial;
+    estado.fase = 'esperando_seleccion';
+    estado.cartaSeleccionada = null;
+    setTimeout(() => verificarCantosCpu(), 400);
+    renderizarTodo();
 }
 
 function verificarCantosCpu() {
@@ -1292,16 +1292,14 @@ function verificarCantosCpu() {
     }
     if (estado.turnoActual === 'jugador') {
         estado.fase = 'esperando_seleccion';
-        renderizarTodo();
     } else {
         estado.fase = 'esperando_cpu';
-        estado.turnoActual = 'cpu';
-        renderizarTodo();
         setTimeout(() => turnoCpu(), 500 + Math.random() * 400);
     }
+    renderizarTodo();
 }
 
-// --- CANTOS DEL JUGADOR ---
+// --- CANTOS ---
 function jugadorPidePenal() {
     if (estado.fase !== 'esperando_seleccion' || estado.rondaActual !== 0 || estado.penalUsado) return;
     estado.fase = 'penal_pedido';
@@ -1310,10 +1308,7 @@ function jugadorPidePenal() {
     estado.esperandoRespuestaDe = 'cpu';
     estado.penalUsado = true;
     renderizarTodo();
-    setTimeout(() => {
-        const respuesta = iaResponderCanto('penal');
-        procesarRespuestaCpu(respuesta);
-    }, 800 + Math.random() * 600);
+    setTimeout(() => procesarRespuestaCpu(iaResponderCanto('penal')), 800 + Math.random() * 600);
 }
 
 function cpuPidePenal() {
@@ -1333,10 +1328,7 @@ function jugadorPideGol() {
     estado.esperandoRespuestaDe = 'cpu';
     estado.golUsado = true;
     renderizarTodo();
-    setTimeout(() => {
-        const respuesta = iaResponderCanto('gol');
-        procesarRespuestaCpu(respuesta);
-    }, 800 + Math.random() * 600);
+    setTimeout(() => procesarRespuestaCpu(iaResponderCanto('gol')), 800 + Math.random() * 600);
 }
 
 function cpuPideGol() {
@@ -1348,219 +1340,144 @@ function cpuPideGol() {
     renderizarTodo();
 }
 
-// --- RESPUESTAS DEL JUGADOR ---
-function jugadorRespondeQuiero() {
-    if (estado.esperandoRespuestaDe !== 'jugador') return;
-    procesarRespuestaJugador('quiero');
-}
-function jugadorRespondeNoQuiero() {
-    if (estado.esperandoRespuestaDe !== 'jugador') return;
-    procesarRespuestaJugador('no_quiero');
-}
-function jugadorRespondeVar() {
-    if (estado.esperandoRespuestaDe !== 'jugador' || estado.cantoActual !== 'penal') return;
-    procesarRespuestaJugador('var');
-}
-function jugadorRespondeGolazo() {
-    if (estado.esperandoRespuestaDe !== 'jugador' || estado.cantoActual !== 'gol') return;
-    procesarRespuestaJugador('golazo');
-}
+function jugadorRespondeQuiero() { if (estado.esperandoRespuestaDe === 'jugador') procesarRespuestaJugador('quiero'); }
+function jugadorRespondeNoQuiero() { if (estado.esperandoRespuestaDe === 'jugador') procesarRespuestaJugador('no_quiero'); }
+function jugadorRespondeVar() { if (estado.esperandoRespuestaDe === 'jugador' && estado.cantoActual === 'penal') procesarRespuestaJugador('var'); }
+function jugadorRespondeGolazo() { if (estado.esperandoRespuestaDe === 'jugador' && estado.cantoActual === 'gol') procesarRespuestaJugador('golazo'); }
 
-function procesarRespuestaJugador(respuesta) {
-    const cantoActual = estado.cantoActual;
-    const pedidoPor = estado.cantoPedidoPor;
-
-    if (respuesta === 'no_quiero') {
-        if (cantoActual === 'penal' || cantoActual === 'gol') {
-            sumarPuntos(pedidoPor, 1);
-            mostrarMensaje('No quiso - +1 punto');
-        } else if (cantoActual === 'golazo') {
-            sumarPuntos(pedidoPor, 2);
-            mostrarMensaje('No quiso - +2 puntos');
-        }
+function procesarRespuestaJugador(resp) {
+    const { cantoActual, cantoPedidoPor } = estado;
+    if (resp === 'no_quiero') {
+        sumarPuntos(cantoPedidoPor, cantoActual === 'golazo' ? 2 : 1);
+        mostrarMensaje('No quiso');
         finalizarCanto();
-        return;
-    }
-    if (respuesta === 'var' && cantoActual === 'penal') {
+    } else if (resp === 'var') {
         iniciarVar();
-        return;
-    }
-    if (respuesta === 'golazo' && cantoActual === 'gol') {
+    } else if (resp === 'golazo') {
         estado.fase = 'golazo_pedido';
         estado.cantoActual = 'golazo';
-        estado.cantoPedidoPor = (pedidoPor === 'jugador') ? 'cpu' : 'jugador';
-        estado.esperandoRespuestaDe = pedidoPor;
+        estado.cantoPedidoPor = (cantoPedidoPor === 'jugador') ? 'cpu' : 'jugador';
+        estado.esperandoRespuestaDe = cantoPedidoPor;
         estado.golazoUsado = true;
         renderizarTodo();
         if (estado.esperandoRespuestaDe === 'cpu') {
-            setTimeout(() => {
-                const resp = iaResponderCanto('golazo');
-                procesarRespuestaCpu(resp);
-            }, 800 + Math.random() * 600);
+            setTimeout(() => procesarRespuestaCpu(iaResponderCanto('golazo')), 800);
         }
-        return;
-    }
-    if (respuesta === 'quiero') {
-        ejecutarCanto(cantoActual, pedidoPor);
+    } else if (resp === 'quiero') {
+        ejecutarCanto(cantoActual, cantoPedidoPor);
     }
 }
 
-function procesarRespuestaCpu(respuesta) {
-    const cantoActual = estado.cantoActual;
-    const pedidoPor = estado.cantoPedidoPor;
-
-    if (respuesta === 'no_quiero') {
-        if (cantoActual === 'penal' || cantoActual === 'gol') {
-            sumarPuntos(pedidoPor, 1);
-        } else if (cantoActual === 'golazo') {
-            sumarPuntos(pedidoPor, 2);
-        }
+function procesarRespuestaCpu(resp) {
+    const { cantoActual, cantoPedidoPor } = estado;
+    if (resp === 'no_quiero') {
+        sumarPuntos(cantoPedidoPor, cantoActual === 'golazo' ? 2 : 1);
         mostrarMensaje('CPU: No quiero');
         finalizarCanto();
-        return;
-    }
-    if (respuesta === 'var' && cantoActual === 'penal') {
+    } else if (resp === 'var') {
         iniciarVar();
-        return;
-    }
-    if (respuesta === 'golazo' && cantoActual === 'gol') {
+    } else if (resp === 'golazo') {
         estado.fase = 'golazo_pedido';
         estado.cantoActual = 'golazo';
         estado.cantoPedidoPor = 'cpu';
         estado.esperandoRespuestaDe = 'jugador';
         estado.golazoUsado = true;
         renderizarTodo();
-        return;
-    }
-    if (respuesta === 'quiero') {
-        ejecutarCanto(cantoActual, pedidoPor);
+    } else if (resp === 'quiero') {
+        ejecutarCanto(cantoActual, cantoPedidoPor);
     }
 }
 
-// --- EJECUCIÓN DE CANTOS (Penal, Gol, Golazo) ---
 function ejecutarCanto(tipo, pedidoPor) {
     let atacante, defensor;
+    const atacanteMano = pedidoPor === 'jugador' ? estado.manoJugador : estado.manoCpu;
+    const defensorMano = pedidoPor === 'jugador' ? estado.manoCpu : estado.manoJugador;
 
     if (tipo === 'penal') {
-        if (pedidoPor === 'jugador') {
-            atacante = mejorCartaDe(estado.manoJugador, 'Del');
-            defensor = mejorCartaDe(estado.manoCpu, 'Arq');
-        } else {
-            atacante = mejorCartaDe(estado.manoCpu, 'Del');
-            defensor = mejorCartaDe(estado.manoJugador, 'Arq');
-        }
-        if (!atacante && !defensor) {
-            sumarPuntos(pedidoPor === 'jugador' ? 'cpu' : 'jugador', 2);
-            mostrarMensaje('Atacante sin delantero - +2 defensor');
-        } else if (!atacante) {
-            sumarPuntos(pedidoPor === 'jugador' ? 'cpu' : 'jugador', 2);
-            mostrarMensaje('Atacante sin delantero - +2 defensor');
-        } else if (!defensor) {
-            convertirGol(pedidoPor);
-            mostrarMensaje('⚽ ¡GOL! Defensor sin arquero');
-        } else if (atacante.numero > defensor.numero) {
-            convertirGol(pedidoPor);
-            mostrarMensaje('⚽ ¡GOL! Delantero supera al arquero');
+        atacante = mejorCartaDe(atacanteMano, 'Del');
+        defensor = mejorCartaDe(defensorMano, 'Arq');
+    } else {
+        atacante = mejorCartaDe(atacanteMano, 'Del');
+        defensor = mejorCartaDeVarias(defensorMano, ['Def', 'Arq']);
+    }
+
+    if (!atacante && !defensor) {
+        if (tipo !== 'penal') {
+            const maxA = Math.max(...atacanteMano.map(c => c.numero), 0);
+            const maxD = Math.max(...defensorMano.map(c => c.numero), 0);
+            if (maxA > maxD) convertirGol(pedidoPor);
+            else if (maxD > maxA) sumarPuntos(pedidoPor === 'jugador' ? 'cpu' : 'jugador', 2);
+            else mostrarMensaje('Empate');
         } else {
             sumarPuntos(pedidoPor === 'jugador' ? 'cpu' : 'jugador', 2);
-            mostrarMensaje('Atajado - +2 defensor');
+            mostrarMensaje('Sin delantero ni arquero - +2 defensor');
         }
-    } else if (tipo === 'gol' || tipo === 'golazo') {
-        if (pedidoPor === 'jugador') {
-            atacante = mejorCartaDe(estado.manoJugador, 'Del');
-            defensor = mejorCartaDeVarias(estado.manoCpu, ['Def', 'Arq']);
-        } else {
-            atacante = mejorCartaDe(estado.manoCpu, 'Del');
-            defensor = mejorCartaDeVarias(estado.manoJugador, ['Def', 'Arq']);
-        }
-        if (!atacante && !defensor) {
-            const manoAtacante = pedidoPor === 'jugador' ? estado.manoJugador : estado.manoCpu;
-            const manoDefensor = pedidoPor === 'jugador' ? estado.manoCpu : estado.manoJugador;
-            const maxAtacante = manoAtacante.length > 0 ? Math.max(...manoAtacante.map(c => c.numero)) : 0;
-            const maxDefensor = manoDefensor.length > 0 ? Math.max(...manoDefensor.map(c => c.numero)) : 0;
-            if (maxAtacante > maxDefensor) {
-                convertirGol(pedidoPor);
-                mostrarMensaje('⚽ ¡GOL!');
-            } else if (maxDefensor > maxAtacante) {
-                sumarPuntos(pedidoPor === 'jugador' ? 'cpu' : 'jugador', 2);
-                mostrarMensaje('Defendido - +2 puntos');
-            } else {
-                mostrarMensaje('Empate - sin puntos');
-            }
-        } else if (!atacante) {
-            sumarPuntos(pedidoPor === 'jugador' ? 'cpu' : 'jugador', 2);
-            mostrarMensaje('Atacante sin delantero - +2 defensor');
-        } else if (!defensor) {
-            convertirGol(pedidoPor);
-            mostrarMensaje('⚽ ¡GOL! Defensor sin cobertura');
-        } else if (atacante.numero > defensor.numero) {
-            convertirGol(pedidoPor);
-            mostrarMensaje('⚽ ¡GOL!');
-        } else {
-            sumarPuntos(pedidoPor === 'jugador' ? 'cpu' : 'jugador', 2);
-            mostrarMensaje('Defendido - +2 defensor');
-        }
+    } else if (!atacante) {
+        sumarPuntos(pedidoPor === 'jugador' ? 'cpu' : 'jugador', 2);
+        mostrarMensaje('Atacante sin delantero');
+    } else if (!defensor) {
+        convertirGol(pedidoPor);
+        mostrarMensaje('⚽ ¡GOL! Defensor sin cobertura');
+    } else if (atacante.numero > defensor.numero) {
+        convertirGol(pedidoPor);
+        mostrarMensaje('⚽ ¡GOL!');
+    } else {
+        sumarPuntos(pedidoPor === 'jugador' ? 'cpu' : 'jugador', 2);
+        mostrarMensaje('Atajado/Defendido');
     }
     finalizarCanto();
 }
 
-// --- VAR ---
 function iniciarVar() {
     estado.fase = 'var_pedido';
     estado.varTurnoDeclarar = 'jugador';
-    estado.varDeclaraciones.jugador = null;
     estado.varDeclaraciones.cpu = iaDeclararVar();
     renderizarTodo();
     setTimeout(() => declararVarJugador(), 300);
 }
 
 function declararVarJugador() {
-    const numeroReal = numeroMasAltoArqDel(estado.manoJugador);
-    const declaradoStr = prompt(`VAR: Declará tu número más alto entre Arquero y Delantero.\n(Tenés: ${numeroReal})\n\nIngresá el número que querés declarar (0-10):`, numeroReal.toString());
-    let declarado = parseInt(declaradoStr);
-    if (isNaN(declarado) || declarado < 0 || declarado > 10) declarado = 0;
-    estado.varDeclaraciones.jugador = declarado;
+    const real = numeroMasAltoArqDel(estado.manoJugador);
+    const input = prompt(`VAR: Tu número más alto (Arq/Del) es ${real}. Declará (0-10):`, real);
+    let decl = parseInt(input);
+    if (isNaN(decl) || decl < 0 || decl > 10) decl = 0;
+    estado.varDeclaraciones.jugador = decl;
 
-    if (declarado !== numeroReal) {
+    if (decl !== real) {
         estado.golesCpu++;
         estado.puntosJugador = 0;
         estado.puntosCpu = 0;
-        mostrarMensaje('📺 VAR: ¡Mentiste! Gol para la CPU');
+        mostrarMensaje('📺 VAR: Mentiste. Gol CPU');
         finalizarCanto();
         setTimeout(() => finalizarMano(), 1200);
         return;
     }
 
-    const declJug = estado.varDeclaraciones.jugador;
-    const declCpu = estado.varDeclaraciones.cpu;
-    if (declJug > declCpu) {
-        mostrarMensaje('📺 VAR: Ganaste - Se ejecuta el Penal');
+    const dj = estado.varDeclaraciones.jugador;
+    const dc = estado.varDeclaraciones.cpu;
+    if (dj > dc) {
+        mostrarMensaje('📺 VAR: Ganaste');
         ejecutarCanto('penal', estado.cantoPedidoPor);
-    } else if (declCpu > declJug) {
+    } else if (dc > dj) {
         sumarPuntos(estado.cantoPedidoPor === 'jugador' ? 'cpu' : 'jugador', 2);
-        mostrarMensaje('📺 VAR: CPU gana - +2 puntos');
+        mostrarMensaje('📺 VAR: CPU gana');
         finalizarCanto();
     } else {
         if (estado.turnoInicial === 'jugador') {
-            mostrarMensaje('📺 VAR: Empate - Gana jugador por mano');
+            mostrarMensaje('Empate VAR, gana jugador');
             ejecutarCanto('penal', estado.cantoPedidoPor);
         } else {
             sumarPuntos(estado.cantoPedidoPor === 'jugador' ? 'cpu' : 'jugador', 2);
-            mostrarMensaje('📺 VAR: Empate - Gana CPU por mano');
             finalizarCanto();
         }
     }
 }
 
-// --- UTILIDADES DE PUNTUACIÓN ---
 function convertirGol(quien) {
-    if (quien === 'jugador') {
-        estado.golesJugador++;
-    } else {
-        estado.golesCpu++;
-    }
-    estado.puntosJugador = Math.min(estado.puntosJugador, PUNTOS_PARA_GOL - 1);
-    estado.puntosCpu = Math.min(estado.puntosCpu, PUNTOS_PARA_GOL - 1);
+    if (quien === 'jugador') estado.golesJugador++;
+    else estado.golesCpu++;
+    estado.puntosJugador = 0;
+    estado.puntosCpu = 0;
 }
 
 function sumarPuntos(quien, cantidad) {
@@ -1570,14 +1487,14 @@ function sumarPuntos(quien, cantidad) {
             if (estado.puntosJugador >= PUNTOS_PARA_GOL) {
                 estado.golesJugador++;
                 estado.puntosJugador = 0;
-                mostrarMensaje('⚽ ¡GOL DEL JUGADOR!');
+                mostrarMensaje('⚽ ¡GOL!');
             }
         } else {
             estado.puntosCpu++;
             if (estado.puntosCpu >= PUNTOS_PARA_GOL) {
                 estado.golesCpu++;
                 estado.puntosCpu = 0;
-                mostrarMensaje('⚽ Gol de la CPU');
+                mostrarMensaje('⚽ Gol CPU');
             }
         }
     }
@@ -1589,8 +1506,6 @@ function finalizarCanto() {
     estado.esperandoRespuestaDe = null;
     estado.varDeclaraciones = { jugador: null, cpu: null };
     estado.varTurnoDeclarar = null;
-    renderizarTodo();
-
     if (estado.manoJugador.length === 0 && estado.manoCpu.length === 0) {
         setTimeout(() => finalizarMano(), 800);
         return;
@@ -1600,14 +1515,11 @@ function finalizarCanto() {
     estado.cartaSeleccionada = null;
     if (estado.turnoActual === 'cpu') {
         estado.fase = 'esperando_cpu';
-        renderizarTodo();
-        setTimeout(() => turnoCpu(), 500 + Math.random() * 400);
-    } else {
-        renderizarTodo();
+        setTimeout(() => turnoCpu(), 500);
     }
+    renderizarTodo();
 }
 
-// --- FIN DE MANO Y PARTIDO ---
 function finalizarMano() {
     estado.historialManos.push({
         minuto: MINUTOS[estado.manoActual],
@@ -1620,7 +1532,7 @@ function finalizarMano() {
     if (estado.manoActual >= TOTAL_MANOS) {
         estado.fase = 'fin_partido';
         renderizarTodo();
-        setTimeout(() => mostrarFinPartido(), 600);
+        setTimeout(mostrarFinPartido, 600);
         return;
     }
     iniciarNuevaMano();
@@ -1632,7 +1544,6 @@ function iniciarNuevaMano() {
     estado.rondaActual = 0;
     estado.cartasEnMesa = [];
     estado.cartaSeleccionada = null;
-    estado.cartaCpuElegida = null;
     estado.penalUsado = false;
     estado.golUsado = false;
     estado.golazoUsado = false;
@@ -1640,54 +1551,42 @@ function iniciarNuevaMano() {
     estado.cantoPedidoPor = null;
     estado.esperandoRespuestaDe = null;
     estado.varDeclaraciones = { jugador: null, cpu: null };
-    estado.varTurnoDeclarar = null;
 
     const mazo = mezclarMazo(crearMazo());
-    const reparto = repartir(mazo);
-    estado.mazo = reparto.mazoRestante;
-    estado.manoJugador = ordenarMano(reparto.manoJ);
-    estado.manoCpu = ordenarMano(reparto.manoC);
+    const { manoJ, manoC } = repartir(mazo);
+    estado.manoJugador = ordenarMano(manoJ);
+    estado.manoCpu = ordenarMano(manoC);
     estado.turnoInicial = (estado.manoActual % 2 === 0) ? 'jugador' : 'cpu';
     estado.turnoActual = estado.turnoInicial;
     estado.fase = 'esperando_seleccion';
     renderizarTodo();
-
     if (estado.turnoActual === 'cpu') {
         estado.fase = 'esperando_cpu';
-        renderizarTodo();
-        setTimeout(() => turnoCpu(), 600 + Math.random() * 500);
+        setTimeout(() => turnoCpu(), 600);
     }
 }
 
-// --- OVERLAY MARCADOR DETALLADO ---
+// --- OVERLAYS Y MENSAJES ---
 function mostrarMarcadorDetallado() {
     estado.pausado = true;
     dom.overlayMarcador.classList.remove('oculto');
     dom.cuerpoTablaMarcador.innerHTML = '';
-
     for (let i = 0; i < TOTAL_MANOS; i++) {
         const minuto = MINUTOS[i];
-        const fila = document.createElement('tr');
-        if (i === estado.manoActual && estado.fase !== 'fin_partido') {
-            fila.classList.add('fila-actual');
-        }
+        const tr = document.createElement('tr');
+        if (i === estado.manoActual && estado.fase !== 'fin_partido') tr.classList.add('fila-actual');
         const hist = estado.historialManos.find(h => h.minuto === minuto);
-        const golesJ = hist ? hist.golesJugador : '-';
-        const golesC = hist ? hist.golesCpu : '-';
-        const puntosJ = hist ? hist.puntosJugador : 0;
-        const puntosC = hist ? hist.puntosCpu : 0;
-        let estrellasJ = '', estrellasC = '';
+        const gJ = hist ? hist.golesJugador : '-';
+        const gC = hist ? hist.golesCpu : '-';
+        const pJ = hist ? hist.puntosJugador : 0;
+        const pC = hist ? hist.puntosCpu : 0;
+        let eJ = '', eC = '';
         for (let s = 0; s < 3; s++) {
-            estrellasJ += s < puntosJ ? '★' : '☆';
-            estrellasC += s < puntosC ? '★' : '☆';
+            eJ += s < pJ ? '★' : '☆';
+            eC += s < pC ? '★' : '☆';
         }
-        fila.innerHTML = `
-            <td>${minuto}'</td>
-            <td>${estrellasJ} ⚽${golesJ}</td>
-            <td style="color:rgba(255,255,255,0.3)">vs</td>
-            <td>⚽${golesC} ${estrellasC}</td>
-        `;
-        dom.cuerpoTablaMarcador.appendChild(fila);
+        tr.innerHTML = `<td>${minuto}'</td><td>${eJ} ⚽${gJ}</td><td style="color:rgba(255,255,255,0.3)">vs</td><td>⚽${gC} ${eC}</td>`;
+        dom.cuerpoTablaMarcador.appendChild(tr);
     }
 }
 
@@ -1696,163 +1595,95 @@ function ocultarMarcadorDetallado() {
     dom.overlayMarcador.classList.add('oculto');
     if (estado.fase !== 'fin_partido') {
         renderizarTodo();
-        if (estado.fase === 'esperando_cpu' && estado.turnoActual === 'cpu') {
-            setTimeout(() => turnoCpu(), 400);
-        }
+        if (estado.fase === 'esperando_cpu' && estado.turnoActual === 'cpu') setTimeout(turnoCpu, 400);
     }
 }
 
-// --- FIN DE PARTIDO ---
 function mostrarFinPartido() {
     estado.pausado = true;
     dom.overlayFin.classList.remove('oculto');
-    const golesJ = estado.golesJugador;
-    const golesC = estado.golesCpu;
-    if (golesJ > golesC) {
+    const gJ = estado.golesJugador, gC = estado.golesCpu;
+    if (gJ > gC) {
         dom.resultadoTitulo.textContent = '¡GANASTE!';
         dom.resultadoTitulo.className = 'resultado-titulo ganaste';
-    } else if (golesC > golesJ) {
+    } else if (gC > gJ) {
         dom.resultadoTitulo.textContent = 'PERDISTE';
         dom.resultadoTitulo.className = 'resultado-titulo perdiste';
     } else {
         dom.resultadoTitulo.textContent = 'EMPATE';
         dom.resultadoTitulo.className = 'resultado-titulo empate';
     }
-    dom.resultadoMarcador.textContent = `Jugador ${golesJ} - ${golesC} CPU`;
+    dom.resultadoMarcador.textContent = `Jugador ${gJ} - ${gC} CPU`;
 }
 
 function reiniciarPartido() {
     dom.overlayFin.classList.add('oculto');
     estado.pausado = false;
-    estado.golesJugador = 0;
-    estado.golesCpu = 0;
-    estado.puntosJugador = 0;
-    estado.puntosCpu = 0;
-    estado.manoActual = 0;
-    estado.rondaActual = 0;
-    estado.cartasEnMesa = [];
-    estado.cartaSeleccionada = null;
-    estado.cartaCpuElegida = null;
-    estado.historialManos = [];
-    estado.penalUsado = false;
-    estado.golUsado = false;
-    estado.golazoUsado = false;
-    estado.cantoActual = null;
-    estado.cantoPedidoPor = null;
-    estado.esperandoRespuestaDe = null;
-    estado.varDeclaraciones = { jugador: null, cpu: null };
-    estado.varTurnoDeclarar = null;
-    estado.turnoInicial = 'jugador';
-    estado.turnoActual = 'jugador';
-    estado.fase = 'esperando_seleccion';
-
+    Object.assign(estado, {
+        golesJugador: 0, golesCpu: 0, puntosJugador: 0, puntosCpu: 0,
+        manoActual: 0, rondaActual: 0, cartasEnMesa: [], cartaSeleccionada: null,
+        historialManos: [], penalUsado: false, golUsado: false, golazoUsado: false,
+        cantoActual: null, cantoPedidoPor: null, esperandoRespuestaDe: null,
+        varDeclaraciones: { jugador: null, cpu: null }, turnoInicial: 'jugador',
+        turnoActual: 'jugador', fase: 'esperando_seleccion'
+    });
     const mazo = mezclarMazo(crearMazo());
-    const reparto = repartir(mazo);
-    estado.mazo = reparto.mazoRestante;
-    estado.manoJugador = ordenarMano(reparto.manoJ);
-    estado.manoCpu = ordenarMano(reparto.manoC);
+    const { manoJ, manoC } = repartir(mazo);
+    estado.manoJugador = ordenarMano(manoJ);
+    estado.manoCpu = ordenarMano(manoC);
     renderizarTodo();
-    dom.overlayFin.classList.add('oculto');
-    dom.overlayMarcador.classList.add('oculto');
 }
 
-// --- MENSAJE FLOTANTE ---
-let timeoutMensaje = null;
+let timeoutMensaje;
 function mostrarMensaje(texto) {
     if (timeoutMensaje) clearTimeout(timeoutMensaje);
     dom.mensajeFlotante.textContent = texto;
     dom.mensajeFlotante.classList.add('mostrar');
     timeoutMensaje = setTimeout(() => {
         dom.mensajeFlotante.classList.remove('mostrar');
-        timeoutMensaje = null;
     }, 1800);
 }
 
-// --- INICIALIZACIÓN Y EVENTOS ---
+// --- INICIALIZACIÓN ---
 function inicializarJuego() {
     cacheDom();
-
     const mazo = mezclarMazo(crearMazo());
-    const reparto = repartir(mazo);
-    estado.mazo = reparto.mazoRestante;
-    estado.manoJugador = ordenarMano(reparto.manoJ);
-    estado.manoCpu = ordenarMano(reparto.manoC);
-    estado.turnoInicial = 'jugador';
-    estado.turnoActual = 'jugador';
+    const { manoJ, manoC } = repartir(mazo);
+    estado.manoJugador = ordenarMano(manoJ);
+    estado.manoCpu = ordenarMano(manoC);
     estado.fase = 'esperando_seleccion';
 
-    dom.btnPenal.addEventListener('click', () => {
-        if (!dom.btnPenal.disabled) jugadorPidePenal();
-    });
-    dom.btnQuieroIzq.addEventListener('click', () => {
-        if (!dom.btnQuieroIzq.disabled) jugadorRespondeQuiero();
-    });
-    dom.btnNoQuieroIzq.addEventListener('click', () => {
-        if (!dom.btnNoQuieroIzq.disabled) jugadorRespondeNoQuiero();
-    });
+    dom.btnPenal.addEventListener('click', () => { if (!dom.btnPenal.disabled) jugadorPidePenal(); });
+    dom.btnQuieroIzq.addEventListener('click', () => { if (!dom.btnQuieroIzq.disabled) jugadorRespondeQuiero(); });
+    dom.btnNoQuieroIzq.addEventListener('click', () => { if (!dom.btnNoQuieroIzq.disabled) jugadorRespondeNoQuiero(); });
     dom.btnVar.addEventListener('click', () => {
         if (!dom.btnVar.disabled) {
-            if (estado.fase === 'var_pedido' && estado.varTurnoDeclarar === 'jugador') {
-                declararVarJugador();
-            } else if (estado.fase === 'penal_pedido') {
-                jugadorRespondeVar();
-            }
+            if (estado.fase === 'var_pedido' && estado.varTurnoDeclarar === 'jugador') declararVarJugador();
+            else if (estado.fase === 'penal_pedido') jugadorRespondeVar();
         }
     });
-    dom.btnGol.addEventListener('click', () => {
-        if (!dom.btnGol.disabled) jugadorPideGol();
-    });
-    dom.btnQuieroDer.addEventListener('click', () => {
-        if (!dom.btnQuieroDer.disabled) jugadorRespondeQuiero();
-    });
-    dom.btnNoQuieroDer.addEventListener('click', () => {
-        if (!dom.btnNoQuieroDer.disabled) jugadorRespondeNoQuiero();
-    });
-    dom.btnGolazo.addEventListener('click', () => {
-        if (!dom.btnGolazo.disabled) jugadorRespondeGolazo();
-    });
+    dom.btnGol.addEventListener('click', () => { if (!dom.btnGol.disabled) jugadorPideGol(); });
+    dom.btnQuieroDer.addEventListener('click', () => { if (!dom.btnQuieroDer.disabled) jugadorRespondeQuiero(); });
+    dom.btnNoQuieroDer.addEventListener('click', () => { if (!dom.btnNoQuieroDer.disabled) jugadorRespondeNoQuiero(); });
+    dom.btnGolazo.addEventListener('click', () => { if (!dom.btnGolazo.disabled) jugadorRespondeGolazo(); });
+    dom.btnJugarCarta.addEventListener('click', () => { if (!dom.btnJugarCarta.disabled) jugarCartaSeleccionada(); });
 
     dom.panelMarcador.addEventListener('click', () => {
-        if (!estado.pausado || !dom.overlayMarcador.classList.contains('oculto')) {
-            mostrarMarcadorDetallado();
-        }
+        if (!estado.pausado || !dom.overlayMarcador.classList.contains('oculto')) mostrarMarcadorDetallado();
     });
     dom.btnVolverMarcador.addEventListener('click', ocultarMarcadorDetallado);
     dom.btnRevancha.addEventListener('click', reiniciarPartido);
-    dom.btnInicio.addEventListener('click', () => {
-        window.location.href = 'index.html';
-    });
+    dom.btnInicio.addEventListener('click', () => window.location.href = 'index.html');
 
-    window.addEventListener('resize', () => {
-        if (!estado.pausado) renderizarTodo();
-    });
-
+    window.addEventListener('resize', () => { if (!estado.pausado) renderizarTodo(); });
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-            if (!dom.overlayMarcador.classList.contains('oculto')) {
-                ocultarMarcadorDetallado();
-            }
-        }
-        if (e.key === 'Enter' && estado.fase === 'esperando_seleccion' && estado.cartaSeleccionada !== null) {
-            jugarCartaSeleccionada();
-        }
+        if (e.key === 'Escape' && !dom.overlayMarcador.classList.contains('oculto')) ocultarMarcadorDetallado();
+        if (e.key === 'Enter' && estado.fase === 'esperando_seleccion' && estado.cartaSeleccionada !== null) jugarCartaSeleccionada();
     });
-
-    document.addEventListener('touchstart', function(e) {
-        if (e.touches.length > 1) e.preventDefault();
-    }, { passive: false });
-
-    let lastTouchEnd = 0;
-    document.addEventListener('touchend', function(e) {
-        const now = Date.now();
-        if (now - lastTouchEnd <= 300) e.preventDefault();
-        lastTouchEnd = now;
-    }, false);
 
     renderizarTodo();
 }
 
-// --- INICIAR ---
 document.addEventListener('DOMContentLoaded', inicializarJuego);
     </script>
 </body>
