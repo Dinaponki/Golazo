@@ -471,6 +471,109 @@
             box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
         }
 
+        /* Overlay bienvenida */
+        .overlay-bienvenida {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 300;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .overlay-bienvenida.oculto {
+            display: none;
+        }
+
+        .bienvenida-contenedor {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            width: 100%;
+            max-width: 360px;
+            background: var(--gris-oscuro);
+            border-radius: var(--borde-redondo);
+            padding: 32px 24px;
+            box-shadow: var(--sombra-carta);
+        }
+
+        .bienvenida-titulo {
+            font-size: clamp(32px, 8vw, 48px);
+            font-weight: 900;
+            letter-spacing: -0.02em;
+            color: var(--dorado);
+            text-align: center;
+        }
+
+        .bienvenida-subtitulo {
+            font-size: clamp(14px, 3.5vmin, 18px);
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.7);
+            text-align: center;
+        }
+
+        .input-nombre {
+            width: 100%;
+            padding: 14px 16px;
+            border-radius: 12px;
+            border: 2px solid var(--gris-medio);
+            background: var(--gris-medio);
+            color: var(--blanco);
+            font-size: clamp(16px, 4vmin, 20px);
+            font-weight: 700;
+            text-align: center;
+            outline: none;
+            transition: var(--transicion);
+        }
+
+        .input-nombre:focus {
+            border-color: var(--dorado);
+            background: #3a3a3a;
+        }
+
+        .input-nombre::placeholder {
+            color: rgba(255, 255, 255, 0.3);
+            font-weight: 400;
+        }
+
+        .contador-caracteres {
+            font-size: clamp(11px, 2.5vmin, 13px);
+            color: rgba(255, 255, 255, 0.4);
+            letter-spacing: 0.05em;
+        }
+
+        .btn-empezar {
+            width: 100%;
+            padding: 16px 24px;
+            border-radius: 50px;
+            font-size: clamp(16px, 4vmin, 20px);
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            cursor: pointer;
+            border: none;
+            background: var(--dorado);
+            color: #1a2a10;
+            transition: var(--transicion);
+        }
+
+        .btn-empezar:hover {
+            background: var(--dorado-claro);
+            box-shadow: 0 4px 20px rgba(200, 168, 78, 0.4);
+        }
+
+        .btn-empezar:active {
+            transform: scale(0.97);
+        }
+
         /* Overlay marcador */
         .overlay-marcador {
             position: fixed;
@@ -732,13 +835,24 @@
     </style>
 </head>
 <body>
+    <!-- Overlay de bienvenida -->
+    <div class="overlay-bienvenida" id="overlayBienvenida">
+        <div class="bienvenida-contenedor">
+            <div class="bienvenida-titulo">⚽ GOLAZO</div>
+            <div class="bienvenida-subtitulo">Elegí tu nombre</div>
+            <input type="text" id="inputNombre" class="input-nombre" maxlength="12" placeholder="Tu nombre..." autocomplete="off">
+            <div class="contador-caracteres" id="contadorCaracteres">0/12</div>
+            <button class="btn-empezar" id="btnEmpezar">▶ JUGAR</button>
+        </div>
+    </div>
+
     <!-- Overlay marcador detallado -->
     <div class="overlay-marcador oculto" id="overlayMarcador">
         <table class="tabla-marcador" id="tablaMarcador">
             <thead>
                 <tr>
                     <th>Minuto</th>
-                    <th>Jugador</th>
+                    <th id="thJugador">Jugador</th>
                     <th></th>
                     <th>CPU</th>
                 </tr>
@@ -765,7 +879,7 @@
     <div class="juego" id="juego">
         <!-- Zona CPU -->
         <div class="zona-cpu">
-            <span class="etiqueta-turno" id="etiquetaCpu">Turno del CPU</span>
+            <span class="etiqueta-turno" id="etiquetaCpu">Turno de CPU</span>
             <div class="mano-cpu" id="manoCpu"></div>
         </div>
 
@@ -795,14 +909,14 @@
 
         <!-- Zona jugador -->
         <div class="zona-jugador">
-            <span class="etiqueta-turno" id="etiquetaJugador">Turno del jugador</span>
+            <span class="etiqueta-turno" id="etiquetaJugador">Turno de <span id="nombreEnTurno">Jugador</span></span>
             <div class="mano-jugador" id="manoJugador"></div>
         </div>
 
         <!-- Panel marcador -->
         <div class="panel-marcador" id="panelMarcador">
             <div class="jugador-info">
-                <span class="nombre">Jugador</span>
+                <span class="nombre" id="nombreJugadorEtiqueta">Jugador</span>
                 <span class="goles-numero" id="golesJugador">0</span>
                 <span class="estrellas" id="estrellasJugador">
                     <span class="estrella">★</span><span class="estrella">★</span><span class="estrella">★</span>
@@ -845,6 +959,9 @@
                 manoCpu: [],
                 golesJugador: 0,
                 golesCpu: 0,
+                golesInicioManoJugador: 0,
+                golesInicioManoCpu: 0,
+                golEnMano: false,
                 puntosJugador: 0,
                 puntosCpu: 0,
                 manoActual: 0,
@@ -864,6 +981,7 @@
                 esperandoRespuestaDe: null,
                 historialManos: [],
                 pausado: false,
+                nombreJugador: 'Jugador',
             };
 
             // Referencias DOM cacheadas
@@ -900,6 +1018,19 @@
                 dom.indicadorCanto = document.getElementById('indicadorCanto');
                 dom.etiquetaCpu = document.getElementById('etiquetaCpu');
                 dom.etiquetaJugador = document.getElementById('etiquetaJugador');
+                dom.overlayBienvenida = document.getElementById('overlayBienvenida');
+                dom.inputNombre = document.getElementById('inputNombre');
+                dom.contadorCaracteres = document.getElementById('contadorCaracteres');
+                dom.btnEmpezar = document.getElementById('btnEmpezar');
+                dom.thJugador = document.getElementById('thJugador');
+                dom.nombreEnTurno = document.getElementById('nombreEnTurno');
+                dom.nombreJugadorEtiqueta = document.getElementById('nombreJugadorEtiqueta');
+            }
+
+            function aplicarNombreJugador() {
+                dom.nombreJugadorEtiqueta.textContent = estado.nombreJugador;
+                dom.nombreEnTurno.textContent = estado.nombreJugador;
+                dom.thJugador.textContent = estado.nombreJugador;
             }
 
             // --- Utilidades de cartas ---
@@ -1298,6 +1429,18 @@
             function turnoCpu() {
     if (estado.pausado) return;
 
+    // Verificar si puede cantar penal (ronda 0)
+    if (estado.rondaActual === 0 && !estado.penalUsado && estado.manoJugador.length > 0 && estado.manoCpu.length > 0 && iaDecidirCantarPenal()) {
+        cpuPidePenal();
+        return;
+    }
+
+    // Verificar si puede cantar gol (ronda >= 1)
+    if (estado.rondaActual >= 1 && !estado.golUsado && estado.manoJugador.length > 0 && estado.manoCpu.length > 0 && iaDecidirCantarGol()) {
+        cpuPideGol();
+        return;
+    }
+
     const carta = iaElegirCarta();
 
     if (!carta) {
@@ -1409,18 +1552,20 @@
                 let golPorPuntos = false;
                 let puntosFinalesJugador = estado.puntosJugador;
                 let puntosFinalesCpu = estado.puntosCpu;
-                if (estado.puntosJugador >= PUNTOS_PARA_GOL) {
+                if (estado.puntosJugador >= PUNTOS_PARA_GOL && !estado.golEnMano) {
                     estado.golesJugador++;
                     estado.puntosJugador = 0;
                     gol = true;
                     golPorPuntos = true;
-                    mostrarMensaje('⚽ ¡GOL DEL JUGADOR!');
+                    estado.golEnMano = true;
+                    mostrarMensaje('⚽ ¡GOL DE ' + estado.nombreJugador.toUpperCase() + '!');
                 }
-                if (estado.puntosCpu >= PUNTOS_PARA_GOL) {
+                if (estado.puntosCpu >= PUNTOS_PARA_GOL && !estado.golEnMano) {
                     estado.golesCpu++;
                     estado.puntosCpu = 0;
                     gol = true;
                     golPorPuntos = true;
+                    estado.golEnMano = true;
                     mostrarMensaje('⚽ Gol de la CPU');
                 }
                 renderizarMarcador(golPorPuntos);
@@ -1624,20 +1769,20 @@
                     } else if (!atacante) {
                         convertirGol(pedidoPor === 'jugador' ? 'cpu' : 'jugador');
                         gol = true;
-                        mostrarMensaje('⚽ ¡GOL! Atacante sin delantero');
+                        mostrarMensaje('⚽ ¡GOL DE ' + (pedidoPor === 'jugador' ? 'CPU' : estado.nombreJugador.toUpperCase()) + '! Atacante sin delantero');
                     } else if (!defensor) {
                         convertirGol(pedidoPor);
                         gol = true;
-                        mostrarMensaje('⚽ ¡GOL! Defensor sin cobertura');
+                        mostrarMensaje('⚽ ¡GOL DE ' + (pedidoPor === 'jugador' ? estado.nombreJugador.toUpperCase() : 'CPU') + '! Defensor sin cobertura');
                     } else {
                         if (atacante.numero > defensor.numero) {
                             convertirGol(pedidoPor);
                             gol = true;
-                            mostrarMensaje('⚽ ¡GOL!');
+                            mostrarMensaje('⚽ ¡GOL DE ' + (pedidoPor === 'jugador' ? estado.nombreJugador.toUpperCase() : 'CPU') + '!');
                         } else if (defensor.numero > atacante.numero) {
                             convertirGol(pedidoPor === 'jugador' ? 'cpu' : 'jugador');
                             gol = true;
-                            mostrarMensaje('⚽ ¡GOL!');
+                            mostrarMensaje('⚽ ¡GOL DE ' + (pedidoPor === 'jugador' ? 'CPU' : estado.nombreJugador.toUpperCase()) + '!');
                         } else {
                             mostrarMensaje('Atajado/Defendido');
                         }
@@ -1668,6 +1813,7 @@
                     estado.golesCpu++;
                     estado.puntosJugador = 0;
                     estado.puntosCpu = 0;
+                    estado.golEnMano = true;
                     renderizarMarcador();
                     mostrarMensaje('📺 VAR: Mentiste. Gol CPU');
                     finalizarCanto();
@@ -1685,7 +1831,7 @@
                     finalizarCanto();
                 } else {
                     if (estado.turnoInicial === 'jugador') {
-                        mostrarMensaje('Empate VAR, gana jugador');
+                        mostrarMensaje('Empate VAR, gana ' + estado.nombreJugador);
                         ejecutarCanto('penal', estado.cantoPedidoPor);
                     } else {
                         sumarPuntos(estado.cantoPedidoPor === 'jugador' ? 'cpu' : 'jugador', 2);
@@ -1699,6 +1845,7 @@
                 else estado.golesCpu++;
                 estado.puntosJugador = 0;
                 estado.puntosCpu = 0;
+                estado.golEnMano = true;
                 renderizarMarcador();
             }
 
@@ -1711,7 +1858,8 @@
                             estado.golesJugador++;
                             estado.puntosJugador = 0;
                             estado.puntosCpu = 0;
-                            mostrarMensaje('⚽ ¡GOL!');
+                            estado.golEnMano = true;
+                            mostrarMensaje('⚽ ¡GOL DE ' + estado.nombreJugador.toUpperCase() + '!');
                             gol = true;
                         }
                     } else {
@@ -1720,6 +1868,7 @@
                             estado.golesCpu++;
                             estado.puntosCpu = 0;
                             estado.puntosJugador = 0;
+                            estado.golEnMano = true;
                             mostrarMensaje('⚽ Gol CPU');
                             gol = true;
                         }
@@ -1749,10 +1898,12 @@
             function finalizarMano(puntosFinalesJugador, puntosFinalesCpu) {
                 const pJ = puntosFinalesJugador !== undefined ? puntosFinalesJugador : estado.puntosJugador;
                 const pC = puntosFinalesCpu !== undefined ? puntosFinalesCpu : estado.puntosCpu;
+                const golesManoJ = estado.golesJugador - estado.golesInicioManoJugador;
+                const golesManoC = estado.golesCpu - estado.golesInicioManoCpu;
                 estado.historialManos.push({
                     minuto: MINUTOS[estado.manoActual],
-                    golesJugador: estado.golesJugador,
-                    golesCpu: estado.golesCpu,
+                    golesJugador: golesManoJ,
+                    golesCpu: golesManoC,
                     puntosJugador: pJ,
                     puntosCpu: pC,
                     turnoInicial: estado.turnoInicial,
@@ -1770,6 +1921,9 @@
             function iniciarNuevaMano() {
                 // Mantener turnoInicial del ganador del último punto de la mano anterior
                 const ultimoTurnoInicial = estado.turnoInicial;
+                estado.golesInicioManoJugador = estado.golesJugador;
+                estado.golesInicioManoCpu = estado.golesCpu;
+                estado.golEnMano = false;
                 estado.puntosJugador = 0;
                 estado.puntosCpu = 0;
                 estado.rondaActual = 0;
@@ -1854,7 +2008,7 @@
                     dom.resultadoTitulo.textContent = 'EMPATE';
                     dom.resultadoTitulo.className = 'resultado-titulo empate';
                 }
-                dom.resultadoMarcador.textContent = `Jugador ${gJ} - ${gC} CPU`;
+                dom.resultadoMarcador.textContent = `${estado.nombreJugador} ${gJ} - ${gC} CPU`;
             }
 
             function reiniciarPartido() {
@@ -1863,6 +2017,9 @@
                 Object.assign(estado, {
                     golesJugador: 0,
                     golesCpu: 0,
+                    golesInicioManoJugador: 0,
+                    golesInicioManoCpu: 0,
+                    golEnMano: false,
                     puntosJugador: 0,
                     puntosCpu: 0,
                     manoActual: 0,
@@ -1898,15 +2055,44 @@
             }
 
             // --- Inicialización ---
+            function iniciarPartido() {
+                dom.overlayBienvenida.classList.add('oculto');
+                estado.pausado = false;
+                renderizarTodo();
+            }
+
             function inicializarJuego() {
                 cacheDom();
                 const mazo = mezclarMazo(crearMazo());
                 const { manoJ, manoC } = repartir(mazo);
                 estado.manoJugador = ordenarMano(manoJ);
                 estado.manoCpu = ordenarMano(manoC);
+                estado.golesInicioManoJugador = 0;
+                estado.golesInicioManoCpu = 0;
+                estado.golEnMano = false;
                 estado.fase = 'esperando_seleccion';
                 estado.turnoInicial = 'jugador';
                 estado.turnoActual = 'jugador';
+                estado.pausado = true;
+
+                // Event listeners del overlay de bienvenida
+                dom.inputNombre.addEventListener('input', () => {
+                    dom.contadorCaracteres.textContent = `${dom.inputNombre.value.length}/12`;
+                });
+                dom.btnEmpezar.addEventListener('click', () => {
+                    const nombre = dom.inputNombre.value.trim();
+                    estado.nombreJugador = nombre.length > 0 ? nombre : 'Jugador';
+                    aplicarNombreJugador();
+                    iniciarPartido();
+                });
+                dom.inputNombre.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        const nombre = dom.inputNombre.value.trim();
+                        estado.nombreJugador = nombre.length > 0 ? nombre : 'Jugador';
+                        aplicarNombreJugador();
+                        iniciarPartido();
+                    }
+                });
 
                 // Event listeners
                 dom.btnPenal.addEventListener('click', () => { if (!dom.btnPenal.disabled) jugadorPidePenal(); });
