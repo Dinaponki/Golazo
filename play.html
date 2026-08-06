@@ -761,7 +761,7 @@
         <!-- Botones -->
         <div class="zona-botones">
             <div class="botones-laterales izquierda" id="botonesIzquierda">
-                <button class="btn-accion btn-penal" id="btnPenal" disabled>⚡ Penal</button>
+                <button class="btn-accion btn-penal" id="btnPenal" disabled>🥅 Penal</button>
                 <button class="btn-accion btn-quiero" id="btnQuieroIzq" disabled>✓ Quiero</button>
                 <button class="btn-accion btn-no-quiero" id="btnNoQuieroIzq" disabled>✗ No quiero</button>
                 <button class="btn-accion btn-var" id="btnVar" disabled>📺 VAR</button>
@@ -769,7 +769,7 @@
             </div>
 
             <div class="botones-laterales derecha" id="botonesDerecha">
-                <button class="btn-accion btn-gol" id="btnGol" disabled>🥅 Gol</button>
+                <button class="btn-accion btn-gol" id="btnGol" disabled>⚽ Gol</button>
                 <button class="btn-accion btn-quiero" id="btnQuieroDer" disabled>✓ Quiero</button>
                 <button class="btn-accion btn-no-quiero" id="btnNoQuieroDer" disabled>✗ No quiero</button>
                 <button class="btn-accion btn-golazo" id="btnGolazo" disabled>💥 Golazo</button>
@@ -817,7 +817,7 @@
             const CARTAS_POR_JUGADOR = 4;
             const TOTAL_MANOS = 9;
             const PUNTOS_PARA_GOL = 3;
-            const MINUTOS = ['0', '10', '20', '30', '40', '50', '60', '70', '80'];
+            const MINUTOS = ["0' a 10'", "10' a 20'", "20' a 30'", "30' a 40'", "40' a 50'", "50' a 60'", "60' a 70'", "70' a 80'", "80' a 90'"];
             const RUTA_IMAGENES = 'img/';
             const RUTA_DORSO = 'img/dorso.png';
 
@@ -1031,8 +1031,9 @@
                 }
 
                 const anchoDisponible = Math.min(window.innerWidth - 24, 920);
-                const superp = anchoCarta * 0.66;
-                const offsetBase = (anchoDisponible - ((mano.length - 1) * superp + anchoCarta)) / 2;
+                const anchoCartaJugador = anchoCarta * 1.15;
+                const superp = anchoCartaJugador * 0.66 * 1.3;
+                const offsetBase = (anchoDisponible - ((mano.length - 1) * superp + anchoCartaJugador)) / 2;
                 dom.manoJugador.style.height = manoAltura + 'px';
                 mano.forEach((carta, i) => {
                     const cont = document.createElement('div');
@@ -1048,7 +1049,7 @@
                     img.src = carta.imagen;
                     img.className = 'carta-img';
                     img.draggable = false;
-                    img.style.width = anchoCarta + 'px';
+                    img.style.width = anchoCartaJugador + 'px';
                     cont.appendChild(img);
                     cont.addEventListener('click', (e) => {
                         e.stopPropagation();
@@ -1120,13 +1121,13 @@
             function renderizarMarcador() {
                 dom.golesJugador.textContent = estado.golesJugador;
                 dom.golesCpu.textContent = estado.golesCpu;
-                dom.minutoActual.textContent = MINUTOS[estado.manoActual] + "'";
+                dom.minutoActual.textContent = MINUTOS[estado.manoActual];
                 renderizarEstrellas();
             }
 
             function actualizarIndicadorCanto() {
                 if (estado.cantoActual) {
-                    const textos = { penal: '⚡ PENAL', gol: '🥅 GOL', golazo: '💥 GOLAZO' };
+                    const textos = { penal: '🥅 PENAL', gol: '⚽ GOL', golazo: '💥 GOLAZO' };
                     dom.indicadorCanto.textContent = textos[estado.cantoActual] || '';
                     dom.indicadorCanto.classList.add('visible');
                 } else {
@@ -1172,6 +1173,9 @@
 
                 const fase = estado.fase;
                 const quedan = estado.manoJugador.length > 0;
+                const ultimaRonda = estado.manoActual === 3;
+                const algunSinCartas = estado.manoJugador.length === 0 || estado.manoCpu.length === 0;
+                const derechaBloqueada = ultimaRonda && algunSinCartas;
 
                 // Botón Jugar carta
                 dom.btnJugarCarta.disabled = !(fase === 'esperando_seleccion' &&
@@ -1184,8 +1188,11 @@
                             'jugador') {
                             dom.btnPenal.disabled = false;
                         }
-                        if (estado.rondaActual >= 1 && !estado.golUsado && quedan && estado.turnoActual === 'jugador') {
+                        const puedeCantarGol = estado.manoActual < 3;
+                        if (puedeCantarGol && estado.rondaActual >= 1 && !estado.golUsado && quedan && estado.turnoActual === 'jugador') {
                             dom.btnGol.disabled = false;
+                        } else {
+                            dom.btnGol.disabled = true;
                         }
                         break;
                     case 'penal_pedido':
@@ -1218,6 +1225,13 @@
                         break;
                     default:
                         dom.btnVar.textContent = '📺 VAR';
+                }
+
+                if (derechaBloqueada) {
+                    dom.btnGol.disabled = true;
+                    dom.btnQuieroDer.disabled = true;
+                    dom.btnNoQuieroDer.disabled = true;
+                    dom.btnGolazo.disabled = true;
                 }
             }
 
@@ -1305,7 +1319,7 @@
             }
 
             function iaDecidirCantarGol() {
-                if (estado.golUsado || estado.rondaActual < 1) return false;
+                if (estado.golUsado || estado.rondaActual < 1 || estado.manoActual >= 3) return false;
                 const d = mejorCartaDe(estado.manoCpu, 'Del');
                 return (d && d.numero >= 6) || Math.random() < 0.25;
             }
@@ -1437,7 +1451,7 @@
             }
 
             function jugadorPideGol() {
-                if (estado.fase !== 'esperando_seleccion' || estado.rondaActual < 1 || estado.golUsado) return;
+                if (estado.fase !== 'esperando_seleccion' || estado.rondaActual < 1 || estado.golUsado || estado.manoActual >= 3) return;
                 estado.fase = 'gol_pedido';
                 estado.cantoActual = 'gol';
                 estado.cantoPedidoPor = 'jugador';
@@ -1448,6 +1462,7 @@
             }
 
             function cpuPideGol() {
+                if (estado.manoActual >= 3) return;
                 estado.fase = 'gol_pedido';
                 estado.cantoActual = 'gol';
                 estado.cantoPedidoPor = 'cpu';
@@ -1477,7 +1492,7 @@
             function procesarRespuestaJugador(resp) {
                 const { cantoActual, cantoPedidoPor } = estado;
                 if (resp === 'no_quiero') {
-                    const quienCanto = cantoPedidoPor;
+                    const quienCanto = cantoPedidoPor === 'cpu' ? 'cpu' : 'jugador';
                     const puntos = cantoActual === 'golazo' ? 2 : 1;
                     sumarPuntos(quienCanto, puntos);
                     mostrarMensaje('No quiso');
@@ -1502,7 +1517,7 @@
             function procesarRespuestaCpu(resp) {
                 const { cantoActual, cantoPedidoPor } = estado;
                 if (resp === 'no_quiero') {
-                    const quienCanto = cantoPedidoPor;
+                    const quienCanto = cantoPedidoPor === 'cpu' ? 'cpu' : 'jugador';
                     const puntos = cantoActual === 'golazo' ? 2 : 1;
                     sumarPuntos(quienCanto, puntos);
                     mostrarMensaje('CPU: No quiero');
@@ -1547,7 +1562,7 @@
                     estado.cartasEnMesa.push({ carta: defensor, origen: origD });
                 }
                 renderizarTodo();
-                mostrarMensaje('⚡ ¡' + (tipo === 'penal' ? 'Penal' : tipo === 'golazo' ? 'Golazo' : 'Gol') + '!');
+                mostrarMensaje((tipo === 'penal' ? '🥅' : tipo === 'golazo' ? '💥' : '⚽') + ' ¡' + (tipo === 'penal' ? 'Penal' : tipo === 'golazo' ? 'Golazo' : 'Gol') + '!');
 
                 setTimeout(() => {
                     let gol = false;
@@ -1756,7 +1771,7 @@
                         eC += s < pC ? '★' : '☆';
                     }
                     tr.innerHTML =
-                        `<td>${minuto}'</td><td>${eJ} ⚽${gJ}</td><td style="color:rgba(255,255,255,0.3)">vs</td><td>⚽${gC} ${eC}</td>`;
+                        `<td>${minuto}</td><td>${eJ} ⚽${gJ}</td><td style="color:rgba(255,255,255,0.3)">vs</td><td>⚽${gC} ${eC}</td>`;
                     dom.cuerpoTablaMarcador.appendChild(tr);
                 }
             }
