@@ -28,13 +28,13 @@
             --transicion-rapida: 0.18s cubic-bezier(0.4, 0, 0.2, 1);
             --borde-redondo: 14px;
             --borde-redondo-carta: 10px;
-            --carta-mesa: clamp(72px, 16vmin, 140px);
-            --carta-mesa-max-h: clamp(100px, 22vmin, 196px);
-            --carta-mano: clamp(68px, 14vmin, 125px);
-            --carta-mano-max-h: clamp(95px, 20vmin, 175px);
-            --carta-cpu: clamp(52px, 11vmin, 92px);
-            --carta-cpu-max-h: clamp(72px, 15vmin, 130px);
-            --mano-altura: clamp(110px, 18vmin, 175px);
+            --carta-mesa: clamp(238.29px, 52.728vmin, 461.37px);
+            --carta-mesa-max-h: clamp(330.05px, 72.501vmin, 645.918px);
+            --carta-mano: clamp(223.08px, 46.137vmin, 412.088px);
+            --carta-mano-max-h: clamp(313.073px, 66.0vmin, 576.713px);
+            --carta-cpu: clamp(131.82px, 27.885vmin, 233.22px);
+            --carta-cpu-max-h: clamp(182.52px, 37.925vmin, 329.55px);
+            --mano-altura: clamp(279.15px, 45.63vmin, 443.625px);
             --btn-font: clamp(11px, 2.6vmin, 15px);
             --btn-pad-y: clamp(7px, 1.6vmin, 13px);
             --btn-pad-x: clamp(9px, 2.2vmin, 20px);
@@ -154,49 +154,55 @@
 
         .mesa-cartas {
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: clamp(8px, 2vh, 28px);
             width: 100%;
             height: 100%;
             position: relative;
             min-height: 0;
+            padding: 12px;
+            overflow: visible;
         }
 
         .mesa-fila {
             display: flex;
             justify-content: center;
-            gap: clamp(8px, 2.5vmin, 24px);
-            min-height: 0;
             align-items: center;
+            position: relative;
+            width: auto;
+            min-height: 0;
         }
 
         .mesa-cartas .carta-contenedor {
-            position: relative;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             transition: var(--transicion);
             display: flex;
             flex-direction: column;
             align-items: center;
+            margin: 0;
         }
 
         .mesa-cartas .carta-contenedor.ganadora {
-            z-index: 3;
-            transform: translateY(-12px);
+            z-index: 6;
+            transform: translate(-50%, -50%) translateY(-10px) scale(1.02);
             filter: drop-shadow(0 10px 14px rgba(200,168,78,0.5));
         }
 
         .mesa-cartas .carta-contenedor.perdedora {
-            z-index: 1;
-            transform: translateY(6px);
-            opacity: 0.85;
+            z-index: 2;
+            transform: translate(-50%, -50%) translateY(6px);
+            opacity: 0.9;
         }
 
         .mesa-cartas .carta-img {
-            width: var(--carta-mesa);
+            width: var(--carta-mano);
             height: auto;
-            max-height: var(--carta-mesa-max-h);
+            max-height: var(--carta-mano-max-h);
             border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
         }
 
         /* Botones */
@@ -341,9 +347,10 @@
             position: relative;
             height: var(--mano-altura);
             min-height: 0;
-            width: 100%;
+            width: min(100%, 920px);
             max-width: 100%;
             margin: 0 auto;
+            padding: 0 16px;
         }
 
         .mano-jugador .carta-contenedor {
@@ -959,24 +966,24 @@
                 const espacioMesa = vh - zonaCpu - zonaBotones - zonaJugador - zonaMarcador - gaps;
 
                 let cartaMesa = Math.min(
-                    espacioMesa * 0.40,
-                    vw * (isWide ? 0.17 : 0.30),
-                    vmin * 0.28,
-                    165
+                    espacioMesa * 0.52,
+                    vw * (isWide ? 0.221 : 0.39),
+                    vmin * 0.364,
+                    214.5
                 );
-                cartaMesa = Math.max(cartaMesa, vmin * 0.12);
+                cartaMesa = Math.max(cartaMesa, vmin * 0.156);
 
                 let cartaMano = Math.min(
-                    zonaJugador * 0.68,
-                    vw * 0.24,
-                    cartaMesa * 0.92,
-                    vmin * 0.22,
-                    138
+                    zonaJugador * 0.884,
+                    vw * 0.312,
+                    cartaMesa * 1.196,
+                    vmin * 0.286,
+                    179.4
                 );
-                cartaMano = Math.max(cartaMano, vmin * 0.11);
+                cartaMano = Math.max(cartaMano, vmin * 0.143);
 
-                let cartaCpu = Math.min(cartaMano * 0.76, vw * 0.14, vmin * 0.15, 98);
-                cartaCpu = Math.max(cartaCpu, vmin * 0.09);
+                let cartaCpu = Math.min(cartaMano * 0.76, vw * 0.182, vmin * 0.195, 127.4);
+                cartaCpu = Math.max(cartaCpu, vmin * 0.117);
 
                 const btnFont = Math.max(10, Math.min(15, vmin * 0.034));
                 const btnPadY = Math.max(5, Math.min(12, vmin * 0.016));
@@ -1023,15 +1030,16 @@
                     return;
                 }
 
-                const anchoDisponible = window.innerWidth - 24;
-                const superp = anchoCarta * 0.52;
+                const anchoDisponible = Math.min(window.innerWidth - 24, 920);
+                const superp = anchoCarta * 0.66;
+                const offsetBase = (anchoDisponible - ((mano.length - 1) * superp + anchoCarta)) / 2;
                 dom.manoJugador.style.height = manoAltura + 'px';
                 mano.forEach((carta, i) => {
                     const cont = document.createElement('div');
                     cont.className = 'carta-contenedor';
                     cont.dataset.index = i;
                     cont.style.zIndex = i;
-                    cont.style.left = `${i * superp + (anchoDisponible - (mano.length - 1) * superp - anchoCarta) / 2}px`;
+                    cont.style.left = `${offsetBase + i * superp}px`;
                     if (estado.cartaSeleccionada === i) {
                         cont.classList.add('seleccionada');
                         cont.style.zIndex = 20;
@@ -1058,16 +1066,23 @@
             function renderizarMesa() {
                 dom.mesaCartas.innerHTML = '';
                 if (!estado.cartasEnMesa.length) return;
-                const cpuC = estado.cartasEnMesa.filter(c => c.origen === 'cpu');
-                const jugC = estado.cartasEnMesa.filter(c => c.origen === 'jugador');
-                const filaCpu = document.createElement('div');
-                filaCpu.className = 'mesa-fila cpu-fila';
-                cpuC.forEach(item => filaCpu.appendChild(crearContenedorMesa(item)));
-                const filaJug = document.createElement('div');
-                filaJug.className = 'mesa-fila jugador-fila';
-                jugC.forEach(item => filaJug.appendChild(crearContenedorMesa(item)));
-                dom.mesaCartas.appendChild(filaCpu);
-                dom.mesaCartas.appendChild(filaJug);
+
+                const filaMesa = document.createElement('div');
+                filaMesa.className = 'mesa-fila';
+
+                estado.cartasEnMesa.forEach((item, index) => {
+                    const cont = crearContenedorMesa(item);
+                    cont.style.zIndex = index + 1;
+                    cont.style.transform = `translate(-50%, -50%) translateX(${(index % 2) * 12}px) translateY(${Math.floor(index / 2) * 8}px)`;
+                    if (cont.classList.contains('ganadora')) {
+                        cont.style.transform = `translate(-50%, -50%) translateX(${(index % 2) * 12}px) translateY(${Math.floor(index / 2) * 8}px) translateY(-12px) scale(1.02)`;
+                    } else if (cont.classList.contains('perdedora')) {
+                        cont.style.transform = `translate(-50%, -50%) translateX(${(index % 2) * 12}px) translateY(${Math.floor(index / 2) * 8}px) translateY(8px)`;
+                    }
+                    filaMesa.appendChild(cont);
+                });
+
+                dom.mesaCartas.appendChild(filaMesa);
             }
 
             function crearContenedorMesa(item) {
