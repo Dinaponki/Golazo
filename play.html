@@ -1176,6 +1176,7 @@
                 const ultimaRonda = estado.manoActual === 3;
                 const algunSinCartas = estado.manoJugador.length === 0 || estado.manoCpu.length === 0;
                 const derechaBloqueada = ultimaRonda && algunSinCartas;
+                const puedeCantarGol = estado.manoActual < 3 && estado.manoJugador.length > 0 && estado.manoCpu.length > 0;
 
                 // Botón Jugar carta
                 dom.btnJugarCarta.disabled = !(fase === 'esperando_seleccion' &&
@@ -1188,7 +1189,6 @@
                             'jugador') {
                             dom.btnPenal.disabled = false;
                         }
-                        const puedeCantarGol = estado.manoActual < 3 && estado.manoJugador.length > 0 && estado.manoCpu.length > 0;
                         if (puedeCantarGol && estado.rondaActual >= 1 && !estado.golUsado && quedan && estado.turnoActual === 'jugador') {
                             dom.btnGol.disabled = false;
                         } else {
@@ -1494,9 +1494,13 @@
                 if (resp === 'no_quiero') {
                     const quienCanto = cantoPedidoPor === 'cpu' ? 'cpu' : 'jugador';
                     const puntos = cantoActual === 'golazo' ? 2 : 1;
-                    sumarPuntos(quienCanto, puntos);
+                    const golPorPuntos = sumarPuntos(quienCanto, puntos);
                     mostrarMensaje('No quiso');
-                    finalizarCanto();
+                    if (golPorPuntos || estado.puntosJugador >= PUNTOS_PARA_GOL || estado.puntosCpu >= PUNTOS_PARA_GOL) {
+                        setTimeout(finalizarMano, 700);
+                    } else {
+                        finalizarCanto();
+                    }
                 } else if (resp === 'var') {
                     iniciarVar();
                 } else if (resp === 'golazo') {
@@ -1519,9 +1523,13 @@
                 if (resp === 'no_quiero') {
                     const quienCanto = cantoPedidoPor === 'cpu' ? 'cpu' : 'jugador';
                     const puntos = cantoActual === 'golazo' ? 2 : 1;
-                    sumarPuntos(quienCanto, puntos);
+                    const golPorPuntos = sumarPuntos(quienCanto, puntos);
                     mostrarMensaje('CPU: No quiero');
-                    finalizarCanto();
+                    if (golPorPuntos || estado.puntosJugador >= PUNTOS_PARA_GOL || estado.puntosCpu >= PUNTOS_PARA_GOL) {
+                        setTimeout(finalizarMano, 700);
+                    } else {
+                        finalizarCanto();
+                    }
                 } else if (resp === 'var') {
                     iniciarVar();
                 } else if (resp === 'golazo') {
@@ -1663,23 +1671,29 @@
             }
 
             function sumarPuntos(quien, cant) {
+                let gol = false;
                 for (let i = 0; i < cant; i++) {
                     if (quien === 'jugador') {
                         estado.puntosJugador++;
                         if (estado.puntosJugador >= PUNTOS_PARA_GOL) {
                             estado.golesJugador++;
                             estado.puntosJugador = 0;
+                            estado.puntosCpu = 0;
                             mostrarMensaje('⚽ ¡GOL!');
+                            gol = true;
                         }
                     } else {
                         estado.puntosCpu++;
                         if (estado.puntosCpu >= PUNTOS_PARA_GOL) {
                             estado.golesCpu++;
                             estado.puntosCpu = 0;
+                            estado.puntosJugador = 0;
                             mostrarMensaje('⚽ Gol CPU');
+                            gol = true;
                         }
                     }
                 }
+                return gol;
             }
 
             function finalizarCanto() {
