@@ -1188,7 +1188,7 @@
                             'jugador') {
                             dom.btnPenal.disabled = false;
                         }
-                        const puedeCantarGol = estado.manoActual < 3;
+                        const puedeCantarGol = estado.manoActual < 3 && estado.manoJugador.length > 0 && estado.manoCpu.length > 0;
                         if (puedeCantarGol && estado.rondaActual >= 1 && !estado.golUsado && quedan && estado.turnoActual === 'jugador') {
                             dom.btnGol.disabled = false;
                         } else {
@@ -1319,7 +1319,7 @@
             }
 
             function iaDecidirCantarGol() {
-                if (estado.golUsado || estado.rondaActual < 1 || estado.manoActual >= 3) return false;
+                if (estado.golUsado || estado.rondaActual < 1 || estado.manoActual >= 3 || estado.manoJugador.length === 0 || estado.manoCpu.length === 0) return false;
                 const d = mejorCartaDe(estado.manoCpu, 'Del');
                 return (d && d.numero >= 6) || Math.random() < 0.25;
             }
@@ -1451,7 +1451,7 @@
             }
 
             function jugadorPideGol() {
-                if (estado.fase !== 'esperando_seleccion' || estado.rondaActual < 1 || estado.golUsado || estado.manoActual >= 3) return;
+                if (estado.fase !== 'esperando_seleccion' || estado.rondaActual < 1 || estado.golUsado || estado.manoActual >= 3 || estado.manoJugador.length === 0 || estado.manoCpu.length === 0) return;
                 estado.fase = 'gol_pedido';
                 estado.cantoActual = 'gol';
                 estado.cantoPedidoPor = 'jugador';
@@ -1462,7 +1462,7 @@
             }
 
             function cpuPideGol() {
-                if (estado.manoActual >= 3) return;
+                if (estado.manoActual >= 3 || estado.manoJugador.length === 0 || estado.manoCpu.length === 0) return;
                 estado.fase = 'gol_pedido';
                 estado.cantoActual = 'gol';
                 estado.cantoPedidoPor = 'cpu';
