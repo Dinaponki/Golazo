@@ -1477,7 +1477,9 @@
             function procesarRespuestaJugador(resp) {
                 const { cantoActual, cantoPedidoPor } = estado;
                 if (resp === 'no_quiero') {
-                    sumarPuntos(cantoPedidoPor, cantoActual === 'golazo' ? 2 : 1);
+                    const quienCanto = cantoPedidoPor;
+                    const puntos = cantoActual === 'golazo' ? 2 : 1;
+                    sumarPuntos(quienCanto, puntos);
                     mostrarMensaje('No quiso');
                     finalizarCanto();
                 } else if (resp === 'var') {
@@ -1500,7 +1502,9 @@
             function procesarRespuestaCpu(resp) {
                 const { cantoActual, cantoPedidoPor } = estado;
                 if (resp === 'no_quiero') {
-                    sumarPuntos(cantoPedidoPor, cantoActual === 'golazo' ? 2 : 1);
+                    const quienCanto = cantoPedidoPor;
+                    const puntos = cantoActual === 'golazo' ? 2 : 1;
+                    sumarPuntos(quienCanto, puntos);
                     mostrarMensaje('CPU: No quiero');
                     finalizarCanto();
                 } else if (resp === 'var') {
@@ -1555,7 +1559,8 @@
                                 convertirGol(pedidoPor);
                                 gol = true;
                             } else if (maxD > maxA) {
-                                sumarPuntos(pedidoPor === 'jugador' ? 'cpu' : 'jugador', 2);
+                                convertirGol(pedidoPor === 'jugador' ? 'cpu' : 'jugador');
+                                gol = true;
                             } else {
                                 mostrarMensaje('Empate');
                             }
@@ -1564,8 +1569,9 @@
                             mostrarMensaje('Sin delantero ni arquero - +2 defensor');
                         }
                     } else if (!atacante) {
-                        sumarPuntos(pedidoPor === 'jugador' ? 'cpu' : 'jugador', 2);
-                        mostrarMensaje('Atacante sin delantero');
+                        convertirGol(pedidoPor === 'jugador' ? 'cpu' : 'jugador');
+                        gol = true;
+                        mostrarMensaje('⚽ ¡GOL! Atacante sin delantero');
                     } else if (!defensor) {
                         convertirGol(pedidoPor);
                         gol = true;
@@ -1575,8 +1581,11 @@
                             convertirGol(pedidoPor);
                             gol = true;
                             mostrarMensaje('⚽ ¡GOL!');
+                        } else if (defensor.numero > atacante.numero) {
+                            convertirGol(pedidoPor === 'jugador' ? 'cpu' : 'jugador');
+                            gol = true;
+                            mostrarMensaje('⚽ ¡GOL!');
                         } else {
-                            sumarPuntos(pedidoPor === 'jugador' ? 'cpu' : 'jugador', 2);
                             mostrarMensaje('Atajado/Defendido');
                         }
                     }
