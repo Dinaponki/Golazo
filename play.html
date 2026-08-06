@@ -28,6 +28,16 @@
             --transicion-rapida: 0.18s cubic-bezier(0.4, 0, 0.2, 1);
             --borde-redondo: 14px;
             --borde-redondo-carta: 10px;
+            --carta-mesa: clamp(72px, 16vmin, 140px);
+            --carta-mesa-max-h: clamp(100px, 22vmin, 196px);
+            --carta-mano: clamp(68px, 14vmin, 125px);
+            --carta-mano-max-h: clamp(95px, 20vmin, 175px);
+            --carta-cpu: clamp(52px, 11vmin, 92px);
+            --carta-cpu-max-h: clamp(72px, 15vmin, 130px);
+            --mano-altura: clamp(110px, 18vmin, 175px);
+            --btn-font: clamp(11px, 2.6vmin, 15px);
+            --btn-pad-y: clamp(7px, 1.6vmin, 13px);
+            --btn-pad-x: clamp(9px, 2.2vmin, 20px);
         }
 
         * {
@@ -40,9 +50,9 @@
             font-family: 'Segoe UI', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
             background: var(--verde-fondo);
             color: var(--blanco);
-            min-height: 100vh;
-            min-height: 100dvh;
-            overflow-x: hidden;
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
             user-select: none;
@@ -53,27 +63,42 @@
 
         .juego {
             display: grid;
-            grid-template-rows: auto 1fr auto auto;
-            grid-template-columns: 1fr;
-            min-height: 100vh;
-            min-height: 100dvh;
+            height: 100dvh;
+            max-height: 100dvh;
+            width: 100vw;
             max-width: 100vw;
+            overflow: hidden;
             position: relative;
-            gap: 8px;
-            padding: 8px;
+            gap: clamp(3px, 0.8vh, 10px);
+            padding: clamp(4px, 1vh, 10px);
+            grid-template-rows: auto minmax(0, 1fr) auto auto auto;
+            grid-template-columns: 1fr;
+            grid-template-areas:
+                "cpu"
+                "mesa"
+                "botones"
+                "jugador"
+                "marcador";
         }
+
+        .zona-cpu { grid-area: cpu; }
+        .zona-mesa { grid-area: mesa; }
+        .zona-botones { grid-area: botones; }
+        .zona-jugador { grid-area: jugador; }
+        .panel-marcador { grid-area: marcador; }
 
         /* Zona CPU */
         .zona-cpu {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 6px;
-            padding: 8px 8px 4px;
+            gap: clamp(2px, 0.5vh, 6px);
+            padding: clamp(2px, 0.5vh, 8px) 4px 0;
+            flex-shrink: 0;
         }
 
         .etiqueta-turno {
-            font-size: 13px;
+            font-size: clamp(10px, 2.2vmin, 13px);
             font-weight: 600;
             letter-spacing: 0.06em;
             color: rgba(255, 255, 255, 0.5);
@@ -88,9 +113,9 @@
 
         .mano-cpu {
             display: flex;
-            gap: 8px;
+            gap: clamp(4px, 1vmin, 8px);
             justify-content: center;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
         }
 
         /* Zona mesa */
@@ -100,21 +125,22 @@
             align-items: center;
             justify-content: center;
             position: relative;
-            min-height: 280px;
+            min-height: 0;
             background: radial-gradient(ellipse at center, rgba(30, 68, 48, 0.7) 0%, transparent 70%);
             border-radius: var(--borde-redondo);
-            margin: 0 8px;
-            overflow: visible;
+            margin: 0 2px;
+            overflow: hidden;
         }
 
         .indicador-canto {
-            font-size: 15px;
+            font-size: clamp(11px, 2.5vmin, 15px);
             font-weight: 700;
             letter-spacing: 0.06em;
             color: var(--dorado);
             text-align: center;
-            min-height: 24px;
-            padding: 4px 12px;
+            min-height: 0;
+            padding: clamp(2px, 0.5vh, 4px) clamp(8px, 2vmin, 12px);
+            flex-shrink: 0;
             border-radius: 20px;
             background: rgba(0,0,0,0.3);
             margin-bottom: 8px;
@@ -131,17 +157,18 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 36px;
+            gap: clamp(8px, 2vh, 28px);
             width: 100%;
             height: 100%;
             position: relative;
+            min-height: 0;
         }
 
         .mesa-fila {
             display: flex;
             justify-content: center;
-            gap: 24px;
-            min-height: 90px;
+            gap: clamp(8px, 2.5vmin, 24px);
+            min-height: 0;
             align-items: center;
         }
 
@@ -166,32 +193,42 @@
         }
 
         .mesa-cartas .carta-img {
-            width: 130px;
+            width: var(--carta-mesa);
             height: auto;
-            max-height: 180px;
+            max-height: var(--carta-mesa-max-h);
             border-radius: 12px;
         }
 
         /* Botones */
+        .zona-botones {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: clamp(4px, 1vmin, 8px);
+            padding: clamp(2px, 0.5vh, 6px) 4px;
+            flex-shrink: 0;
+        }
+
         .botones-laterales {
             display: flex;
             justify-content: center;
-            gap: 16px;
-            padding: 4px 16px;
+            gap: clamp(4px, 1vmin, 8px);
+            padding: 0;
             flex-wrap: wrap;
         }
 
         .grupo-botones {
             display: flex;
-            gap: 8px;
+            gap: clamp(4px, 1vmin, 8px);
             flex-wrap: wrap;
             justify-content: center;
         }
 
         .btn-accion {
-            padding: 10px 18px;
+            padding: var(--btn-pad-y) var(--btn-pad-x);
             border-radius: 50px;
-            font-size: 14px;
+            font-size: var(--btn-font);
             font-weight: 700;
             letter-spacing: 0.04em;
             text-transform: uppercase;
@@ -202,7 +239,7 @@
             color: var(--blanco);
             white-space: nowrap;
             position: relative;
-            min-width: 70px;
+            min-width: clamp(58px, 14vmin, 90px);
             text-align: center;
         }
 
@@ -292,8 +329,9 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 6px;
-            padding: 4px 8px 8px;
+            gap: clamp(2px, 0.5vh, 6px);
+            padding: 0 4px clamp(2px, 0.5vh, 6px);
+            flex-shrink: 0;
         }
 
         .mano-jugador {
@@ -301,10 +339,10 @@
             justify-content: center;
             align-items: flex-end;
             position: relative;
-            height: 130px;
-            min-height: 130px;
+            height: var(--mano-altura);
+            min-height: 0;
             width: 100%;
-            max-width: 500px;
+            max-width: 100%;
             margin: 0 auto;
         }
 
@@ -316,7 +354,7 @@
         }
 
         .mano-jugador .carta-contenedor.seleccionada {
-            transform: translateY(-20px) scale(1.06);
+            transform: translateY(clamp(-10px, -2vh, -20px)) scale(1.06);
             z-index: 10 !important;
             filter: brightness(1.1);
         }
@@ -325,15 +363,16 @@
         .panel-marcador {
             background: var(--gris-oscuro);
             border-radius: var(--borde-redondo);
-            padding: 10px 16px;
+            padding: clamp(6px, 1.2vh, 10px) clamp(10px, 2.5vw, 16px);
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 12px;
-            margin: 4px 8px;
+            gap: clamp(6px, 1.5vw, 12px);
+            margin: 0;
             box-shadow: var(--sombra-suave);
             cursor: pointer;
             transition: var(--transicion);
+            flex-shrink: 0;
         }
 
         .panel-marcador:hover {
@@ -354,14 +393,14 @@
         }
 
         .panel-marcador .nombre {
-            font-size: 11px;
+            font-size: clamp(9px, 2vmin, 11px);
             font-weight: 700;
             letter-spacing: 0.04em;
             color: rgba(255, 255, 255, 0.7);
         }
 
         .panel-marcador .goles-numero {
-            font-size: 28px;
+            font-size: clamp(20px, 5vmin, 34px);
             font-weight: 900;
             color: var(--blanco);
             line-height: 1;
@@ -370,7 +409,7 @@
         .panel-marcador .estrellas {
             display: flex;
             gap: 4px;
-            font-size: 16px;
+            font-size: clamp(12px, 3vmin, 16px);
         }
 
         .panel-marcador .estrellas .estrella {
@@ -384,7 +423,7 @@
         }
 
         .panel-marcador .centro-marcador {
-            font-size: 14px;
+            font-size: clamp(11px, 2.5vmin, 14px);
             font-weight: 700;
             letter-spacing: 0.06em;
             color: rgba(255, 255, 255, 0.4);
@@ -392,7 +431,7 @@
         }
 
         .panel-marcador .minuto {
-            font-size: 12px;
+            font-size: clamp(10px, 2.2vmin, 12px);
             color: var(--dorado);
         }
 
@@ -412,15 +451,15 @@
         }
 
         .mano-cpu .carta-img {
-            width: 82px;
+            width: var(--carta-cpu);
             height: auto;
-            max-height: 120px;
+            max-height: var(--carta-cpu-max-h);
         }
 
         .mano-jugador .carta-img {
-            width: 100px;
+            width: var(--carta-mano);
             height: auto;
-            max-height: 160px;
+            max-height: var(--carta-mano-max-h);
             box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
         }
 
@@ -600,67 +639,71 @@
             transform: translate(-50%, -50%) scale(1);
         }
 
-        /* Responsive */
+        /* Responsive - desktop: botones a los lados de la mesa */
+        @media (max-width: 767px) {
+            .zona-botones {
+                display: grid;
+                grid-template-columns: repeat(5, 1fr);
+                gap: clamp(3px, 0.8vmin, 6px);
+                padding: clamp(2px, 0.4vh, 5px) 2px;
+            }
+
+            .botones-laterales {
+                display: contents;
+            }
+
+            .btn-accion {
+                min-width: 0;
+                width: 100%;
+                font-size: clamp(9px, 2.4vmin, 12px);
+                padding: clamp(5px, 1.4vmin, 9px) clamp(3px, 1vmin, 6px);
+            }
+        }
+
         @media (min-width: 768px) {
             .juego {
-                grid-template-rows: auto auto 1fr auto;
-                grid-template-columns: 140px 1fr 140px;
+                grid-template-rows: auto minmax(0, 1fr) auto auto;
+                grid-template-columns: minmax(100px, 13vw) 1fr minmax(100px, 13vw);
                 grid-template-areas:
                     "cpu cpu cpu"
-                    "mesa mesa mesa"
-                    "botones-izq mesa-central botones-der"
+                    "botones-izq mesa botones-der"
                     "jugador jugador jugador"
                     "marcador marcador marcador";
-                gap: 12px;
-                padding: 12px 16px;
-                max-width: 1100px;
+                gap: clamp(6px, 1.2vh, 14px);
+                padding: clamp(8px, 1.5vh, 14px) clamp(10px, 2vw, 18px);
+                max-width: 1400px;
                 margin: 0 auto;
             }
 
-            .zona-cpu { grid-area: cpu; }
-            .zona-mesa { grid-area: mesa; min-height: 200px; }
+            .zona-botones {
+                display: contents;
+            }
+
             .botones-laterales.izquierda {
                 grid-area: botones-izq;
                 flex-direction: column;
-                align-items: flex-end;
+                align-items: stretch;
                 justify-content: center;
             }
+
             .botones-laterales.derecha {
                 grid-area: botones-der;
                 flex-direction: column;
-                align-items: flex-start;
+                align-items: stretch;
                 justify-content: center;
             }
-            .zona-jugador { grid-area: jugador; }
-            .panel-marcador { grid-area: marcador; }
 
-            .mano-cpu .carta-img { width: 70px; max-height: 110px; }
-            .mesa-cartas .carta-img { width: 90px; max-height: 140px; }
-            .mano-jugador .carta-img { width: 88px; max-height: 148px; }
-
-            .btn-accion { padding: 12px 16px; font-size: 13px; min-width: 100px; }
-            .panel-marcador .goles-numero { font-size: 34px; }
+            .btn-accion {
+                min-width: clamp(90px, 11vw, 130px);
+                width: 100%;
+            }
         }
 
         @media (min-width: 1024px) {
             .juego {
-                grid-template-columns: 160px 1fr 160px;
-                max-width: 1200px;
-                gap: 16px;
+                grid-template-columns: minmax(120px, 14vw) 1fr minmax(120px, 14vw);
+                max-width: 1500px;
             }
-            .mano-cpu .carta-img { width: 78px; max-height: 118px; }
-            .mesa-cartas .carta-img { width: 100px; max-height: 155px; }
-            .mano-jugador .carta-img { width: 96px; max-height: 160px; }
-            .btn-accion { padding: 14px 20px; font-size: 14px; min-width: 120px; }
-        }
-
-        @media (max-width: 380px) {
-            .mano-cpu .carta-img { width: 50px; max-height: 80px; }
-            .mesa-cartas .carta-img { width: 60px; max-height: 100px; }
-            .mano-jugador .carta-img { width: 60px; max-height: 110px; }
-            .btn-accion { padding: 8px 12px; font-size: 11px; min-width: 55px; }
-            .panel-marcador .goles-numero { font-size: 22px; }
-            .panel-marcador { padding: 8px 10px; }
         }
     </style>
 </head>
@@ -708,21 +751,22 @@
             <div class="mesa-cartas" id="mesaCartas"></div>
         </div>
 
-        <!-- Botones izquierda -->
-        <div class="botones-laterales izquierda" id="botonesIzquierda">
-            <button class="btn-accion btn-penal" id="btnPenal" disabled>⚡ Penal</button>
-            <button class="btn-accion btn-quiero" id="btnQuieroIzq" disabled>✓ Quiero</button>
-            <button class="btn-accion btn-no-quiero" id="btnNoQuieroIzq" disabled>✗ No quiero</button>
-            <button class="btn-accion btn-var" id="btnVar" disabled>📺 VAR</button>
-            <button class="btn-accion btn-jugar-carta" id="btnJugarCarta" disabled>🃏 Jugar</button>
-        </div>
+        <!-- Botones -->
+        <div class="zona-botones">
+            <div class="botones-laterales izquierda" id="botonesIzquierda">
+                <button class="btn-accion btn-penal" id="btnPenal" disabled>⚡ Penal</button>
+                <button class="btn-accion btn-quiero" id="btnQuieroIzq" disabled>✓ Quiero</button>
+                <button class="btn-accion btn-no-quiero" id="btnNoQuieroIzq" disabled>✗ No quiero</button>
+                <button class="btn-accion btn-var" id="btnVar" disabled>📺 VAR</button>
+                <button class="btn-accion btn-jugar-carta" id="btnJugarCarta" disabled>🃏 Jugar</button>
+            </div>
 
-        <!-- Botones derecha -->
-        <div class="botones-laterales derecha" id="botonesDerecha">
-            <button class="btn-accion btn-gol" id="btnGol" disabled>🥅 Gol</button>
-            <button class="btn-accion btn-quiero" id="btnQuieroDer" disabled>✓ Quiero</button>
-            <button class="btn-accion btn-no-quiero" id="btnNoQuieroDer" disabled>✗ No quiero</button>
-            <button class="btn-accion btn-golazo" id="btnGolazo" disabled>💥 Golazo</button>
+            <div class="botones-laterales derecha" id="botonesDerecha">
+                <button class="btn-accion btn-gol" id="btnGol" disabled>🥅 Gol</button>
+                <button class="btn-accion btn-quiero" id="btnQuieroDer" disabled>✓ Quiero</button>
+                <button class="btn-accion btn-no-quiero" id="btnNoQuieroDer" disabled>✗ No quiero</button>
+                <button class="btn-accion btn-golazo" id="btnGolazo" disabled>💥 Golazo</button>
+            </div>
         </div>
 
         <!-- Zona jugador -->
@@ -899,6 +943,59 @@
                 return Math.max(mejorCartaDe(mano, 'Arq')?.numero || 0, mejorCartaDe(mano, 'Del')?.numero || 0);
             }
 
+            // --- Escalado dinámico al viewport ---
+            function actualizarEscalado() {
+                const vh = window.innerHeight;
+                const vw = window.innerWidth;
+                const vmin = Math.min(vh, vw);
+                const isWide = vw >= 768;
+                const aspectRatio = 1.42;
+
+                const zonaCpu = vh * (isWide ? 0.10 : 0.09);
+                const zonaBotones = isWide ? 0 : vh * 0.12;
+                const zonaJugador = vh * (isWide ? 0.16 : 0.15);
+                const zonaMarcador = vh * 0.07;
+                const gaps = vh * 0.035;
+                const espacioMesa = vh - zonaCpu - zonaBotones - zonaJugador - zonaMarcador - gaps;
+
+                let cartaMesa = Math.min(
+                    espacioMesa * 0.40,
+                    vw * (isWide ? 0.17 : 0.30),
+                    vmin * 0.28,
+                    165
+                );
+                cartaMesa = Math.max(cartaMesa, vmin * 0.12);
+
+                let cartaMano = Math.min(
+                    zonaJugador * 0.68,
+                    vw * 0.24,
+                    cartaMesa * 0.92,
+                    vmin * 0.22,
+                    138
+                );
+                cartaMano = Math.max(cartaMano, vmin * 0.11);
+
+                let cartaCpu = Math.min(cartaMano * 0.76, vw * 0.14, vmin * 0.15, 98);
+                cartaCpu = Math.max(cartaCpu, vmin * 0.09);
+
+                const btnFont = Math.max(10, Math.min(15, vmin * 0.034));
+                const btnPadY = Math.max(5, Math.min(12, vmin * 0.016));
+                const btnPadX = Math.max(6, Math.min(18, vmin * 0.024));
+                const manoAltura = cartaMano * aspectRatio + (isWide ? 18 : 14);
+
+                const root = document.documentElement;
+                root.style.setProperty('--carta-mesa', cartaMesa + 'px');
+                root.style.setProperty('--carta-mesa-max-h', (cartaMesa * aspectRatio) + 'px');
+                root.style.setProperty('--carta-mano', cartaMano + 'px');
+                root.style.setProperty('--carta-mano-max-h', (cartaMano * aspectRatio) + 'px');
+                root.style.setProperty('--carta-cpu', cartaCpu + 'px');
+                root.style.setProperty('--carta-cpu-max-h', (cartaCpu * aspectRatio) + 'px');
+                root.style.setProperty('--mano-altura', manoAltura + 'px');
+                root.style.setProperty('--btn-font', btnFont + 'px');
+                root.style.setProperty('--btn-pad-y', btnPadY + 'px');
+                root.style.setProperty('--btn-pad-x', btnPadX + 'px');
+            }
+
             // --- Renderizado ---
             function renderizarManoCpu() {
                 dom.manoCpu.innerHTML = '';
@@ -917,20 +1014,24 @@
             function renderizarManoJugador() {
                 dom.manoJugador.innerHTML = '';
                 const mano = estado.manoJugador;
+                const style = getComputedStyle(document.documentElement);
+                const anchoCarta = parseFloat(style.getPropertyValue('--carta-mano')) || 100;
+                const manoAltura = parseFloat(style.getPropertyValue('--mano-altura')) || 130;
+
                 if (!mano.length) {
-                    dom.manoJugador.style.height = '130px';
+                    dom.manoJugador.style.height = manoAltura + 'px';
                     return;
                 }
-                const ancho = Math.min(420, window.innerWidth - 40);
-                const anchoCarta = Math.min(100, ancho / (mano.length + 0.5));
-                const superp = anchoCarta * 0.55;
-                dom.manoJugador.style.height = (anchoCarta * 1.55 * 0.85 + 30) + 'px';
+
+                const anchoDisponible = window.innerWidth - 24;
+                const superp = anchoCarta * 0.52;
+                dom.manoJugador.style.height = manoAltura + 'px';
                 mano.forEach((carta, i) => {
                     const cont = document.createElement('div');
                     cont.className = 'carta-contenedor';
                     cont.dataset.index = i;
                     cont.style.zIndex = i;
-                    cont.style.left = `${i * superp + (ancho - (mano.length - 1) * superp - anchoCarta) / 2}px`;
+                    cont.style.left = `${i * superp + (anchoDisponible - (mano.length - 1) * superp - anchoCarta) / 2}px`;
                     if (estado.cartaSeleccionada === i) {
                         cont.classList.add('seleccionada');
                         cont.style.zIndex = 20;
@@ -1034,6 +1135,7 @@
             }
 
             function renderizarTodo() {
+                actualizarEscalado();
                 renderizarManoCpu();
                 renderizarManoJugador();
                 renderizarMesa();
