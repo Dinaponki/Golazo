@@ -116,6 +116,7 @@
             gap: clamp(4px, 1vmin, 8px);
             justify-content: center;
             flex-wrap: nowrap;
+            margin-top: clamp(6px, 1.2vh, 12px);
         }
 
         /* Zona mesa */
@@ -665,6 +666,17 @@
                 font-size: clamp(9px, 2.4vmin, 12px);
                 padding: clamp(5px, 1.4vmin, 9px) clamp(3px, 1vmin, 6px);
             }
+
+            /* Colocar Jugar debajo de VAR (intercambio con Golazo) */
+            #btnJugarCarta {
+                grid-column: 4;
+                grid-row: 2;
+            }
+
+            #btnGolazo {
+                grid-column: 5;
+                grid-row: 1;
+            }
         }
 
         @media (min-width: 768px) {
@@ -703,6 +715,11 @@
             .btn-accion {
                 min-width: clamp(90px, 11vw, 130px);
                 width: 100%;
+            }
+
+            /* Ocultar el botón Jugar en PC (escritorio) */
+            #btnJugarCarta {
+                display: none;
             }
         }
 
@@ -1109,20 +1126,26 @@
                 return cont;
             }
 
-            function renderizarEstrellas() {
+            function renderizarEstrellas(mostrarTresEstrellas) {
+                const pJ = mostrarTresEstrellas ? 3 : estado.puntosJugador;
+                const pC = mostrarTresEstrellas ? 3 : estado.puntosCpu;
                 dom.estrellasJugador.querySelectorAll('.estrella').forEach((el, i) => {
-                    el.classList.toggle('encendida', i < estado.puntosJugador);
+                    el.classList.toggle('encendida', i < pJ);
                 });
                 dom.estrellasCpu.querySelectorAll('.estrella').forEach((el, i) => {
-                    el.classList.toggle('encendida', i < estado.puntosCpu);
+                    el.classList.toggle('encendida', i < pC);
                 });
             }
 
-            function renderizarMarcador() {
+            function renderizarMarcador(mostrarTresEstrellas) {
                 dom.golesJugador.textContent = estado.golesJugador;
                 dom.golesCpu.textContent = estado.golesCpu;
                 dom.minutoActual.textContent = MINUTOS[estado.manoActual];
-                renderizarEstrellas();
+                renderizarEstrellas(mostrarTresEstrellas);
+                // Si el marcador grande está abierto, actualizarlo en tiempo real
+                if (!dom.overlayMarcador.classList.contains('oculto')) {
+                    actualizarTablaMarcador();
+                }
             }
 
             function actualizarIndicadorCanto() {
@@ -1150,12 +1173,12 @@
                 }
             }
 
-            function renderizarTodo() {
+            function renderizarTodo(mostrarTresEstrellas) {
                 actualizarEscalado();
                 renderizarManoCpu();
                 renderizarManoJugador();
                 renderizarMesa();
-                renderizarMarcador();
+                renderizarMarcador(mostrarTresEstrellas);
                 actualizarIndicadorCanto();
                 actualizarEtiquetasTurno();
                 actualizarBotones();
@@ -1173,10 +1196,10 @@
 
                 const fase = estado.fase;
                 const quedan = estado.manoJugador.length > 0;
-                const ultimaRonda = estado.manoActual === 3;
+                const ultimaRonda = estado.rondaActual === 3;
                 const algunSinCartas = estado.manoJugador.length === 0 || estado.manoCpu.length === 0;
                 const derechaBloqueada = ultimaRonda && algunSinCartas;
-                const puedeCantarGol = estado.manoActual < 3 && estado.manoJugador.length > 0 && estado.manoCpu.length > 0;
+                const puedeCantarGol = estado.manoJugador.length > 0 && estado.manoCpu.length > 0;
 
                 // Botón Jugar carta
                 dom.btnJugarCarta.disabled = !(fase === 'esperando_seleccion' &&
@@ -1319,7 +1342,7 @@
             }
 
             function iaDecidirCantarGol() {
-                if (estado.golUsado || estado.rondaActual < 1 || estado.manoActual >= 3 || estado.manoJugador.length === 0 || estado.manoCpu.length === 0) return false;
+                if (estado.golUsado || estado.rondaActual < 1 || estado.manoJugador.length === 0 || estado.manoCpu.length === 0) return false;
                 const d = mejorCartaDe(estado.manoCpu, 'Del');
                 return (d && d.numero >= 6) || Math.random() < 0.25;
             }
@@ -1370,6 +1393,7 @@
                     mostrarMensaje('Empate');
                 }
                 estado.rondaActual++;
+                renderizarMarcador();
                 renderizarTodo();
                 setTimeout(continuarFlujo, 800);
             }
@@ -1382,21 +1406,27 @@
             function continuarFlujo() {
                 // Verificar gol por puntos
                 let gol = false;
+                let golPorPuntos = false;
+                let puntosFinalesJugador = estado.puntosJugador;
+                let puntosFinalesCpu = estado.puntosCpu;
                 if (estado.puntosJugador >= PUNTOS_PARA_GOL) {
                     estado.golesJugador++;
                     estado.puntosJugador = 0;
                     gol = true;
+                    golPorPuntos = true;
                     mostrarMensaje('⚽ ¡GOL DEL JUGADOR!');
                 }
                 if (estado.puntosCpu >= PUNTOS_PARA_GOL) {
                     estado.golesCpu++;
                     estado.puntosCpu = 0;
                     gol = true;
+                    golPorPuntos = true;
                     mostrarMensaje('⚽ Gol de la CPU');
                 }
-                renderizarTodo();
+                renderizarMarcador(golPorPuntos);
+                renderizarTodo(golPorPuntos);
                 if (gol) {
-                    setTimeout(finalizarMano, 800);
+                    setTimeout(() => finalizarMano(puntosFinalesJugador, puntosFinalesCpu), 800);
                     return;
                 }
 
@@ -1451,7 +1481,7 @@
             }
 
             function jugadorPideGol() {
-                if (estado.fase !== 'esperando_seleccion' || estado.rondaActual < 1 || estado.golUsado || estado.manoActual >= 3 || estado.manoJugador.length === 0 || estado.manoCpu.length === 0) return;
+                if (estado.fase !== 'esperando_seleccion' || estado.rondaActual < 1 || estado.golUsado || estado.manoJugador.length === 0 || estado.manoCpu.length === 0) return;
                 estado.fase = 'gol_pedido';
                 estado.cantoActual = 'gol';
                 estado.cantoPedidoPor = 'jugador';
@@ -1462,7 +1492,7 @@
             }
 
             function cpuPideGol() {
-                if (estado.manoActual >= 3 || estado.manoJugador.length === 0 || estado.manoCpu.length === 0) return;
+                if (estado.manoJugador.length === 0 || estado.manoCpu.length === 0) return;
                 estado.fase = 'gol_pedido';
                 estado.cantoActual = 'gol';
                 estado.cantoPedidoPor = 'cpu';
@@ -1638,6 +1668,7 @@
                     estado.golesCpu++;
                     estado.puntosJugador = 0;
                     estado.puntosCpu = 0;
+                    renderizarMarcador();
                     mostrarMensaje('📺 VAR: Mentiste. Gol CPU');
                     finalizarCanto();
                     setTimeout(finalizarMano, 1200);
@@ -1668,6 +1699,7 @@
                 else estado.golesCpu++;
                 estado.puntosJugador = 0;
                 estado.puntosCpu = 0;
+                renderizarMarcador();
             }
 
             function sumarPuntos(quien, cant) {
@@ -1693,6 +1725,7 @@
                         }
                     }
                 }
+                renderizarMarcador();
                 return gol;
             }
 
@@ -1713,13 +1746,15 @@
                 continuarFlujo();
             }
 
-            function finalizarMano() {
+            function finalizarMano(puntosFinalesJugador, puntosFinalesCpu) {
+                const pJ = puntosFinalesJugador !== undefined ? puntosFinalesJugador : estado.puntosJugador;
+                const pC = puntosFinalesCpu !== undefined ? puntosFinalesCpu : estado.puntosCpu;
                 estado.historialManos.push({
                     minuto: MINUTOS[estado.manoActual],
                     golesJugador: estado.golesJugador,
                     golesCpu: estado.golesCpu,
-                    puntosJugador: estado.puntosJugador,
-                    puntosCpu: estado.puntosCpu,
+                    puntosJugador: pJ,
+                    puntosCpu: pC,
                     turnoInicial: estado.turnoInicial,
                 });
                 estado.manoActual++;
@@ -1765,19 +1800,18 @@
             }
 
             // --- Overlays ---
-            function mostrarMarcadorDetallado() {
-                estado.pausado = true;
-                dom.overlayMarcador.classList.remove('oculto');
+            function actualizarTablaMarcador() {
                 dom.cuerpoTablaMarcador.innerHTML = '';
                 for (let i = 0; i < TOTAL_MANOS; i++) {
                     const minuto = MINUTOS[i];
                     const tr = document.createElement('tr');
-                    if (i === estado.manoActual && estado.fase !== 'fin_partido') tr.classList.add('fila-actual');
+                    const esActual = i === estado.manoActual && estado.fase !== 'fin_partido';
+                    if (esActual) tr.classList.add('fila-actual');
                     const hist = estado.historialManos.find(h => h.minuto === minuto);
-                    const gJ = hist ? hist.golesJugador : '-',
-                        gC = hist ? hist.golesCpu : '-';
-                    const pJ = hist ? hist.puntosJugador : 0,
-                        pC = hist ? hist.puntosCpu : 0;
+                    const gJ = hist ? hist.golesJugador : (esActual ? estado.golesJugador : '-'),
+                        gC = hist ? hist.golesCpu : (esActual ? estado.golesCpu : '-');
+                    const pJ = hist ? hist.puntosJugador : (esActual ? estado.puntosJugador : 0),
+                        pC = hist ? hist.puntosCpu : (esActual ? estado.puntosCpu : 0);
                     let eJ = '',
                         eC = '';
                     for (let s = 0; s < 3; s++) {
@@ -1788,6 +1822,12 @@
                         `<td>${minuto}</td><td>${eJ} ⚽${gJ}</td><td style="color:rgba(255,255,255,0.3)">vs</td><td>⚽${gC} ${eC}</td>`;
                     dom.cuerpoTablaMarcador.appendChild(tr);
                 }
+            }
+
+            function mostrarMarcadorDetallado() {
+                estado.pausado = true;
+                dom.overlayMarcador.classList.remove('oculto');
+                actualizarTablaMarcador();
             }
 
             function ocultarMarcadorDetallado() {
