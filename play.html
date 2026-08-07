@@ -202,8 +202,7 @@
             width: var(--carta-mano);
             height: auto;
             max-height: var(--carta-mano-max-h);
-            border-radius: 12px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.4));
         }
 
         /* Botones */
@@ -446,16 +445,9 @@
         /* Cartas */
         .carta-img {
             display: block;
-            border-radius: var(--borde-redondo-carta);
-            border: 2px solid var(--borde-carta);
-            box-shadow: var(--sombra-carta);
-            background: #fff;
+            background: transparent;
             object-fit: contain;
             transition: var(--transicion);
-        }
-
-        .carta-img.dorso {
-            border-color: #2a2a2a;
         }
 
         .mano-cpu .carta-img {
@@ -468,7 +460,8 @@
             width: var(--carta-mano);
             height: auto;
             max-height: var(--carta-mano-max-h);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+            background: transparent;
+            filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.35));
         }
 
         /* Overlay bienvenida */
@@ -950,7 +943,7 @@
             const PUNTOS_PARA_GOL = 3;
             const MINUTOS = ["0' a 10'", "10' a 20'", "20' a 30'", "30' a 40'", "40' a 50'", "50' a 60'", "60' a 70'", "70' a 80'", "80' a 90'"];
             const RUTA_IMAGENES = 'img/';
-            const RUTA_DORSO = 'img/dorso.png';
+            const RUTA_DORSO = 'img/Dorso.png';
 
             // Estado global del juego
             const estado = {
@@ -1047,7 +1040,7 @@
                     posicion,
                     numero,
                     nombre: `${nombresPos[posicion]} ${numero}`,
-                    imagen: `${RUTA_IMAGENES}${posicion}${numero}.png`,
+                    imagen: `${RUTA_IMAGENES}${nombresPos[posicion]}${numero}.png`,
                 };
             }
 
@@ -1112,7 +1105,7 @@
                 const vw = window.innerWidth;
                 const vmin = Math.min(vh, vw);
                 const isWide = vw >= 768;
-                const aspectRatio = 1.42;
+                const aspectRatio = 1039 / 744;
 
                 const zonaCpu = vh * (isWide ? 0.10 : 0.09);
                 const zonaBotones = isWide ? 0 : vh * 0.12;
@@ -1175,9 +1168,19 @@
                     return;
                 }
 
-                const anchoDisponible = Math.min(window.innerWidth - 24, 920);
-                const anchoCartaJugador = anchoCarta * 1.15;
-                const superp = anchoCartaJugador * 0.66 * 1.3;
+                const anchoDisponible = Math.min(window.innerWidth - 32, 920);
+                let anchoCartaJugador = anchoCarta * 1.15;
+                const factorSuperp = 0.85;
+                let superp = anchoCartaJugador * factorSuperp;
+                const anchoTotal = (mano.length - 1) * superp + anchoCartaJugador;
+                if (anchoTotal > anchoDisponible) {
+                    anchoCartaJugador = anchoDisponible / (1 + (mano.length - 1) * factorSuperp);
+                    superp = anchoCartaJugador * factorSuperp;
+                }
+                if (anchoCartaJugador > anchoDisponible) {
+                    anchoCartaJugador = anchoDisponible;
+                    superp = anchoCartaJugador * factorSuperp;
+                }
                 const offsetBase = (anchoDisponible - ((mano.length - 1) * superp + anchoCartaJugador)) / 2;
                 dom.manoJugador.style.height = manoAltura + 'px';
                 mano.forEach((carta, i) => {
@@ -1419,11 +1422,11 @@
 
                 const hayCartasAmbos = estado.manoJugador.length > 0 && estado.manoCpu.length > 0;
 
-                if (estado.rondaActual === 0 && !estado.penalUsado && !estado.penalCantadoPor && hayCartasAmbos && iaDecidirCantarPenal()) {
+                if (estado.rondaActual === 0 && !estado.penalUsado && !estado.penalCantadoPor && hayCartasAmbos && estado.esperandoRespuestaDe !== 'cpu' && iaDecidirCantarPenal()) {
                     cpuPidePenal();
                     return;
                 }
-                if (estado.rondaActual >= 1 && !estado.golUsado && hayCartasAmbos && iaDecidirCantarGol()) {
+                if (estado.rondaActual >= 1 && !estado.golUsado && hayCartasAmbos && estado.esperandoRespuestaDe !== 'cpu' && iaDecidirCantarGol()) {
                     cpuPideGol();
                     return;
                 }
@@ -1586,11 +1589,11 @@
                 estado.inicioRonda = estado.cartasEnMesa.length;
 
                 if (estado.turnoActual === 'cpu') {
-                    if (estado.rondaActual === 0 && !estado.penalUsado && !estado.penalCantadoPor && iaDecidirCantarPenal()) {
+                    if (estado.rondaActual === 0 && !estado.penalUsado && !estado.penalCantadoPor && estado.esperandoRespuestaDe !== 'cpu' && iaDecidirCantarPenal()) {
                         cpuPidePenal();
                         return;
                     }
-                    if (estado.rondaActual >= 1 && !estado.golUsado && iaDecidirCantarGol()) {
+                    if (estado.rondaActual >= 1 && !estado.golUsado && estado.esperandoRespuestaDe !== 'cpu' && iaDecidirCantarGol()) {
                         cpuPideGol();
                         return;
                     }
@@ -1604,7 +1607,7 @@
 
             // --- Cantos ---
             function jugadorPidePenal() {
-                if (estado.fase !== 'esperando_seleccion' || estado.rondaActual !== 0 || estado.penalUsado || estado.penalCantadoPor) return;
+                if (estado.fase !== 'esperando_seleccion' || estado.rondaActual !== 0 || estado.penalUsado || estado.penalCantadoPor || estado.esperandoRespuestaDe !== null) return;
                 estado.fase = 'penal_pedido';
                 estado.cantoActual = 'penal';
                 estado.cantoPedidoPor = 'jugador';
@@ -1616,7 +1619,7 @@
             }
 
             function cpuPidePenal() {
-                if (estado.penalCantadoPor) return;
+                if (estado.penalCantadoPor || estado.esperandoRespuestaDe === 'cpu') return;
                 estado.fase = 'penal_pedido';
                 estado.cantoActual = 'penal';
                 estado.cantoPedidoPor = 'cpu';
@@ -1765,28 +1768,7 @@
 
             function declararVarJugador() {
                 const real = numeroMasAltoArqDel(estado.manoJugador);
-                const input = prompt(`VAR: Tu número más alto (Arq/Del) es ${real}. Declará (0-10):`, real);
-                let decl = parseInt(input);
-                if (isNaN(decl) || decl < 0 || decl > 10) decl = 0;
-                estado.varDeclaraciones.jugador = decl;
-
-                // Mentir → pierde automáticamente el VAR
-                if (decl !== real) {
-                    // El jugador miente → CPU gana el VAR
-                    if (estado.varPedidoPor === 'cpu') {
-                        // CPU pidió VAR → CPU +1 punto, penal cancelado
-                        sumarPuntos('cpu', 1);
-                        mostrarMensaje('📺 VAR: Mentiste. CPU gana. Penal cancelado');
-                    } else {
-                        // Jugador pidió VAR, CPU (atacante) gana → CPU +1 punto, penal se ejecuta
-                        sumarPuntos('cpu', 1);
-                        mostrarMensaje('📺 VAR: Mentiste. CPU gana. Se ejecuta el penal');
-                        ejecutarCanto('penal', estado.cantoPedidoPor);
-                        return;
-                    }
-                    finalizarCanto();
-                    return;
-                }
+                estado.varDeclaraciones.jugador = real;
 
                 const dj = estado.varDeclaraciones.jugador;
                 const dc = estado.varDeclaraciones.cpu;
