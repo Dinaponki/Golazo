@@ -980,6 +980,7 @@
                 varTurnoDeclarar: null,
                 esperandoRespuestaDe: null,
                 historialManos: [],
+                inicioRonda: 0,
                 pausado: false,
                 nombreJugador: 'Jugador',
             };
@@ -1398,75 +1399,106 @@
             }
 
             function jugarCartaSeleccionada() {
-    if (estado.fase !== 'esperando_seleccion' || estado.cartaSeleccionada === null || estado.pausado ||
-        estado.turnoActual !== 'jugador') return;
+                if (estado.fase !== 'esperando_seleccion' || estado.cartaSeleccionada === null || estado.pausado ||
+                    estado.turnoActual !== 'jugador') return;
 
-    const idx = estado.cartaSeleccionada;
-    const carta = estado.manoJugador[idx];
+                const idx = estado.cartaSeleccionada;
+                const carta = estado.manoJugador[idx];
 
-    estado.manoJugador.splice(idx, 1);
-    estado.cartaSeleccionada = null;
+                estado.manoJugador.splice(idx, 1);
+                estado.cartaSeleccionada = null;
 
-    estado.cartasEnMesa.push({
-        carta,
-        origen: 'jugador'
-    });
+                estado.cartasEnMesa.push({
+                    carta,
+                    origen: 'jugador'
+                });
 
-    // Si la CPU ya había jugado, ahora se resuelve la ronda.
-    if (estado.turnoInicial === 'cpu') {
-        estado.fase = 'resolviendo';
-        renderizarTodo();
-        setTimeout(resolverRonda, 500);
-    } else {
-        // Si empezó el jugador, ahora juega la CPU.
-        estado.fase = 'esperando_cpu';
-        estado.turnoActual = 'cpu';
-        renderizarTodo();
-        setTimeout(turnoCpu, 600 + Math.random() * 400);
-    }
-}
+                // Si la CPU ya había jugado, ahora se resuelve la ronda.
+                if (estado.turnoInicial === 'cpu') {
+                    estado.fase = 'resolviendo';
+                    renderizarTodo();
+                    setTimeout(resolverRonda, 500);
+                } else {
+                    // Si empezó el jugador, ahora juega la CPU.
+                    estado.fase = 'esperando_cpu';
+                    estado.turnoActual = 'cpu';
+                    renderizarTodo();
+                    setTimeout(turnoCpu, 600 + Math.random() * 400);
+                }
+            }
 
             function turnoCpu() {
-    if (estado.pausado) return;
+                if (estado.pausado) return;
 
-    // Verificar si puede cantar penal (ronda 0)
-    if (estado.rondaActual === 0 && !estado.penalUsado && estado.manoJugador.length > 0 && estado.manoCpu.length > 0 && iaDecidirCantarPenal()) {
-        cpuPidePenal();
-        return;
-    }
+                const esSegunda = estado.turnoInicial === 'jugador' && jugadorJugoEstaRonda();
+                const hayCartasAmbos = estado.manoJugador.length > 0 && estado.manoCpu.length > 0;
 
-    // Verificar si puede cantar gol (ronda >= 1)
-    if (estado.rondaActual >= 1 && !estado.golUsado && estado.manoJugador.length > 0 && estado.manoCpu.length > 0 && iaDecidirCantarGol()) {
-        cpuPideGol();
-        return;
-    }
+                // CPU juega segunda: si quiere cantar, juega su carta para matar la del jugador
+                if (esSegunda && hayCartasAmbos) {
+                    if (estado.rondaActual === 0 && !estado.penalUsado && iaDecidirCantarPenal()) {
+                        estado.penalUsado = true;
+                        const cartaPenal = estado.manoCpu.reduce((a, b) => a.numero > b.numero ? a : b);
+                        estado.manoCpu = estado.manoCpu.filter(c => c.id !== cartaPenal.id);
+                        estado.cartasEnMesa.push({ carta: cartaPenal, origen: 'cpu' });
+                        estado.cantoActual = 'penal';
+                        estado.cantoPedidoPor = 'cpu';
+                        estado.fase = 'resolviendo';
+                        renderizarTodo();
+                        mostrarMensaje('CPU canta ¡PENAL!');
+                        setTimeout(() => resolverCantoDeSegundo('penal', 'cpu'), 1000);
+                        return;
+                    }
+                    if (estado.rondaActual >= 1 && !estado.golUsado && iaDecidirCantarGol()) {
+                        estado.golUsado = true;
+                        const cartaGol = estado.manoCpu.reduce((a, b) => a.numero > b.numero ? a : b);
+                        estado.manoCpu = estado.manoCpu.filter(c => c.id !== cartaGol.id);
+                        estado.cartasEnMesa.push({ carta: cartaGol, origen: 'cpu' });
+                        estado.cantoActual = 'gol';
+                        estado.cantoPedidoPor = 'cpu';
+                        estado.fase = 'resolviendo';
+                        renderizarTodo();
+                        mostrarMensaje('CPU canta ¡GOL!');
+                        setTimeout(() => resolverCantoDeSegundo('gol', 'cpu'), 1000);
+                        return;
+                    }
+                }
 
-    const carta = iaElegirCarta();
+                // CPU es mano: puede cantar directamente antes de jugar su carta
+                if (estado.rondaActual === 0 && !estado.penalUsado && hayCartasAmbos && iaDecidirCantarPenal()) {
+                    cpuPidePenal();
+                    return;
+                }
+                if (estado.rondaActual >= 1 && !estado.golUsado && hayCartasAmbos && iaDecidirCantarGol()) {
+                    cpuPideGol();
+                    return;
+                }
 
-    if (!carta) {
-        finalizarMano();
-        return;
-    }
+                const carta = iaElegirCarta();
 
-    estado.manoCpu = estado.manoCpu.filter(c => c.id !== carta.id);
+                if (!carta) {
+                    finalizarMano();
+                    return;
+                }
 
-    estado.cartasEnMesa.push({
-        carta,
-        origen: 'cpu'
-    });
+                estado.manoCpu = estado.manoCpu.filter(c => c.id !== carta.id);
 
-    // Si la CPU empezó la ronda, ahora debe jugar el jugador.
-    if (estado.turnoInicial === 'cpu') {
-        estado.turnoActual = 'jugador';
-        estado.fase = 'esperando_seleccion';
-        renderizarTodo();
-    } else {
-        // Si empezó segundo, ahora se resuelve la ronda.
-        estado.fase = 'resolviendo';
-        renderizarTodo();
-        setTimeout(resolverRonda, 500);
-    }
-}
+                estado.cartasEnMesa.push({
+                    carta,
+                    origen: 'cpu'
+                });
+
+                // Si la CPU empezó la ronda, ahora debe jugar el jugador.
+                if (estado.turnoInicial === 'cpu') {
+                    estado.turnoActual = 'jugador';
+                    estado.fase = 'esperando_seleccion';
+                    renderizarTodo();
+                } else {
+                    // Si empezó segundo, ahora se resuelve la ronda.
+                    estado.fase = 'resolviendo';
+                    renderizarTodo();
+                    setTimeout(resolverRonda, 500);
+                }
+            }
 
             // --- IA ---
             function iaElegirCarta() {
@@ -1546,6 +1578,83 @@
                 return estado.manoJugador.length === 0 || estado.manoCpu.length === 0;
             }
 
+            // --- Cantos de segundo jugador: primero se juegan las cartas en pareja ---
+            function cartasDeRondaActual() {
+                return estado.cartasEnMesa.slice(estado.inicioRonda || 0);
+            }
+
+            function jugadorJugoEstaRonda() {
+                return cartasDeRondaActual().some(c => c.origen === 'jugador');
+            }
+
+            function cpuJugoEstaRonda() {
+                return cartasDeRondaActual().some(c => c.origen === 'cpu');
+            }
+
+            // Cuando el segundo jugador canta, debe matar la carta del primero con su carta.
+            // Si la mata → el canto procede (Quiero / No quiero / VAR).
+            // Si no la mata → +2 puntos para el primer jugador.
+            function resolverCantoDeSegundo(tipo, quienCanto) {
+                const cartasJ = cartasDeRondaActual().filter(c => c.origen === 'jugador');
+                const cartasC = cartasDeRondaActual().filter(c => c.origen === 'cpu');
+                const uj = cartasJ[cartasJ.length - 1];
+                const uc = cartasC[cartasC.length - 1];
+                if (!uj || !uc) return;
+
+                estado.rondaActual++;
+
+                if (quienCanto === 'cpu') {
+                    if (uc.carta.numero > uj.carta.numero) {
+                        // La CPU mató la carta del jugador → el canto procede
+                        estado.turnoInicial = 'cpu';
+                        estado.fase = tipo === 'penal' ? 'penal_pedido' : 'gol_pedido';
+                        estado.cantoActual = tipo;
+                        estado.cantoPedidoPor = 'cpu';
+                        estado.esperandoRespuestaDe = 'jugador';
+                        renderizarTodo();
+                        mostrarMensaje('CPU mató tu carta - ¡' + (tipo === 'penal' ? 'PENAL' : 'GOL') + '!');
+                    } else {
+                        // La CPU no mató → +2 puntos para el jugador
+                        estado.turnoInicial = 'jugador';
+                        estado.cantoActual = null;
+                        estado.cantoPedidoPor = null;
+                        estado.esperandoRespuestaDe = null;
+                        const gol = sumarPuntos('jugador', 2);
+                        if (gol) {
+                            setTimeout(finalizarMano, 700);
+                        } else {
+                            mostrarMensaje('CPU no mató tu carta - +2 ' + estado.nombreJugador);
+                            setTimeout(continuarFlujo, 800);
+                        }
+                    }
+                } else {
+                    if (uj.carta.numero > uc.carta.numero) {
+                        // El jugador mató la carta de la CPU → el canto procede
+                        estado.turnoInicial = 'jugador';
+                        estado.fase = tipo === 'penal' ? 'penal_pedido' : 'gol_pedido';
+                        estado.cantoActual = tipo;
+                        estado.cantoPedidoPor = 'jugador';
+                        estado.esperandoRespuestaDe = 'cpu';
+                        renderizarTodo();
+                        mostrarMensaje('Mataste la carta de la CPU - ¡' + (tipo === 'penal' ? 'PENAL' : 'GOL') + '!');
+                        setTimeout(() => procesarRespuestaCpu(iaResponderCanto(tipo)), 800 + Math.random() * 600);
+                    } else {
+                        // El jugador no mató → +2 puntos para la CPU
+                        estado.turnoInicial = 'cpu';
+                        estado.cantoActual = null;
+                        estado.cantoPedidoPor = null;
+                        estado.esperandoRespuestaDe = null;
+                        const gol = sumarPuntos('cpu', 2);
+                        if (gol) {
+                            setTimeout(finalizarMano, 700);
+                        } else {
+                            mostrarMensaje('No mataste la carta de la CPU - +2 CPU');
+                            setTimeout(continuarFlujo, 800);
+                        }
+                    }
+                }
+            }
+
             function continuarFlujo() {
                 // Verificar gol por puntos
                 let gol = false;
@@ -1585,6 +1694,7 @@
                 estado.turnoActual = estado.turnoInicial;
                 estado.fase = 'esperando_seleccion';
                 estado.cartaSeleccionada = null;
+                estado.inicioRonda = estado.cartasEnMesa.length;
 
                 // Turno CPU: ver si canta o juega
                 if (estado.turnoActual === 'cpu') {
@@ -1607,6 +1717,31 @@
             // --- Cantos ---
             function jugadorPidePenal() {
                 if (estado.fase !== 'esperando_seleccion' || estado.rondaActual !== 0 || estado.penalUsado) return;
+
+                const esSegunda = estado.turnoInicial === 'cpu' && cpuJugoEstaRonda();
+
+                if (esSegunda) {
+                    // El jugador es segundo: debe jugar una carta para matar la de la CPU
+                    if (estado.cartaSeleccionada === null) {
+                        mostrarMensaje('Seleccioná una carta para cantar penal');
+                        return;
+                    }
+                    const idx = estado.cartaSeleccionada;
+                    const carta = estado.manoJugador[idx];
+                    estado.manoJugador.splice(idx, 1);
+                    estado.cartaSeleccionada = null;
+                    estado.cartasEnMesa.push({ carta, origen: 'jugador' });
+                    estado.penalUsado = true;
+                    estado.cantoActual = 'penal';
+                    estado.cantoPedidoPor = 'jugador';
+                    estado.fase = 'resolviendo';
+                    renderizarTodo();
+                    mostrarMensaje(estado.nombreJugador + ' canta ¡PENAL!');
+                    setTimeout(() => resolverCantoDeSegundo('penal', 'jugador'), 1000);
+                    return;
+                }
+
+                // El jugador es mano: canto directo
                 estado.fase = 'penal_pedido';
                 estado.cantoActual = 'penal';
                 estado.cantoPedidoPor = 'jugador';
@@ -1627,6 +1762,31 @@
 
             function jugadorPideGol() {
                 if (estado.fase !== 'esperando_seleccion' || estado.rondaActual < 1 || estado.golUsado || estado.manoJugador.length === 0 || estado.manoCpu.length === 0) return;
+
+                const esSegunda = estado.turnoInicial === 'cpu' && cpuJugoEstaRonda();
+
+                if (esSegunda) {
+                    // El jugador es segundo: debe jugar una carta para matar la de la CPU
+                    if (estado.cartaSeleccionada === null) {
+                        mostrarMensaje('Seleccioná una carta para cantar gol');
+                        return;
+                    }
+                    const idx = estado.cartaSeleccionada;
+                    const carta = estado.manoJugador[idx];
+                    estado.manoJugador.splice(idx, 1);
+                    estado.cartaSeleccionada = null;
+                    estado.cartasEnMesa.push({ carta, origen: 'jugador' });
+                    estado.golUsado = true;
+                    estado.cantoActual = 'gol';
+                    estado.cantoPedidoPor = 'jugador';
+                    estado.fase = 'resolviendo';
+                    renderizarTodo();
+                    mostrarMensaje(estado.nombreJugador + ' canta ¡GOL!');
+                    setTimeout(() => resolverCantoDeSegundo('gol', 'jugador'), 1000);
+                    return;
+                }
+
+                // El jugador es mano: canto directo
                 estado.fase = 'gol_pedido';
                 estado.cantoActual = 'gol';
                 estado.cantoPedidoPor = 'jugador';
@@ -1928,6 +2088,7 @@
                 estado.puntosCpu = 0;
                 estado.rondaActual = 0;
                 estado.cartasEnMesa = [];
+                estado.inicioRonda = 0;
                 estado.cartaSeleccionada = null;
                 estado.penalUsado = false;
                 estado.golUsado = false;
@@ -2025,6 +2186,7 @@
                     manoActual: 0,
                     rondaActual: 0,
                     cartasEnMesa: [],
+                    inicioRonda: 0,
                     cartaSeleccionada: null,
                     historialManos: [],
                     penalUsado: false,
@@ -2054,7 +2216,7 @@
                 timeoutMensaje = setTimeout(() => dom.mensajeFlotante.classList.remove('mostrar'), 1800);
             }
 
-            // --- Inicialización ---
+            // --- Inicializacion ---
             function iniciarPartido() {
                 dom.overlayBienvenida.classList.add('oculto');
                 estado.pausado = false;
@@ -2077,7 +2239,7 @@
 
                 // Event listeners del overlay de bienvenida
                 dom.inputNombre.addEventListener('input', () => {
-                    dom.contadorCaracteres.textContent = `${dom.inputNombre.value.length}/12`;
+                    dom.contadorCaracteres.textContent = dom.inputNombre.value.length + '/12';
                 });
                 dom.btnEmpezar.addEventListener('click', () => {
                     const nombre = dom.inputNombre.value.trim();
@@ -2096,30 +2258,22 @@
 
                 // Event listeners
                 dom.btnPenal.addEventListener('click', () => { if (!dom.btnPenal.disabled) jugadorPidePenal(); });
-                dom.btnQuieroIzq.addEventListener('click', () => { if (!dom.btnQuieroIzq.disabled)
-                    jugadorRespondeQuiero(); });
-                dom.btnNoQuieroIzq.addEventListener('click', () => { if (!dom.btnNoQuieroIzq.disabled)
-                    jugadorRespondeNoQuiero(); });
+                dom.btnQuieroIzq.addEventListener('click', () => { if (!dom.btnQuieroIzq.disabled) jugadorRespondeQuiero(); });
+                dom.btnNoQuieroIzq.addEventListener('click', () => { if (!dom.btnNoQuieroIzq.disabled) jugadorRespondeNoQuiero(); });
                 dom.btnVar.addEventListener('click', () => {
                     if (!dom.btnVar.disabled) {
-                        if (estado.fase === 'var_pedido' && estado.varTurnoDeclarar === 'jugador')
-                            declararVarJugador();
+                        if (estado.fase === 'var_pedido' && estado.varTurnoDeclarar === 'jugador') declararVarJugador();
                         else if (estado.fase === 'penal_pedido') jugadorRespondeVar();
                     }
                 });
                 dom.btnGol.addEventListener('click', () => { if (!dom.btnGol.disabled) jugadorPideGol(); });
-                dom.btnQuieroDer.addEventListener('click', () => { if (!dom.btnQuieroDer.disabled)
-                    jugadorRespondeQuiero(); });
-                dom.btnNoQuieroDer.addEventListener('click', () => { if (!dom.btnNoQuieroDer.disabled)
-                    jugadorRespondeNoQuiero(); });
-                dom.btnGolazo.addEventListener('click', () => { if (!dom.btnGolazo.disabled)
-                jugadorRespondeGolazo(); });
-                dom.btnJugarCarta.addEventListener('click', () => { if (!dom.btnJugarCarta.disabled)
-                    jugarCartaSeleccionada(); });
+                dom.btnQuieroDer.addEventListener('click', () => { if (!dom.btnQuieroDer.disabled) jugadorRespondeQuiero(); });
+                dom.btnNoQuieroDer.addEventListener('click', () => { if (!dom.btnNoQuieroDer.disabled) jugadorRespondeNoQuiero(); });
+                dom.btnGolazo.addEventListener('click', () => { if (!dom.btnGolazo.disabled) jugadorRespondeGolazo(); });
+                dom.btnJugarCarta.addEventListener('click', () => { if (!dom.btnJugarCarta.disabled) jugarCartaSeleccionada(); });
 
                 dom.panelMarcador.addEventListener('click', () => {
-                    if (!estado.pausado || !dom.overlayMarcador.classList.contains('oculto'))
-                        mostrarMarcadorDetallado();
+                    if (!estado.pausado || !dom.overlayMarcador.classList.contains('oculto')) mostrarMarcadorDetallado();
                 });
                 dom.btnVolverMarcador.addEventListener('click', ocultarMarcadorDetallado);
                 dom.btnRevancha.addEventListener('click', reiniciarPartido);
@@ -2127,10 +2281,8 @@
 
                 window.addEventListener('resize', () => { if (!estado.pausado) renderizarTodo(); });
                 document.addEventListener('keydown', (e) => {
-                    if (e.key === 'Escape' && !dom.overlayMarcador.classList.contains('oculto'))
-                        ocultarMarcadorDetallado();
-                    if (e.key === 'Enter' && estado.fase === 'esperando_seleccion' && estado
-                        .cartaSeleccionada !== null) jugarCartaSeleccionada();
+                    if (e.key === 'Escape' && !dom.overlayMarcador.classList.contains('oculto')) ocultarMarcadorDetallado();
+                    if (e.key === 'Enter' && estado.fase === 'esperando_seleccion' && estado.cartaSeleccionada !== null) jugarCartaSeleccionada();
                 });
 
                 renderizarTodo();

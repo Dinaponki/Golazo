@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual Oficial | Golazo - Dinaponki</title>
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <style>
+        :root {
+            --verde-oscuro: #1a3c2a;
+            --verde-medio: #2d5a3f;
+            --verde-claro: #3d7a52;
+            --dorado: #c8a84e;
+            --blanco: #f5f5f0;
+            --negro: #111;
+            --gris: #666;
+            --sombra: 0 4px 20px rgba(0, 0, 0, 0.3);
+            --borde-redondo: 16px;
+            --transicion: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(160deg, #0f2b1a 0%, #1a3c2a 30%, #163825 60%, #0d2416 100%);
+            color: var(--blanco);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(ellipse at center, rgba(200, 168, 78, 0.03) 0%, transparent 70%),
+                radial-gradient(ellipse at 30% 20%, rgba(255, 255, 255, 0.02) 0%, transparent 60%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .contenedor {
+            position: relative;
+            z-index: 1;
+            max-width: 720px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 24px;
+            padding-bottom: 40px;
+        }
+
+        .titulo {
+            font-size: clamp(40px, 8vw, 64px);
+            font-weight: 900;
+            letter-spacing: -0.02em;
+            color: var(--blanco);
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+            line-height: 1;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .titulo .acento {
+            color: var(--dorado);
+        }
+
+        .subtitulo {
+            font-size: clamp(13px, 3vw, 16px);
+            font-weight: 400;
+            color: rgba(255, 255, 255, 0.6);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-top: -12px;
+            text-align: center;
+        }
+
+        .version {
+            font-size: 12px;
+            color: var(--dorado);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            background: rgba(200, 168, 78, 0.12);
+            border: 1px solid rgba(200, 168, 78, 0.3);
+            padding: 6px 18px;
+            border-radius: 50px;
+            margin-top: 4px;
+        }
+
+        .intro {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.7;
+            text-align: center;
+            max-width: 600px;
+        }
+
+        .reglamento {
+            background: rgba(0, 0, 0, 0.35);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--borde-redondo);
+            padding: 28px 24px;
+            text-align: left;
+            width: 100%;
+            box-shadow: var(--sombra);
+        }
+
+        .reglamento h2 {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--dorado);
+            margin-bottom: 16px;
+            text-align: center;
+            letter-spacing: 0.04em;
+        }
+
+        .reglamento .seccion {
+            margin-bottom: 14px;
+        }
+
+        .reglamento .seccion:last-child {
+            margin-bottom: 0;
+        }
+
+        .reglamento .seccion h3 {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--blanco);
+            margin-bottom: 4px;
+        }
+
+        .reglamento .seccion p {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.5;
+        }
+
+        .reglamento .seccion .destacado {
+            color: var(--dorado);
+            font-weight: 600;
+        }
+
+        .reglamento .seccion ul,
+        .reglamento .seccion ol {
+            margin: 8px 0 8px 20px;
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.6;
+        }
+
+        .reglamento .seccion li {
+            margin-bottom: 4px;
+        }
+
+        .reglamento .seccion table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+            font-size: 13px;
+        }
+
+        .reglamento .seccion th {
+            background: rgba(200, 168, 78, 0.15);
+            color: var(--dorado);
+            font-weight: 700;
+            text-align: left;
+            padding: 8px 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .reglamento .seccion td {
+            padding: 8px 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .reglamento .seccion tr:nth-child(even) td {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .continuacion {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.4);
+            text-align: center;
+            font-style: italic;
+        }
+
+        .continuacion strong {
+            color: var(--dorado);
+            font-style: normal;
+        }
+
+        .boton {
+            display: inline-block;
+            padding: 16px 48px;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            cursor: pointer;
+            border: none;
+            transition: var(--transicion);
+            text-decoration: none;
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+            max-width: 320px;
+            text-align: center;
+        }
+
+        .boton-volver {
+            background: transparent;
+            color: var(--blanco);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            font-size: 15px;
+            padding: 12px 36px;
+            letter-spacing: 0.06em;
+        }
+
+        .boton-volver:hover {
+            border-color: var(--dorado);
+            color: var(--dorado);
+            background: rgba(200, 168, 78, 0.08);
+        }
+
+        .footer {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.35);
+            letter-spacing: 0.04em;
+            text-align: center;
+            line-height: 1.7;
+            margin-top: 8px;
+        }
+
+        .footer h3 {
+            color: var(--dorado);
+            font-size: 16px;
+            margin-bottom: 8px;
+            letter-spacing: 0.06em;
+        }
+
+        @media (max-width: 480px) {
+            .contenedor {
+                gap: 20px;
+                padding: 0 8px 30px;
+            }
+
+            .reglamento {
+                padding: 20px 16px;
+            }
+
+            .boton {
+                max-width: 100%;
+            }
+        }
+
+        @media (min-width: 1200px) {
+            .contenedor {
+                max-width: 760px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="contenedor">
+
+        <h1 class="titulo">⚽ GOLAZO</h1>
+        <p class="subtitulo">El Truco del Fútbol</p>
+        <p class="version">Manual Oficial v1.0</p>
+
+        <p class="intro">
+            Golazo es un juego de cartas para dos jugadores inspirado en el Truco Argentino y el fútbol.
+            La victoria no depende únicamente de tener las mejores cartas, sino también de saber cuándo atacar,
+            cuándo defender, cuándo arriesgar y cuándo engañar al rival.
+            Cada partida representa un partido completo de fútbol de 90 minutos donde cada decisión puede terminar
+            convirtiéndose en un gol.
+        </p>
+
+        <div class="reglamento">
+            <h2>📖 Índice</h2>
+            <div class="seccion">
+                <ol>
+                    <li>Objetivo del juego</li>
+                    <li>Componentes</li>
+                    <li>Preparación de la partida</li>
+                    <li>Cómo se juega una mano</li>
+                    <li>🥅 Penal</li>
+                    <li>📺 VAR</li>
+                    <li>⚽ Gol</li>
+                    <li>⭐ Golazo</li>
+                    <li>Sistema de puntos</li>
+                    <li>Fin de una mano</li>
+                    <li>Fin del partido</li>
+                    <li>Casos especiales</li>
+                    <li>Preguntas frecuentes</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="reglamento">
+            <h2>🎯 Objetivo del juego</h2>
+            <div class="seccion">
+                <p>
+                    El objetivo es convertir más goles que el rival durante un partido completo.
+                    Cada partida está formada por <span class="destacado">nueve manos</span>, que representan los
+                    <span class="destacado">noventa minutos</span> reglamentarios de un partido de fútbol.
+                    Cada mano puede terminar con un gol de cualquiera de los jugadores o sin goles.
+                    Al finalizar la novena mano, el jugador que haya convertido más goles será el ganador de la partida.
+                </p>
+            </div>
+        </div>
+
+        <div class="reglamento">
+            <h2>🃏 Componentes</h2>
+            <div class="seccion">
+                <p>Golazo utiliza un mazo de <span class="destacado">cuarenta cartas</span>.</p>
+                <ul>
+                    <li>10 Arqueros 🥅</li>
+                    <li>10 Defensores 🛡️</li>
+                    <li>10 Volantes 🎯</li>
+                    <li>10 Delanteros ⚽</li>
+                </ul>
+                <p>
+                    Cada posición posee cartas numeradas del <span class="destacado">1 al 10</span>.
+                    Cuanto mayor sea el número, más fuerte será esa carta.
+                    En igualdad de condiciones siempre gana el número más alto.
+                </p>
+                <p>
+                    Durante una partida todas las cartas jugadas permanecen visibles sobre la mesa hasta finalizar la mano.
+                    Esto permite recordar qué cartas ya fueron utilizadas por cada jugador.
+                </p>
+            </div>
+        </div>
+
+        <div class="reglamento">
+            <h2>⚙️ Preparación de la partida</h2>
+            <div class="seccion">
+                <ol>
+                    <li>Mezclar completamente las cuarenta cartas.</li>
+                    <li>Repartir cuatro cartas a cada jugador.</li>
+                    <li>Las cartas restantes quedan fuera del juego hasta la siguiente mano.</li>
+                    <li>Elegir al azar quién será el jugador mano.</li>
+                    <li>El jugador mano comienza jugando la primera ronda.</li>
+                </ol>
+                <p>
+                    Una vez finalizada una mano, se vuelven a mezclar todas las cartas y se reparten nuevamente
+                    cuatro cartas para cada jugador.
+                </p>
+                <p>
+                    El jugador que haya ganado la mano anterior será quien comience la siguiente mano.
+                    Si una mano termina empatada sin que ninguno convierta un gol, el jugador mano conserva el inicio
+                    de la siguiente mano.
+                </p>
+            </div>
+        </div>
+
+        <div class="reglamento">
+            <h2>⏱️ Desarrollo del partido</h2>
+            <div class="seccion">
+                <p>
+                    Un partido completo está compuesto por <span class="destacado">nueve manos</span>.
+                    Cada mano representa <span class="destacado">diez minutos</span> del partido.
+                </p>
+                <table>
+                    <tr><th>Mano</th><th>Minutos</th></tr>
+                    <tr><td>1</td><td>0' - 10'</td></tr>
+                    <tr><td>2</td><td>10' - 20'</td></tr>
+                    <tr><td>3</td><td>20' - 30'</td></tr>
+                    <tr><td>4</td><td>30' - 40'</td></tr>
+                    <tr><td>5</td><td>40' - 50'</td></tr>
+                    <tr><td>6</td><td>50' - 60'</td></tr>
+                    <tr><td>7</td><td>60' - 70'</td></tr>
+                    <tr><td>8</td><td>70' - 80'</td></tr>
+                    <tr><td>9</td><td>80' - 90'</td></tr>
+                </table>
+                <p>
+                    Cada mano posee exactamente <span class="destacado">cuatro rondas</span>.
+                    Durante esas cuatro rondas los jugadores intentarán sumar puntos mediante las distintas acciones disponibles.
+                </p>
+                <p>
+                    El primer jugador que alcance <span class="destacado">tres puntos</span> convierte automáticamente un gol.
+                    En ese mismo instante la mano finaliza inmediatamente, sin importar cuántas rondas queden por jugar.
+                    Luego se mezclan nuevamente todas las cartas y comienza la siguiente mano.
+                </p>
+                <p>
+                    Si ninguno de los jugadores alcanza tres puntos luego de jugar las cuatro rondas, la mano termina
+                    sin goles y comienza una nueva mano.
+                </p>
+            </div>
+        </div>
+
+        <div class="reglamento">
+            <h2>📌 Conceptos importantes</h2>
+            <div class="seccion">
+                <ul>
+                    <li><span class="destacado">Mano:</span> representa diez minutos del partido.</li>
+                    <li><span class="destacado">Ronda:</span> cada una de las cuatro jugadas que forman una mano.</li>
+                    <li><span class="destacado">Puntos:</span> sirven únicamente para convertir un gol dentro de la mano actual.</li>
+                    <li><span class="destacado">Gol:</span> se consigue al alcanzar tres puntos durante una mano.</li>
+                    <li><span class="destacado">Los puntos nunca se acumulan entre manos.</span></li>
+                    <li><span class="destacado">Cada mano puede tener como máximo un gol.</span></li>
+                    <li><span class="destacado">Las cartas jugadas permanecen visibles hasta terminar la mano.</span></li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="reglamento">
+            <h2>🥅 Penal</h2>
+            <div class="seccion">
+                <p>
+                    El <span class="destacado">Penal</span> es una acción especial que únicamente puede cantarse durante la
+                    <span class="destacado">primera ronda</span> de cada mano.
+                    Representa la oportunidad más clara de convertir un gol y puede cambiar completamente el desarrollo de la mano.
+                </p>
+                <p>
+                    El jugador que tiene el turno puede decidir entre jugar normalmente o cantar
+                    <span class="destacado">¡Penal!</span> antes de colocar una carta sobre la mesa.
+                </p>
+                <h3>Opciones del rival</h3>
+                <p>Cuando un jugador canta Penal, el rival dispone de tres respuestas posibles:</p>
+                <ul>
+                    <li>✅ Quiero</li>
+                    <li>❌ No quiero</li>
+                    <li>📺 VAR</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="reglamento">
+            <h2>❌ No quiero</h2>
+            <div class="seccion">
+                <p>Si el rival decide no aceptar el Penal, la ejecución no se realiza.</p>
+                <p>El jugador que cantó Penal obtiene inmediatamente <span class="destacado">1 punto</span>.</p>
+                <p>Luego la mano continúa normalmente desde la siguiente acción disponible.</p>
+            </div>
+        </div>
+
+        <div class="reglamento">
+            <h2>✅ Quiero</h2>
+            <div class="seccion">
+                <p>Si el rival acepta el Penal, comienza la ejecución.</p>
+                <ol>
+                    <li>El jugador que cantó Penal debe jugar un <span class="destacado">Delantero</span>.</li>
+                    <li>Luego el rival debe jugar un <span class="destacado">Arquero</span>.</li>
+                </ol>
+                <h3>Si el atacante no posee Delantero</h3>
+                <p>
+                    Si quien cantó Penal no tiene ningún Delantero en su mano, deberá mostrar sus cartas para comprobarlo.
+                    En ese caso pierde automáticamente el Penal y el defensor obtiene <span class="destacado">2 puntos</span>.
+                </p>
+                <h3>Si el defensor no posee Arquero</h3>
+                <p>
+                    Si el defensor no tiene ningún Arquero, deberá mostrar sus cartas para comprobarlo.
+                    En ese caso el Penal se convierte automáticamente en <span class="destacado">Gol</span> para el atacante.
+                    La mano termina inmediatamente y comienza la siguiente.
+                </p>
+                <h3>Si ambos poseen las cartas correspondientes</h3>
+                <p>Se comparan únicamente el Delantero del atacante y el Arquero del defensor.</p>
+                <ul>
+                    <li>Si el Delantero tiene un valor mayor, es <span class="destacado">Gol</span>.</li>
+                    <li>Si el Arquero logra atajarlo, el defensor obtiene <span class="destacado">2 puntos</span>.</li>
+                </ul>
+                <h3>Si ninguno posee la carta correspondiente</h3>
+                <p>
+                    Si el atacante no tiene Delantero y el defensor tampoco posee Arquero, ambos deberán jugar la carta
+                    de mayor valor que tengan.
+                </p>
+                <p>Quien tenga la carta más alta obtiene <span class="destacado">2 puntos</span>.</p>
+                <p>En esta situación <span class="destacado">no se convierte un gol</span>.</p>
+            </div>
+        </div>
+
+        <div class="reglamento">
+            <h2>📺 VAR</h2>
+            <div class="seccion">
+                <p>
+                    En lugar de aceptar o rechazar un Penal, el defensor puede solicitar <span class="destacado">VAR</span>.
+                </p>
+                <p>
+                    El objetivo del VAR es comprobar quién posee la mejor combinación ofensiva y defensiva antes de ejecutar el Penal.
+                </p>
+                <p>Cuando un jugador pide VAR, el jugador que cantó Penal tiene dos opciones.</p>
+                <ul>
+                    <li>✅ Quiero</li>
+                    <li>❌ No quiero</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="reglamento">
+            <h2>❌ No quiero el VAR</h2>
+            <div class="seccion">
+                <p>Si el jugador que cantó Penal decide no aceptar el VAR, pierde automáticamente la disputa.</p>
+                <p>El rival obtiene inmediatamente <span class="destacado">2 puntos</span>.</p>
+                <p>El Penal no se ejecuta.</p>
+            </div>
+        </div>
+
+        <div class="reglamento">
+            <h2>✅ Quiero el VAR</h2>
+            <div class="seccion">
+                <p>Si ambos aceptan el VAR, ninguno juega cartas todavía.</p>
+                <p>
+                    Cada jugador deberá decir en voz alta cuál es el valor más alto que posee entre sus cartas de
+                    <span class="destacado">Arquero</span> y <span class="destacado">Delantero</span>.
+                </p>
+                <p>
+                    No importa cuál de las dos posiciones tenga; solamente debe declarar el número más alto entre ambas.
+                </p>
+                <p>Si un jugador no posee ni Arquero ni Delantero, deberá declarar <span class="destacado">0</span>.</p>
+                <h3>Importante</h3>
+                <p>Los jugadores deben decir la verdad. <span class="destacado">Mentir durante un VAR rompe las reglas del juego.</span></p>
+                <p>Si un jugador declara un valor diferente al que realmente posee, pierde automáticamente el VAR.</p>
+            </div>
+        </div>
+
+        <div class="reglamento">
+            <h2>Resultado del VAR</h2>
+            <div class="seccion">
+                <ul>
+                    <li>Si ambos jugadores dicen 0, el VAR termina empatado.</li>
+                    <li>Si uno posee un valor mayor, gana el VAR.</li>
+                    <li>Si un jugador declaró 0 y el otro posee alguna carta válida, gana quien tenga la carta.</li>
+                </ul>
+                <h3>Si gana quien pidió VAR</h3>
+                <p>Obtiene <span class="destacado">1 punto</span>.</p>
+                <p>El Penal queda cancelado y no se ejecuta.</p>
+                <h3>Si gana quien cantó Penal</h3>
+                <p>Obtiene <span class="destacado">1 punto</span>.</p>
+                <p>Luego el Penal se ejecuta normalmente siguiendo todas las reglas explicadas anteriormente.</p>
+                <h3>Si el VAR termina empatado</h3>
+                <p>Ningún jugador recibe puntos.</p>
+                <p>El Penal se ejecuta normalmente.</p>
+            </div>
+        </div>
+
+        <div class="reglamento">
+            <h2>📌 Resumen del Penal</h2>
+            <div class="seccion">
+                <table>
+                    <tr><th>Situación</th><th>Resultado</th></tr>
+                    <tr><td>Penal rechazado</td><td>+1 punto para el atacante</td></tr>
+                    <tr><td>Atacante sin Delantero</td><td>+2 puntos para el defensor</td></tr>
+                    <tr><td>Defensor sin Arquero</td><td>Gol automático</td></tr>
+                    <tr><td>Delantero supera al Arquero</td><td>Gol</td></tr>
+                    <tr><td>Arquero ataja</td><td>+2 puntos para el defensor</td></tr>
+                    <tr><td>Ambos sin cartas necesarias</td><td>Carta más alta gana 2 puntos</td></tr>
+                    <tr><td>Atacante rechaza el VAR</td><td>+2 puntos para el defensor</td></tr>
+                    <tr><td>Gana quien pidió VAR</td><td>+1 punto y el Penal se cancela</td></tr>
+                    <tr><td>Gana quien cantó Penal</td><td>+1 punto y se ejecuta el Penal</td></tr>
+                    <tr><td>VAR empatado</td><td>Se ejecuta el Penal sin sumar puntos</td></tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="reglamento">
+            <h2>⚽ Gol</h2>
+            <div class="seccion">
+                <p>
+                    A partir de la <span class="destacado">segunda ronda</span> de cada mano, el jugador cuyo turno
+                    corresponda puede cantar <span class="destacado">¡Gol!</span> antes de jugar una carta.
+                </p>
+                <p>
+                    El Gol representa un ataque directo al arco rival y puede convertirse inmediatamente en un gol
+                    si el atacante logra superar la defensa.
+                </p>
+                <p>Cuando un jugador canta Gol, el rival dispone de tres respuestas posibles.</p>
+                <ul>
+                    <li>✅ Quiero</li>
+                    <li>❌ No quiero</li>
+                    <li>⭐ Golazo</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="reglamento">
+            <h2>❌ No quiero</h2>
+            <div class="seccion">
+                <p>Si el rival decide no aceptar el Gol, el ataque finaliza inmediatamente.</p>
+                <p>El jugador que cantó Gol obtiene <span class="destacado">1 punto</span>.</p>
+                <p>Luego la mano continúa normalmente mientras ninguno de los jugadores haya alcanzado los tres puntos.</p>
+            </div>
+        </div>
+
+        <div class="reglamento">
+            <h2>✅ Quiero</h2>
+            <div class="seccion">
+                <p>Si el rival acepta el Gol, comienza el enfrentamiento.</p>
+                <ol>
+                    <li>El atacante juega un <span class="destacado">Delantero</span>.</li>
+                    <li>El defensor responde con un <span class="destacado">Arquero</span> o un <span class="destacado">Defensor</span>.</li>
+                </ol>
+                <h3>Si el atacante no posee Delantero</h3>
+                <p>Si quien cantó Gol no posee ningún Delantero, deberá jugar la carta de mayor valor que tenga.</p>
+                <h3>Si el defensor no posee Arquero ni Defensor</h3>
+                <p>Si el defensor no tiene ninguna de esas posiciones, deberá jugar su carta de mayor valor.</p>
+                <h3>Resolución</h3>
+                <ul>
+                    <li>Si la carta del atacante es mayor, convierte automáticamente un <span class="destacado">Gol</span>.</li>
+                    <li>Si la carta del defensor es mayor, el defensor obtiene <span class="destacado">2 puntos</span>.</li>
+                </ul>
+                <p>Cuando se convierte un Gol, la mano finaliza inmediatamente y comienza la siguiente.</p>
+            </div>
+        </div>
+
+        <div class="reglamento">
+            <h2>⭐ Golazo</h2>
+            <div class="seccion">
+                <p>
+                    En lugar de aceptar o rechazar un Gol, el defensor puede responder con un
+                    <span class="destacado">¡Golazo!</span>
+                </p>
+                <p>El Golazo representa un <span class="destacado">contraataque</span>.</p>
+                <p>En ese momento los roles se invierten completamente.</p>
+                <p>Quien originalmente defendía pasa a ser el nuevo atacante.</p>
+                <p>Quien había cantado Gol pasa ahora a defender.</p>
+                <p>El jugador que recibió el Golazo dispone de dos respuestas.</p>
+                <ul>
+                    <li>✅ Quiero</li>
+                    <li>❌ No quiero</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="reglamento">
+            <h2>❌ No quiero el Golazo</h2>
+            <div class="seccion">
+                <p>Si el jugador decide no aceptar el Golazo, el rival obtiene inmediatamente <span class="destacado">2 puntos</span>.</p>
+                <p>Luego la mano continúa normalmente, siempre que ningún jugador haya alcanzado los tres puntos.</p>
+            </div>
+        </div>
+
+        <div class="reglamento">
+            <h2>✅ Quiero el Golazo</h2>
+            <div class="seccion">
+                <p>Si ambos aceptan el Golazo, se juega exactamente igual que un Gol, pero con los papeles invertidos.</p>
+                <ol>
+                    <li>El nuevo atacante juega un Delantero.</li>
+                    <li>El nuevo defensor responde con un Arquero o un Defensor.</li>
+                    <li>Si el atacante no posee Delantero, juega su carta más alta.</li>
+                    <li>Si el defensor no posee Arquero ni Defensor, juega su carta más alta.</li>
+                </ol>
+                <ul>
+                    <li>Si el atacante gana el enfrentamiento, convierte un <span class="destacado">Gol</span>.</li>
+                    <li>Si el defensor logra detener el ataque, obtiene <span class="destacado">2 puntos</span>.</li>
+                </ul>
+                <p>Si el Gol se convierte, la mano termina inmediatamente y comienza la siguiente.</p>
+            </div>
+        </div>
+
+        <div class="reglamento">
+            <h2>⭐ Sistema de puntos</h2>
+            <div class="seccion">
+                <p>Durante cada mano los jugadores intentan alcanzar <span class="destacado">tres puntos</span>.</p>
+                <p>Los puntos únicamente tienen validez dentro de la mano actual.</p>
+                <p>Al comenzar una nueva mano, ambos jugadores vuelven a tener cero puntos.</p>
+                <table>
+                    <tr><th>Situación</th><th>Puntos</th></tr>
+                    <tr><td>Ganar una ronda normalmente</td><td>+1</td></tr>
+                    <tr><td>Penal rechazado</td><td>+1</td></tr>
+                    <tr><td>Gol rechazado</td><td>+1</td></tr>
+                    <tr><td>Ganar un VAR</td><td>+1</td></tr>
+                    <tr><td>Penal atajado</td><td>+2</td></tr>
+                    <tr><td>Gol defendido</td><td>+2</td></tr>
+                    <tr><td>Golazo rechazado</td><td>+2</td></tr>
+                    <tr><td>Rechazar un VAR</td><td>+2 para quien pidió VAR</td></tr>
+                    <tr><td>Atacante sin Delantero durante un Penal</td><td>+2 para el defensor</td></tr>
+                    <tr><td>Ambos sin cartas necesarias en un Penal</td><td>La carta más alta gana +2</td></tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="reglamento">
+            <h2>🏆 Fin de una mano</h2>
+            <div class="seccion">
+                <p>Una mano termina inmediatamente cuando ocurre cualquiera de estas situaciones.</p>
+                <ul>
+                    <li>Un jugador convierte un Gol.</li>
+                    <li>Un jugador alcanza tres puntos.</li>
+                    <li>Se juegan las cuatro rondas sin que nadie convierta un Gol.</li>
+                </ul>
+                <p>
+                    Si un jugador alcanza tres puntos, esos tres puntos se transforman automáticamente en un
+                    <span class="destacado">Gol</span>.
+                </p>
+                <p>No importa cuántas rondas resten por jugar. La mano finaliza en ese mismo instante.</p>
+                <p>
+                    Después se mezclan nuevamente todas las cartas, se reparten cuatro cartas para cada jugador
+                    y comienza la siguiente mano.
+                </p>
+            </div>
+        </div>
+
+        <div class="reglamento">
+            <h2>🏁 Fin del partido</h2>
+            <div class="seccion">
+                <p>Una partida completa está formada por <span class="destacado">nueve manos</span>.</p>
+                <p>Cada mano representa diez minutos del partido.</p>
+                <p>Al finalizar la novena mano se cuentan los goles convertidos por cada jugador.</p>
+                <p>El jugador con mayor cantidad de goles gana la partida.</p>
+                <p>Si ambos jugadores terminaron con la misma cantidad de goles, el partido finaliza empatado.</p>
+            </div>
+        </div>
+
+        <div class="reglamento">
+            <h2>📖 Casos especiales</h2>
+            <div class="seccion">
+                <h3>Empate de cartas</h3>
+                <p>Si las dos cartas enfrentadas tienen exactamente el mismo valor, la ronda termina empatada y ningún jugador obtiene puntos.</p>
+                <h3>Empate en un VAR</h3>
+                <p>Si ambos jugadores declaran exactamente el mismo valor durante un VAR, el VAR termina empatado. Ningún jugador recibe puntos y el Penal se ejecuta normalmente.</p>
+                <h3>Gol inmediato</h3>
+                <p>Siempre que un jugador convierta un Gol, la mano termina inmediatamente. No se juegan las rondas restantes.</p>
+                <h3>Tres puntos</h3>
+                <p>Cuando un jugador alcanza tres puntos durante una mano, esos puntos se transforman automáticamente en un Gol. No importa cómo consiguió esos puntos. La mano finaliza inmediatamente.</p>
+                <h3>Puntos sobrantes</h3>
+                <p>Los puntos nunca superan los tres. En el momento que un jugador llega a tres puntos, convierte un Gol y comienza una nueva mano.</p>
+                <h3>Cartas jugadas</h3>
+                <p>Todas las cartas jugadas permanecen visibles sobre la mesa hasta terminar la mano. Luego se mezclan nuevamente para comenzar la siguiente.</p>
+                <h3>Sin cartas especiales</h3>
+                <p>Siempre que una regla indique utilizar una posición específica y el jugador no posea esa posición, deberá seguir exactamente el procedimiento indicado por esa regla.</p>
+                <h3>Mentir en un VAR</h3>
+                <p>Está completamente prohibido. Si un jugador miente sobre el valor de sus cartas durante un VAR, pierde automáticamente esa disputa.</p>
+                <h3>Una sola oportunidad</h3>
+                <p>En cada mano solamente puede existir un Gol. Una vez convertido, la mano termina.</p>
+                <h3>Orden de juego</h3>
+                <p>El jugador que ganó la mano anterior será quien comience la siguiente mano.</p>
+            </div>
+        </div>
+
+        <div class="reglamento">
+            <h2>❓ Preguntas frecuentes (FAQ)</h2>
+            <div class="seccion">
+                <h3>¿Cuántos jugadores pueden participar?</h3>
+                <p>Golazo está diseñado para dos jugadores (1 vs 1).</p>
+                <h3>¿Cuántas cartas recibe cada jugador?</h3>
+                <p>Cuatro cartas al comenzar cada mano.</p>
+                <h3>¿Cuántas manos tiene un partido?</h3>
+                <p>Nueve manos. Cada una representa diez minutos del partido.</p>
+                <h3>¿Cuántas rondas tiene una mano?</h3>
+                <p>Cuatro rondas.</p>
+                <h3>¿Se puede cantar Penal en cualquier momento?</h3>
+                <p>No. Solo puede cantarse durante la primera ronda de una mano.</p>
+                <h3>¿Se puede cantar Gol en la primera ronda?</h3>
+                <p>No. Solo puede cantarse desde la segunda ronda en adelante.</p>
+                <h3>¿Se puede cantar más de un Penal?</h3>
+                <p>No. Cada jugador solamente puede cantar Penal cuando le corresponde jugar durante la primera ronda.</p>
+                <h3>¿Qué ocurre si nadie canta Penal?</h3>
+                <p>La ronda continúa normalmente.</p>
+                <h3>¿Qué pasa si ambos jugadores llegan a tres puntos?</h3>
+                <p>No puede ocurrir. El primer jugador que alcanza tres puntos convierte inmediatamente un Gol y la mano termina.</p>
+                <h3>¿Los puntos pasan a la siguiente mano?</h3>
+                <p>No. Todos los puntos se reinician al comenzar una nueva mano.</p>
+                <h3>¿Qué ocurre cuando alguien convierte un Gol?</h3>
+                <p>La mano termina inmediatamente. Se mezclan nuevamente las cartas y comienza la siguiente mano.</p>
+                <h3>¿Puede haber dos goles en una misma mano?</h3>
+                <p>No. Cada mano admite como máximo un Gol.</p>
+                <h3>¿Las cartas jugadas se descartan?</h3>
+                <p>No. Permanecen visibles hasta finalizar la mano.</p>
+                <h3>¿Se pueden ocultar cartas durante un VAR?</h3>
+                <p>No. Si es necesario comprobar una declaración, las cartas deberán mostrarse.</p>
+                <h3>¿Qué pasa si un jugador no posee Delantero durante un Gol?</h3>
+                <p>Debe jugar la carta de mayor valor que tenga.</p>
+                <h3>¿Qué ocurre si el defensor no posee Arquero ni Defensor durante un Gol?</h3>
+                <p>También deberá jugar su carta de mayor valor.</p>
+                <h3>¿Qué pasa si el atacante no posee Delantero durante un Penal?</h3>
+                <p>Pierde automáticamente el Penal y el defensor obtiene dos puntos.</p>
+                <h3>¿Qué ocurre si el defensor no posee Arquero durante un Penal?</h3>
+                <p>El Penal se convierte automáticamente en Gol.</p>
+                <h3>¿Se puede mentir durante un VAR?</h3>
+                <p>No. Mentir durante un VAR está prohibido.</p>
+                <h3>¿Qué sucede si el VAR termina empatado?</h3>
+                <p>Ningún jugador obtiene puntos y el Penal se ejecuta normalmente.</p>
+                <h3>¿Qué hace exactamente el Golazo?</h3>
+                <p>Invierte completamente el ataque. El defensor pasa a atacar y el atacante original pasa a defender.</p>
+                <h3>¿Qué ocurre si acepto un Golazo?</h3>
+                <p>Se juega exactamente igual que un Gol, pero con los roles invertidos.</p>
+                <h3>¿Qué ocurre si no acepto un Golazo?</h3>
+                <p>El jugador que cantó Golazo obtiene dos puntos.</p>
+                <h3>¿Quién gana el partido?</h3>
+                <p>El jugador que haya convertido más goles al finalizar las nueve manos.</p>
+            </div>
+        </div>
+
+        <div class="reglamento">
+            <h2>📚 Glosario</h2>
+            <div class="seccion">
+                <h3>Mano</h3>
+                <p>Cada una de las nueve etapas que forman un partido. Cada mano representa diez minutos del encuentro.</p>
+                <h3>Ronda</h3>
+                <p>Cada mano está formada por cuatro rondas. Durante ellas los jugadores juegan sus cartas y pueden cantar acciones especiales.</p>
+                <h3>Puntos</h3>
+                <p>Los puntos sirven únicamente para intentar convertir un gol dentro de la mano actual. Al comenzar una nueva mano ambos jugadores vuelven a cero puntos.</p>
+                <h3>Gol</h3>
+                <p>Se consigue al alcanzar tres puntos o al convertir exitosamente un Penal o un Gol. Cada mano puede tener solamente un gol.</p>
+                <h3>Jugador Mano</h3>
+                <p>Es el jugador que comienza la mano. En la primera mano se elige al azar. A partir de allí comenzará cada nueva mano el jugador que ganó la mano anterior.</p>
+                <h3>VAR</h3>
+                <p>Acción especial que permite disputar un Penal antes de ejecutarlo.</p>
+                <h3>Golazo</h3>
+                <p>Respuesta especial a un Gol. Invierte completamente el ataque y permite contraatacar.</p>
+            </div>
+        </div>
+
+        <div class="reglamento">
+            <h2>💡 Consejos para nuevos jugadores</h2>
+            <div class="seccion">
+                <ul>
+                    <li>No gastes tus mejores cartas demasiado temprano.</li>
+                    <li>Recordá siempre qué cartas jugó tu rival.</li>
+                    <li>No cantes Penal si sospechás que el rival tiene un Arquero fuerte.</li>
+                    <li>El VAR puede cambiar completamente el rumbo de una mano.</li>
+                    <li>A veces conviene rechazar un Gol para evitar perder la mano.</li>
+                    <li>El Golazo puede transformar una defensa en un ataque ganador.</li>
+                    <li>No subestimes los puntos. Muchas manos se ganan sin convertir un Penal.</li>
+                    <li>Administrar correctamente tus cartas es tan importante como tener cartas altas.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="reglamento">
+            <h2>⚖️ Espíritu del juego</h2>
+            <div class="seccion">
+                <p>
+                    Golazo es un juego basado tanto en la estrategia como en la lectura del rival.
+                    No siempre gana quien posee las mejores cartas.
+                    Elegir correctamente cuándo atacar, cuándo defender, cuándo arriesgar un Penal o cuándo responder
+                    con un Golazo puede cambiar completamente el resultado de una partida.
+                </p>
+                <p>
+                    Las discusiones deben resolverse consultando este reglamento.
+                    Ante cualquier situación no contemplada, se recomienda llegar a un acuerdo entre los jugadores
+                    antes de continuar la partida.
+                </p>
+            </div>
+        </div>
+
+        <div class="reglamento">
+            <h2>📱 Contacto</h2>
+            <div class="seccion">
+                <p>¿Encontraste una duda, una sugerencia o una posible mejora? Podés comunicarte directamente con el creador.</p>
+                <p>
+                    <span class="destacado">📷 Instagram:</span><br>
+                    @silvaa_ariel
+                </p>
+                <p style="margin-top:8px;">
+                    <span class="destacado">📧 Correo electrónico:</span><br>
+                    arielsilvacontacto@gmail.com
+                </p>
+            </div>
+        </div>
+
+        <div class="reglamento">
+            <h2>🎮 Créditos</h2>
+            <div class="seccion">
+                <p>
+                    <span class="destacado">Golazo</span><br>
+                    El Truco del Fútbol
+                </p>
+                <p style="margin-top:8px;">
+                    Diseño y desarrollo del juego por<br>
+                    <span class="destacado">Ariel Silva</span>
+                </p>
+                <p style="margin-top:8px;">
+                    Publicado bajo la marca<br>
+                    <span class="destacado">Dinaponki</span>
+                </p>
+            </div>
+        </div>
+
+        <a href="index.html" class="boton boton-volver">⬅ Volver al inicio</a>
+
+        <div class="footer">
+            <h3>⚽ GOLAZO</h3>
+            <p>El Truco del Fútbol</p>
+            <p>Manual Oficial v1.0</p>
+            <br>
+            <p>© Dinaponki. Todos los derechos reservados.</p>
+            <p>Prohibida la reproducción total o parcial de este reglamento y del juego sin autorización de su autor.</p>
+            <br>
+            <p>Gracias por jugar.<br>¡Que gane el mejor! 🏆</p>
+        </div>
+
+    </div>
+
+    <script>
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+    </script>
+</body>
+</html>
