@@ -106,9 +106,14 @@
             transition: color 0.3s, transform 0.3s;
         }
 
+        @keyframes latido {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.12); }
+        }
+
         .etiqueta-turno.activo {
             color: var(--dorado);
-            transform: scale(1.05);
+            animation: latido 0.9s ease-in-out infinite;
         }
 
         .mano-cpu {
