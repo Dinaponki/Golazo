@@ -1029,8 +1029,12 @@
 
             let ultimoSonidoQuiero = 0;
             const sonidos = {};
+            let sonidosInicializados = false;
+            let audioDesbloqueado = false;
 
-            function precargarSonidos() {
+            function inicializarAudio() {
+                if (sonidosInicializados) return;
+                
                 const nombres = ['carta', 'gol', 'golazo', 'golcpu', 'golplayer', 'mmmquiero', 'quiero', 'noquiero', 'penal', 'puntocpu', 'puntoplayer', 'var'];
                 nombres.forEach(nombre => {
                     const audio = new Audio(RUTA_SONIDOS + nombre + '.mp3');
@@ -1038,6 +1042,16 @@
                     audio.preload = 'auto';
                     sonidos[nombre] = audio;
                 });
+                
+                sonidosInicializados = true;
+            }
+
+            function reproducirSonidoCpu(nombre) {
+                if (!sonidos[nombre]) return;
+                
+                const audio = sonidos[nombre];
+                audio.currentTime = 0;
+                audio.play().catch(() => {});
             }
 
             function reproducirAudioFondo() {
@@ -1051,13 +1065,6 @@
                 if (dom.audioFondo) {
                     dom.audioFondo.pause();
                     dom.audioFondo.currentTime = 0;
-                }
-            }
-
-            function reproducirSonidoCpu(nombre) {
-                if (sonidos[nombre]) {
-                    sonidos[nombre].currentTime = 0;
-                    sonidos[nombre].play().catch(err => console.warn('Error al reproducir sonido:', RUTA_SONIDOS + nombre + '.mp3', err));
                 }
             }
 
@@ -2274,46 +2281,6 @@
                 dom.resultadoMarcador.textContent = `${estado.nombreJugador} ${gJ} - ${gC} CPU`;
             }
 
-            function reiniciarPartido() {
-                dom.overlayFin.classList.add('oculto');
-                estado.pausado = false;
-                Object.assign(estado, {
-                    golesJugador: 0,
-                    golesCpu: 0,
-                    golesInicioManoJugador: 0,
-                    golesInicioManoCpu: 0,
-                    golEnMano: false,
-                    puntosJugador: 0,
-                    puntosCpu: 0,
-                    puntosManoJugador: 0,
-                    puntosManoCpu: 0,
-                    manoActual: 0,
-                    rondaActual: 0,
-                    cartasEnMesa: [],
-                    inicioRonda: 0,
-                    cartaSeleccionada: null,
-                    historialManos: [],
-                    penalUsado: false,
-                    penalCantadoPor: null,
-                    golUsado: false,
-                    golazoUsado: false,
-                    cantoActual: null,
-                    cantoPedidoPor: null,
-                    esperandoRespuestaDe: null,
-                    varDeclaraciones: { jugador: null, cpu: null },
-                    varPedidoPor: null,
-                    turnoInicial: 'jugador',
-                    turnoActual: 'jugador',
-                    fase: 'esperando_seleccion',
-                    ganadorManoAnterior: null,
-                });
-                const mazo = mezclarMazo(crearMazo());
-                const { manoJ, manoC } = repartir(mazo);
-                estado.manoJugador = ordenarMano(manoJ);
-                estado.manoCpu = ordenarMano(manoC);
-                renderizarTodo();
-            }
-
             let timeoutMensaje;
 
             function mostrarMensaje(t) {
@@ -2325,10 +2292,20 @@
 
             // --- Inicialización ---
             function iniciarPartido() {
+                // Inicializar sistema de audio
+                if (!sonidosInicializados) {
+                    inicializarAudio();
+                }
+                
                 dom.overlayBienvenida.classList.add('oculto');
                 estado.pausado = false;
                 renderizarTodo();
-                reproducirAudioFondo();
+                
+                // Reproducir audio de fondo
+                if (dom.audioFondo) {
+                    dom.audioFondo.volume = 0.3;
+                    dom.audioFondo.play().catch(() => {});
+                }
             }
 
             function reiniciarPartido() {
@@ -2375,7 +2352,28 @@
 
             function inicializarJuego() {
                 cacheDom();
-                precargarSonidos();
+                
+                // Inicializar audio inmediatamente
+                inicializarAudio();
+                
+                // Desbloquear audio en la primera interacción del usuario
+                const desbloquearAudio = () => {
+                    if (sonidosInicializados) {
+                        Object.values(sonidos).forEach(audio => {
+                            audio.currentTime = 0;
+                            audio.play().then(() => {
+                                audio.pause();
+                                audio.currentTime = 0;
+                            }).catch(() => {});
+                        });
+                    }
+                    document.removeEventListener('click', desbloquearAudio);
+                    document.removeEventListener('touchstart', desbloquearAudio);
+                };
+                
+                document.addEventListener('click', desbloquearAudio);
+                document.addEventListener('touchstart', desbloquearAudio, { passive: true });
+                
                 const mazo = mezclarMazo(crearMazo());
                 const { manoJ, manoC } = repartir(mazo);
                 estado.manoJugador = ordenarMano(manoJ);
@@ -2392,6 +2390,18 @@
                     dom.contadorCaracteres.textContent = dom.inputNombre.value.length + '/12';
                 });
                 dom.btnEmpezar.addEventListener('click', () => {
+                    // CRÍTICO PARA MÓVILES: Desbloquear audio INMEDIATAMENTE en el evento de clic
+                    if (!audioDesbloqueado && sonidosInicializados) {
+                        Object.values(sonidos).forEach(audio => {
+                            audio.currentTime = 0;
+                            audio.play().then(() => {
+                                audio.pause();
+                                audio.currentTime = 0;
+                            }).catch(() => {});
+                        });
+                        audioDesbloqueado = true;
+                    }
+                    
                     const nombre = dom.inputNombre.value.trim();
                     estado.nombreJugador = nombre.length > 0 ? nombre : 'Jugador';
                     aplicarNombreJugador();
