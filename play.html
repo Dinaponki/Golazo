@@ -869,6 +869,20 @@
         <source src="sounds/background.mp3" type="audio/mpeg">
     </audio>
 
+    <!-- Audios de efectos (pre-cargados para mejor compatibilidad móvil) -->
+    <audio id="fxCarta" preload="auto"><source src="sounds/carta.mp3" type="audio/mpeg"></audio>
+    <audio id="fxPenal" preload="auto"><source src="sounds/penal.mp3" type="audio/mpeg"></audio>
+    <audio id="fxGol" preload="auto"><source src="sounds/gol.mp3" type="audio/mpeg"></audio>
+    <audio id="fxGolazo" preload="auto"><source src="sounds/golazo.mp3" type="audio/mpeg"></audio>
+    <audio id="fxVar" preload="auto"><source src="sounds/var.mp3" type="audio/mpeg"></audio>
+    <audio id="fxQuiero" preload="auto"><source src="sounds/quiero.mp3" type="audio/mpeg"></audio>
+    <audio id="fxMmmQuiero" preload="auto"><source src="sounds/mmmquiero.mp3" type="audio/mpeg"></audio>
+    <audio id="fxNoQuiero" preload="auto"><source src="sounds/noquiero.mp3" type="audio/mpeg"></audio>
+    <audio id="fxPuntoPlayer" preload="auto"><source src="sounds/puntoplayer.mp3" type="audio/mpeg"></audio>
+    <audio id="fxPuntoCpu" preload="auto"><source src="sounds/puntocpu.mp3" type="audio/mpeg"></audio>
+    <audio id="fxGolPlayer" preload="auto"><source src="sounds/golplayer.mp3" type="audio/mpeg"></audio>
+    <audio id="fxGolCpu" preload="auto"><source src="sounds/golcpu.mp3" type="audio/mpeg"></audio>
+
     <!-- Contenedor del juego -->
     <div class="juego" id="juego">
         <!-- Zona CPU -->
@@ -1025,9 +1039,22 @@
                 dom.nombreEnTurno = document.getElementById('nombreEnTurno');
                 dom.nombreJugadorEtiqueta = document.getElementById('nombreJugadorEtiqueta');
                 dom.audioFondo = document.getElementById('audioFondo');
+                dom.fxCarta = document.getElementById('fxCarta');
+                dom.fxPenal = document.getElementById('fxPenal');
+                dom.fxGol = document.getElementById('fxGol');
+                dom.fxGolazo = document.getElementById('fxGolazo');
+                dom.fxVar = document.getElementById('fxVar');
+                dom.fxQuiero = document.getElementById('fxQuiero');
+                dom.fxMmmQuiero = document.getElementById('fxMmmQuiero');
+                dom.fxNoQuiero = document.getElementById('fxNoQuiero');
+                dom.fxPuntoPlayer = document.getElementById('fxPuntoPlayer');
+                dom.fxPuntoCpu = document.getElementById('fxPuntoCpu');
+                dom.fxGolPlayer = document.getElementById('fxGolPlayer');
+                dom.fxGolCpu = document.getElementById('fxGolCpu');
             }
 
             let ultimoSonidoQuiero = 0;
+            let audioEfecto = null;
 
             function reproducirAudioFondo() {
                 if (dom.audioFondo) {
@@ -1044,9 +1071,56 @@
             }
 
             function reproducirSonidoCpu(nombre) {
-                const audio = new Audio(RUTA_SONIDOS + nombre + '.mp3');
-                audio.volume = 0.7;
-                audio.play().catch(err => console.warn('Error al reproducir sonido:', RUTA_SONIDOS + nombre + '.mp3', err));
+                try {
+                    // Mapa de sonidos con fallback a Audio dinámico
+                    const mapeoSonidos = {
+                        'penal': { id: 'fxPenal', fallback: 'sounds/penal.mp3' },
+                        'gol': { id: 'fxGol', fallback: 'sounds/gol.mp3' },
+                        'golazo': { id: 'fxGolazo', fallback: 'sounds/golazo.mp3' },
+                        'var': { id: 'fxVar', fallback: 'sounds/var.mp3' },
+                        'quiero': { id: 'fxQuiero', fallback: 'sounds/quiero.mp3' },
+                        'mmmquiero': { id: 'fxMmmQuiero', fallback: 'sounds/mmmquiero.mp3' },
+                        'noquiero': { id: 'fxNoQuiero', fallback: 'sounds/noquiero.mp3' },
+                        'puntoplayer': { id: 'fxPuntoPlayer', fallback: 'sounds/puntoplayer.mp3' },
+                        'puntocpu': { id: 'fxPuntoCpu', fallback: 'sounds/puntocpu.mp3' },
+                        'golplayer': { id: 'fxGolPlayer', fallback: 'sounds/golplayer.mp3' },
+                        'golcpu': { id: 'fxGolCpu', fallback: 'sounds/golcpu.mp3' },
+                        'carta': { id: 'fxCarta', fallback: 'sounds/carta.mp3' }
+                    };
+                    
+                    const config = mapeoSonidos[nombre];
+                    if (!config) {
+                        console.warn('Sonido no encontrado:', nombre);
+                        return;
+                    }
+                    
+                    // Intentar usar el elemento pre-cargado
+                    let elementoAudio = dom[config.id];
+                    
+                    // Si no existe o no está disponible, crear uno nuevo
+                    if (!elementoAudio) {
+                        elementoAudio = new Audio(config.fallback);
+                        elementoAudio.volume = 0.7;
+                    }
+                    
+                    // Reiniciar y reproducir
+                    elementoAudio.currentTime = 0;
+                    const promesa = elementoAudio.play();
+                    
+                    if (promise !== undefined) {
+                        promesa.catch(err => {
+                            // Si falla, intentar con un nuevo Audio
+                            console.warn('Error con elemento pre-cargado, intentando dinámicamente:', nombre);
+                            const audioNuevo = new Audio(config.fallback);
+                            audioNuevo.volume = 0.7;
+                            audioNuevo.play().catch(e2 => {
+                                console.error('Error definitivo al reproducir:', nombre, e2);
+                            });
+                        });
+                    }
+                } catch (e) {
+                    console.error('Error en reproducirSonidoCpu:', e);
+                }
             }
 
             function reproducirSonidoQuiero() {
@@ -2367,28 +2441,53 @@
 
                 // Desbloquear audio en móviles con primera interacción del usuario
                 let audioDesbloqueado = false;
-                const desbloquearAudio = () => {
+                const desbloquearAudio = async () => {
                     if (audioDesbloqueado) return;
                     audioDesbloqueado = true;
-                    const audioPrueba = new Audio(RUTA_SONIDOS + 'carta.mp3');
-                    audioPrueba.volume = 0.01;
-                    audioPrueba.play().then(() => {
-                        setTimeout(() => { 
-                            audioPrueba.pause(); 
-                            audioPrueba.currentTime = 0;
-                        }, 50);
-                    }).catch(() => {});
+                    
+                    // Reproducir el audio de fondo primero (es el más importante)
+                    try {
+                        dom.audioFondo.volume = 0.3;
+                        await dom.audioFondo.play();
+                    } catch (e) {
+                        console.warn('No se pudo desbloquear audio de fondo:', e);
+                    }
+                    
+                    // Luego reproducir todos los efectos
+                    const idsAudios = ['fxCarta', 'fxPenal', 'fxGol', 'fxGolazo', 'fxVar', 
+                                       'fxQuiero', 'fxMmmQuiero', 'fxNoQuiero',
+                                       'fxPuntoPlayer', 'fxPuntoCpu', 'fxGolPlayer', 'fxGolCpu'];
+                    
+                    for (const id of idsAudios) {
+                        const audio = dom[id];
+                        if (audio) {
+                            try {
+                                audio.volume = 0.01;
+                                await audio.play();
+                                audio.pause();
+                                audio.currentTime = 0;
+                                audio.volume = 1.0;
+                            } catch (e) {
+                                audio.volume = 1.0;
+                            }
+                        }
+                    }
+                    
+                    // Remover listeners
                     document.removeEventListener('touchstart', desbloquearAudio);
                     document.removeEventListener('click', desbloquearAudio);
                     document.removeEventListener('touchend', desbloquearAudio);
                 };
-                document.addEventListener('touchstart', desbloquearAudio, { once: true });
-                document.addEventListener('click', desbloquearAudio, { once: true });
-                document.addEventListener('touchend', desbloquearAudio, { once: true });
                 
-                // También desbloquear con el primer click en el botón de empezar
-                dom.inputNombre.addEventListener('click', desbloquearAudio, { once: true });
-                dom.inputNombre.addEventListener('touchstart', desbloquearAudio, { once: true });
+                // Escuchar TODAS las interacciones del usuario hasta que se desbloquee
+                const desbloquearUnaVez = () => {
+                    if (!audioDesbloqueado) {
+                        desbloquearAudio();
+                    }
+                };
+                document.addEventListener('touchstart', desbloquearUnaVez, { once: false });
+                document.addEventListener('click', desbloquearUnaVez, { once: false });
+                document.addEventListener('touchend', desbloquearUnaVez, { once: false });
 
                 dom.inputNombre.addEventListener('input', () => {
                     dom.contadorCaracteres.textContent = dom.inputNombre.value.length + '/12';
@@ -2403,14 +2502,6 @@
                 dom.inputNombre.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter') {
                         desbloquearAudio();
-                        const nombre = dom.inputNombre.value.trim();
-                        estado.nombreJugador = nombre.length > 0 ? nombre : 'Jugador';
-                        aplicarNombreJugador();
-                        iniciarPartido();
-                    }
-                });
-                dom.inputNombre.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter') {
                         const nombre = dom.inputNombre.value.trim();
                         estado.nombreJugador = nombre.length > 0 ? nombre : 'Jugador';
                         aplicarNombreJugador();
