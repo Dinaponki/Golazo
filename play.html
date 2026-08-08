@@ -869,6 +869,20 @@
         <source src="sounds/background.mp3" type="audio/mpeg">
     </audio>
 
+    <!-- Elementos de audio estáticos para móviles -->
+    <audio id="sndCarta" preload="auto"><source src="sounds/carta.mp3" type="audio/mpeg"></audio>
+    <audio id="sndGol" preload="auto"><source src="sounds/gol.mp3" type="audio/mpeg"></audio>
+    <audio id="sndGolazo" preload="auto"><source src="sounds/golazo.mp3" type="audio/mpeg"></audio>
+    <audio id="sndGolcpu" preload="auto"><source src="sounds/golcpu.mp3" type="audio/mpeg"></audio>
+    <audio id="sndGolplayer" preload="auto"><source src="sounds/golplayer.mp3" type="audio/mpeg"></audio>
+    <audio id="sndQuiero" preload="auto"><source src="sounds/quiero.mp3" type="audio/mpeg"></audio>
+    <audio id="sndMmmquiero" preload="auto"><source src="sounds/mmmquiero.mp3" type="audio/mpeg"></audio>
+    <audio id="sndNoquiero" preload="auto"><source src="sounds/noquiero.mp3" type="audio/mpeg"></audio>
+    <audio id="sndPenal" preload="auto"><source src="sounds/penal.mp3" type="audio/mpeg"></audio>
+    <audio id="sndPuntocpu" preload="auto"><source src="sounds/puntocpu.mp3" type="audio/mpeg"></audio>
+    <audio id="sndPuntoplayer" preload="auto"><source src="sounds/puntoplayer.mp3" type="audio/mpeg"></audio>
+    <audio id="sndVar" preload="auto"><source src="sounds/var.mp3" type="audio/mpeg"></audio>
+
     <!-- Contenedor del juego -->
     <div class="juego" id="juego">
         <!-- Zona CPU -->
@@ -1025,9 +1039,47 @@
                 dom.nombreEnTurno = document.getElementById('nombreEnTurno');
                 dom.nombreJugadorEtiqueta = document.getElementById('nombreJugadorEtiqueta');
                 dom.audioFondo = document.getElementById('audioFondo');
+                
+                // Cachear elementos de audio estáticos para móviles
+                dom.audioCarta = document.getElementById('sndCarta');
+                dom.audioGol = document.getElementById('sndGol');
+                dom.audioGolazo = document.getElementById('sndGolazo');
+                dom.audioGolcpu = document.getElementById('sndGolcpu');
+                dom.audioGolplayer = document.getElementById('sndGolplayer');
+                dom.audioQuiero = document.getElementById('sndQuiero');
+                dom.audioMmmquiero = document.getElementById('sndMmmquiero');
+                dom.audioNoquiero = document.getElementById('sndNoquiero');
+                dom.audioPenal = document.getElementById('sndPenal');
+                dom.audioPuntocpu = document.getElementById('sndPuntocpu');
+                dom.audioPuntoplayer = document.getElementById('sndPuntoplayer');
+                dom.audioVar = document.getElementById('sndVar');
+                
+                // Mapeo de sonidos
+                dom.sonidos = {
+                    'carta': dom.audioCarta,
+                    'gol': dom.audioGol,
+                    'golazo': dom.audioGolazo,
+                    'golcpu': dom.audioGolcpu,
+                    'golplayer': dom.audioGolplayer,
+                    'quiero': dom.audioQuiero,
+                    'mmmquiero': dom.audioMmmquiero,
+                    'noquiero': dom.audioNoquiero,
+                    'penal': dom.audioPenal,
+                    'puntocpu': dom.audioPuntocpu,
+                    'puntoplayer': dom.audioPuntoplayer,
+                    'var': dom.audioVar,
+                };
             }
 
             let ultimoSonidoQuiero = 0;
+
+            function reproducirSonidoCpu(nombre) {
+                const audio = dom.sonidos[nombre];
+                if (!audio) return;
+                audio.volume = 0.7;
+                audio.currentTime = 0;
+                audio.play().catch(() => {});
+            }
 
             function reproducirAudioFondo() {
                 if (dom.audioFondo) {
@@ -1041,12 +1093,6 @@
                     dom.audioFondo.pause();
                     dom.audioFondo.currentTime = 0;
                 }
-            }
-
-            function reproducirSonidoCpu(nombre) {
-                const audio = new Audio(RUTA_SONIDOS + nombre + '.mp3');
-                audio.volume = 0.7;
-                audio.play().catch(err => console.warn('Error al reproducir sonido:', RUTA_SONIDOS + nombre + '.mp3', err));
             }
 
             function reproducirSonidoQuiero() {
@@ -1449,6 +1495,9 @@
                 estado.cartaSeleccionada = null;
                 estado.cartasEnMesa.push({ carta, origen: 'jugador' });
 
+                // Reproducir sonido de carta
+                reproducirSonidoCpu('carta');
+
                 if (cpuJugoEstaRonda()) {
                     estado.fase = 'resolviendo';
                     renderizarTodo();
@@ -1483,6 +1532,9 @@
 
                 estado.manoCpu = estado.manoCpu.filter(c => c.id !== carta.id);
                 estado.cartasEnMesa.push({ carta, origen: 'cpu' });
+
+                // Reproducir sonido de carta
+                reproducirSonidoCpu('carta');
 
                 if (jugadorJugoEstaRonda()) {
                     estado.fase = 'resolviendo';
@@ -1807,7 +1859,7 @@
                     estado.esperandoRespuestaDe = 'jugador';
                     estado.golazoUsado = true;
                     renderizarTodo();
-                    setTimeout(() => reproducirSonidoCpu('golazo'), 300);
+                    reproducirSonidoCpu('golazo');
                 }
             }
 
@@ -1892,6 +1944,7 @@
                     estado.cartasEnMesa.push({ carta: defensor, origen: origD });
                 }
                 renderizarTodo();
+                
                 mostrarMensaje((tipo === 'penal' ? '🥅' : tipo === 'golazo' ? '💥' : '⚽') + ' ¡' + (tipo === 'penal' ? 'Penal' : tipo === 'golazo' ? 'Golazo' : 'Gol') + '!');
 
                 setTimeout(() => {
@@ -2049,8 +2102,13 @@
             }
 
             function convertirGol(quien) {
-                if (quien === 'jugador') estado.golesJugador++;
-                else estado.golesCpu++;
+                if (quien === 'jugador') {
+                    estado.golesJugador++;
+                    reproducirSonidoGol('jugador');
+                } else {
+                    estado.golesCpu++;
+                    reproducirSonidoGol('cpu');
+                }
                 estado.puntosManoJugador += estado.puntosJugador;
                 estado.puntosManoCpu += estado.puntosCpu;
                 estado.puntosJugador = 0;
@@ -2244,46 +2302,6 @@
                 dom.resultadoMarcador.textContent = `${estado.nombreJugador} ${gJ} - ${gC} CPU`;
             }
 
-            function reiniciarPartido() {
-                dom.overlayFin.classList.add('oculto');
-                estado.pausado = false;
-                Object.assign(estado, {
-                    golesJugador: 0,
-                    golesCpu: 0,
-                    golesInicioManoJugador: 0,
-                    golesInicioManoCpu: 0,
-                    golEnMano: false,
-                    puntosJugador: 0,
-                    puntosCpu: 0,
-                    puntosManoJugador: 0,
-                    puntosManoCpu: 0,
-                    manoActual: 0,
-                    rondaActual: 0,
-                    cartasEnMesa: [],
-                    inicioRonda: 0,
-                    cartaSeleccionada: null,
-                    historialManos: [],
-                    penalUsado: false,
-                    penalCantadoPor: null,
-                    golUsado: false,
-                    golazoUsado: false,
-                    cantoActual: null,
-                    cantoPedidoPor: null,
-                    esperandoRespuestaDe: null,
-                    varDeclaraciones: { jugador: null, cpu: null },
-                    varPedidoPor: null,
-                    turnoInicial: 'jugador',
-                    turnoActual: 'jugador',
-                    fase: 'esperando_seleccion',
-                    ganadorManoAnterior: null,
-                });
-                const mazo = mezclarMazo(crearMazo());
-                const { manoJ, manoC } = repartir(mazo);
-                estado.manoJugador = ordenarMano(manoJ);
-                estado.manoCpu = ordenarMano(manoC);
-                renderizarTodo();
-            }
-
             let timeoutMensaje;
 
             function mostrarMensaje(t) {
@@ -2298,7 +2316,12 @@
                 dom.overlayBienvenida.classList.add('oculto');
                 estado.pausado = false;
                 renderizarTodo();
-                reproducirAudioFondo();
+                
+                // Reproducir audio de fondo
+                if (dom.audioFondo) {
+                    dom.audioFondo.volume = 0.3;
+                    dom.audioFondo.play().catch(() => {});
+                }
             }
 
             function reiniciarPartido() {
@@ -2345,6 +2368,7 @@
 
             function inicializarJuego() {
                 cacheDom();
+                
                 const mazo = mezclarMazo(crearMazo());
                 const { manoJ, manoC } = repartir(mazo);
                 estado.manoJugador = ordenarMano(manoJ);
@@ -2361,6 +2385,17 @@
                     dom.contadorCaracteres.textContent = dom.inputNombre.value.length + '/12';
                 });
                 dom.btnEmpezar.addEventListener('click', () => {
+                    // Desbloquear audio en móviles reproduciendo y pausando todos los audios estáticos
+                    Object.values(dom.sonidos).forEach(audio => {
+                        if (audio) {
+                            audio.currentTime = 0;
+                            audio.play().then(() => {
+                                audio.pause();
+                                audio.currentTime = 0;
+                            }).catch(() => {});
+                        }
+                    });
+                    
                     const nombre = dom.inputNombre.value.trim();
                     estado.nombreJugador = nombre.length > 0 ? nombre : 'Jugador';
                     aplicarNombreJugador();
