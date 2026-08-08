@@ -864,6 +864,11 @@
     <!-- Mensaje flotante -->
     <div class="mensaje-flotante" id="mensajeFlotante"></div>
 
+    <!-- Audio de fondo -->
+    <audio id="audioFondo" loop preload="auto">
+        <source src="sounds/background.mp3" type="audio/mpeg">
+    </audio>
+
     <!-- Contenedor del juego -->
     <div class="juego" id="juego">
         <!-- Zona CPU -->
@@ -1018,6 +1023,21 @@
                 dom.thJugador = document.getElementById('thJugador');
                 dom.nombreEnTurno = document.getElementById('nombreEnTurno');
                 dom.nombreJugadorEtiqueta = document.getElementById('nombreJugadorEtiqueta');
+                dom.audioFondo = document.getElementById('audioFondo');
+            }
+
+            function reproducirAudioFondo() {
+                if (dom.audioFondo) {
+                    dom.audioFondo.volume = 0.3;
+                    dom.audioFondo.play().catch(() => {});
+                }
+            }
+
+            function detenerAudioFondo() {
+                if (dom.audioFondo) {
+                    dom.audioFondo.pause();
+                    dom.audioFondo.currentTime = 0;
+                }
             }
 
             function aplicarNombreJugador() {
@@ -2228,6 +2248,49 @@
                 dom.overlayBienvenida.classList.add('oculto');
                 estado.pausado = false;
                 renderizarTodo();
+                reproducirAudioFondo();
+            }
+
+            function reiniciarPartido() {
+                detenerAudioFondo();
+                dom.overlayFin.classList.add('oculto');
+                estado.pausado = false;
+                Object.assign(estado, {
+                    golesJugador: 0,
+                    golesCpu: 0,
+                    golesInicioManoJugador: 0,
+                    golesInicioManoCpu: 0,
+                    golEnMano: false,
+                    puntosJugador: 0,
+                    puntosCpu: 0,
+                    puntosManoJugador: 0,
+                    puntosManoCpu: 0,
+                    manoActual: 0,
+                    rondaActual: 0,
+                    cartasEnMesa: [],
+                    inicioRonda: 0,
+                    cartaSeleccionada: null,
+                    historialManos: [],
+                    penalUsado: false,
+                    penalCantadoPor: null,
+                    golUsado: false,
+                    golazoUsado: false,
+                    cantoActual: null,
+                    cantoPedidoPor: null,
+                    esperandoRespuestaDe: null,
+                    varDeclaraciones: { jugador: null, cpu: null },
+                    varPedidoPor: null,
+                    turnoInicial: 'jugador',
+                    turnoActual: 'jugador',
+                    fase: 'esperando_seleccion',
+                    ganadorManoAnterior: null,
+                });
+                const mazo = mezclarMazo(crearMazo());
+                const { manoJ, manoC } = repartir(mazo);
+                estado.manoJugador = ordenarMano(manoJ);
+                estado.manoCpu = ordenarMano(manoC);
+                renderizarTodo();
+                reproducirAudioFondo();
             }
 
             function inicializarJuego() {
@@ -2281,7 +2344,10 @@
                 });
                 dom.btnVolverMarcador.addEventListener('click', ocultarMarcadorDetallado);
                 dom.btnRevancha.addEventListener('click', reiniciarPartido);
-                dom.btnInicio.addEventListener('click', () => window.location.href = 'index.html');
+                dom.btnInicio.addEventListener('click', () => {
+                    detenerAudioFondo();
+                    window.location.href = 'index.html';
+                });
 
                 window.addEventListener('resize', () => { if (!estado.pausado) renderizarTodo(); });
                 document.addEventListener('keydown', (e) => {
