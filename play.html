@@ -2346,6 +2346,14 @@
                     dom.contadorCaracteres.textContent = dom.inputNombre.value.length + '/12';
                 });
                 dom.btnEmpezar.addEventListener('click', () => {
+                    // Desbloquear audio en móviles reproduciendo y pausando inmediatamente
+                    const audio = new Audio(RUTA_SONIDOS + 'carta.mp3');
+                    audio.volume = 0.7;
+                    audio.play().then(() => {
+                        audio.pause();
+                        audio.currentTime = 0;
+                    }).catch(() => {});
+                    
                     const nombre = dom.inputNombre.value.trim();
                     estado.nombreJugador = nombre.length > 0 ? nombre : 'Jugador';
                     aplicarNombreJugador();
