@@ -749,13 +749,18 @@
         /* Responsive - desktop: botones a los lados de la mesa */
         @media (max-width: 767px) {
             .zona-botones {
-                justify-content: center;
+                justify-content: space-between;
                 align-items: flex-start;
+                padding: clamp(2px, 0.5vh, 6px) 0;
             }
 
             .botones-laterales {
                 flex: 0 1 auto;
-                max-width: 48%;
+                max-width: 42%;
+            }
+
+            .botones-laterales.derecha {
+                margin-left: auto;
             }
 
             .btn-accion {
