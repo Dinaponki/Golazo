@@ -869,6 +869,20 @@
         <source src="sounds/background.mp3" type="audio/mpeg">
     </audio>
 
+    <!-- Elementos de audio estáticos para móviles -->
+    <audio id="sndCarta" preload="auto"><source src="sounds/carta.mp3" type="audio/mpeg"></audio>
+    <audio id="sndGol" preload="auto"><source src="sounds/gol.mp3" type="audio/mpeg"></audio>
+    <audio id="sndGolazo" preload="auto"><source src="sounds/golazo.mp3" type="audio/mpeg"></audio>
+    <audio id="sndGolcpu" preload="auto"><source src="sounds/golcpu.mp3" type="audio/mpeg"></audio>
+    <audio id="sndGolplayer" preload="auto"><source src="sounds/golplayer.mp3" type="audio/mpeg"></audio>
+    <audio id="sndQuiero" preload="auto"><source src="sounds/quiero.mp3" type="audio/mpeg"></audio>
+    <audio id="sndMmmquiero" preload="auto"><source src="sounds/mmmquiero.mp3" type="audio/mpeg"></audio>
+    <audio id="sndNoquiero" preload="auto"><source src="sounds/noquiero.mp3" type="audio/mpeg"></audio>
+    <audio id="sndPenal" preload="auto"><source src="sounds/penal.mp3" type="audio/mpeg"></audio>
+    <audio id="sndPuntocpu" preload="auto"><source src="sounds/puntocpu.mp3" type="audio/mpeg"></audio>
+    <audio id="sndPuntoplayer" preload="auto"><source src="sounds/puntoplayer.mp3" type="audio/mpeg"></audio>
+    <audio id="sndVar" preload="auto"><source src="sounds/var.mp3" type="audio/mpeg"></audio>
+
     <!-- Contenedor del juego -->
     <div class="juego" id="juego">
         <!-- Zona CPU -->
@@ -1025,14 +1039,45 @@
                 dom.nombreEnTurno = document.getElementById('nombreEnTurno');
                 dom.nombreJugadorEtiqueta = document.getElementById('nombreJugadorEtiqueta');
                 dom.audioFondo = document.getElementById('audioFondo');
+                
+                // Cachear elementos de audio estáticos para móviles
+                dom.audioCarta = document.getElementById('sndCarta');
+                dom.audioGol = document.getElementById('sndGol');
+                dom.audioGolazo = document.getElementById('sndGolazo');
+                dom.audioGolcpu = document.getElementById('sndGolcpu');
+                dom.audioGolplayer = document.getElementById('sndGolplayer');
+                dom.audioQuiero = document.getElementById('sndQuiero');
+                dom.audioMmmquiero = document.getElementById('sndMmmquiero');
+                dom.audioNoquiero = document.getElementById('sndNoquiero');
+                dom.audioPenal = document.getElementById('sndPenal');
+                dom.audioPuntocpu = document.getElementById('sndPuntocpu');
+                dom.audioPuntoplayer = document.getElementById('sndPuntoplayer');
+                dom.audioVar = document.getElementById('sndVar');
+                
+                // Mapeo de sonidos
+                dom.sonidos = {
+                    'carta': dom.audioCarta,
+                    'gol': dom.audioGol,
+                    'golazo': dom.audioGolazo,
+                    'golcpu': dom.audioGolcpu,
+                    'golplayer': dom.audioGolplayer,
+                    'quiero': dom.audioQuiero,
+                    'mmmquiero': dom.audioMmmquiero,
+                    'noquiero': dom.audioNoquiero,
+                    'penal': dom.audioPenal,
+                    'puntocpu': dom.audioPuntocpu,
+                    'puntoplayer': dom.audioPuntoplayer,
+                    'var': dom.audioVar,
+                };
             }
 
             let ultimoSonidoQuiero = 0;
 
             function reproducirSonidoCpu(nombre) {
-                // CRÍTICO: Crear un NUEVO Audio cada vez para que funcione en móviles
-                const audio = new Audio(RUTA_SONIDOS + nombre + '.mp3');
+                const audio = dom.sonidos[nombre];
+                if (!audio) return;
                 audio.volume = 0.7;
+                audio.currentTime = 0;
                 audio.play().catch(() => {});
             }
 
@@ -2346,13 +2391,16 @@
                     dom.contadorCaracteres.textContent = dom.inputNombre.value.length + '/12';
                 });
                 dom.btnEmpezar.addEventListener('click', () => {
-                    // Desbloquear audio en móviles reproduciendo y pausando inmediatamente
-                    const audio = new Audio(RUTA_SONIDOS + 'carta.mp3');
-                    audio.volume = 0.7;
-                    audio.play().then(() => {
-                        audio.pause();
-                        audio.currentTime = 0;
-                    }).catch(() => {});
+                    // Desbloquear audio en móviles reproduciendo y pausando todos los audios estáticos
+                    Object.values(dom.sonidos).forEach(audio => {
+                        if (audio) {
+                            audio.currentTime = 0;
+                            audio.play().then(() => {
+                                audio.pause();
+                                audio.currentTime = 0;
+                            }).catch(() => {});
+                        }
+                    });
                     
                     const nombre = dom.inputNombre.value.trim();
                     estado.nombreJugador = nombre.length > 0 ? nombre : 'Jugador';
