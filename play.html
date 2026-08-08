@@ -32,8 +32,8 @@
             --carta-mesa-max-h: clamp(330.05px, 72.501vmin, 645.918px);
             --carta-mano: clamp(223.08px, 46.137vmin, 412.088px);
             --carta-mano-max-h: clamp(313.073px, 66.0vmin, 576.713px);
-            --carta-cpu: clamp(131.82px, 27.885vmin, 233.22px);
-            --carta-cpu-max-h: clamp(182.52px, 37.925vmin, 329.55px);
+            --carta-cpu: clamp(105.456px, 22.308vmin, 186.576px);
+            --carta-cpu-max-h: clamp(146.016px, 30.34vmin, 263.64px);
             --mano-altura: clamp(279.15px, 45.63vmin, 443.625px);
             --btn-font: clamp(11px, 2.6vmin, 15px);
             --btn-pad-y: clamp(7px, 1.6vmin, 13px);
@@ -93,15 +93,15 @@
             flex-direction: column;
             align-items: center;
             gap: clamp(2px, 0.5vh, 6px);
-            padding: clamp(2px, 0.5vh, 8px) 4px 0;
+            padding: 0 4px 0;
             flex-shrink: 0;
         }
 
         .etiqueta-turno {
-            font-size: clamp(10px, 2.2vmin, 13px);
-            font-weight: 600;
+            font-size: clamp(13px, 2.8vmin, 17px);
+            font-weight: 700;
             letter-spacing: 0.06em;
-            color: rgba(255, 255, 255, 0.5);
+            color: rgba(255, 255, 255, 0.6);
             text-transform: uppercase;
             transition: color 0.3s, transform 0.3s;
         }
@@ -116,7 +116,10 @@
             gap: clamp(4px, 1vmin, 8px);
             justify-content: center;
             flex-wrap: nowrap;
-            margin-top: clamp(6px, 1.2vh, 12px);
+            margin-top: calc(-1 * clamp(4px, 1vh, 10px));
+            overflow: hidden;
+            height: calc(var(--carta-cpu-max-h) * 0.6);
+            align-items: flex-end;
         }
 
         /* Zona mesa */
@@ -134,13 +137,13 @@
         }
 
         .indicador-canto {
-            font-size: clamp(11px, 2.5vmin, 15px);
-            font-weight: 700;
+            font-size: clamp(14px, 3.2vmin, 19px);
+            font-weight: 800;
             letter-spacing: 0.06em;
             color: var(--dorado);
             text-align: center;
             min-height: 0;
-            padding: clamp(2px, 0.5vh, 4px) clamp(8px, 2vmin, 12px);
+            padding: clamp(3px, 0.6vh, 5px) clamp(10px, 2.5vmin, 15px);
             flex-shrink: 0;
             border-radius: 20px;
             background: rgba(0,0,0,0.3);
@@ -208,26 +211,26 @@
         /* Botones */
         .zona-botones {
             display: flex;
-            flex-wrap: wrap;
+            flex-direction: row;
             justify-content: center;
             align-items: center;
-            gap: clamp(4px, 1vmin, 8px);
+            gap: clamp(6px, 1.5vmin, 12px);
             padding: clamp(2px, 0.5vh, 6px) 4px;
             flex-shrink: 0;
         }
 
         .botones-laterales {
             display: flex;
+            flex-direction: column;
             justify-content: center;
+            align-items: stretch;
             gap: clamp(4px, 1vmin, 8px);
             padding: 0;
-            flex-wrap: wrap;
         }
 
         .grupo-botones {
             display: flex;
             gap: clamp(4px, 1vmin, 8px);
-            flex-wrap: wrap;
             justify-content: center;
         }
 
@@ -235,7 +238,7 @@
             padding: var(--btn-pad-y) var(--btn-pad-x);
             border-radius: 50px;
             font-size: var(--btn-font);
-            font-weight: 700;
+            font-weight: 800;
             letter-spacing: 0.04em;
             text-transform: uppercase;
             cursor: pointer;
@@ -245,7 +248,7 @@
             color: var(--blanco);
             white-space: nowrap;
             position: relative;
-            min-width: clamp(58px, 14vmin, 90px);
+            min-width: clamp(70px, 16vmin, 110px);
             text-align: center;
         }
 
@@ -400,14 +403,14 @@
         }
 
         .panel-marcador .nombre {
-            font-size: clamp(9px, 2vmin, 11px);
-            font-weight: 700;
+            font-size: clamp(12px, 2.6vmin, 15px);
+            font-weight: 800;
             letter-spacing: 0.04em;
-            color: rgba(255, 255, 255, 0.7);
+            color: rgba(255, 255, 255, 0.8);
         }
 
         .panel-marcador .goles-numero {
-            font-size: clamp(20px, 5vmin, 34px);
+            font-size: clamp(26px, 6.5vmin, 44px);
             font-weight: 900;
             color: var(--blanco);
             line-height: 1;
@@ -415,8 +418,8 @@
 
         .panel-marcador .estrellas {
             display: flex;
-            gap: 4px;
-            font-size: clamp(12px, 3vmin, 16px);
+            gap: 5px;
+            font-size: clamp(15px, 3.8vmin, 20px);
         }
 
         .panel-marcador .estrellas .estrella {
@@ -430,15 +433,15 @@
         }
 
         .panel-marcador .centro-marcador {
-            font-size: clamp(11px, 2.5vmin, 14px);
-            font-weight: 700;
+            font-size: clamp(14px, 3.2vmin, 18px);
+            font-weight: 800;
             letter-spacing: 0.06em;
-            color: rgba(255, 255, 255, 0.4);
+            color: rgba(255, 255, 255, 0.5);
             text-align: center;
         }
 
         .panel-marcador .minuto {
-            font-size: clamp(10px, 2.2vmin, 12px);
+            font-size: clamp(13px, 2.8vmin, 16px);
             color: var(--dorado);
         }
 
@@ -728,10 +731,10 @@
             transform: translate(-50%, -50%) scale(0);
             background: rgba(0, 0, 0, 0.9);
             color: var(--dorado);
-            padding: 16px 28px;
+            padding: 20px 36px;
             border-radius: 50px;
-            font-size: 18px;
-            font-weight: 700;
+            font-size: 22px;
+            font-weight: 800;
             letter-spacing: 0.04em;
             z-index: 150;
             pointer-events: none;
@@ -746,39 +749,30 @@
         /* Responsive - desktop: botones a los lados de la mesa */
         @media (max-width: 767px) {
             .zona-botones {
-                display: grid;
-                grid-template-columns: repeat(5, 1fr);
-                gap: clamp(3px, 0.8vmin, 6px);
-                padding: clamp(2px, 0.4vh, 5px) 2px;
+                justify-content: center;
+                align-items: flex-start;
             }
 
             .botones-laterales {
-                display: contents;
+                flex: 1;
             }
 
             .btn-accion {
                 min-width: 0;
                 width: 100%;
-                font-size: clamp(9px, 2.4vmin, 12px);
-                padding: clamp(5px, 1.4vmin, 9px) clamp(3px, 1vmin, 6px);
-            }
-
-            /* Colocar Jugar debajo de VAR (intercambio con Golazo) */
-            #btnJugarCarta {
-                grid-column: 4;
-                grid-row: 2;
-            }
-
-            #btnGolazo {
-                grid-column: 5;
-                grid-row: 1;
+                font-size: clamp(11px, 3vmin, 15px);
+                padding: clamp(6px, 1.8vmin, 11px) clamp(4px, 1.2vmin, 8px);
             }
         }
 
         @media (min-width: 768px) {
+            .mano-cpu {
+                margin-top: calc(-1 * clamp(8px, 1.5vh, 14px));
+            }
+
             .juego {
                 grid-template-rows: auto minmax(0, 1fr) auto auto;
-                grid-template-columns: minmax(100px, 13vw) 1fr minmax(100px, 13vw);
+                grid-template-columns: minmax(120px, 13vw) 1fr minmax(120px, 13vw);
                 grid-template-areas:
                     "cpu cpu cpu"
                     "botones-izq mesa botones-der"
@@ -796,32 +790,23 @@
 
             .botones-laterales.izquierda {
                 grid-area: botones-izq;
-                flex-direction: column;
-                align-items: stretch;
-                justify-content: center;
+                gap: clamp(6px, 1.2vh, 12px);
             }
 
             .botones-laterales.derecha {
                 grid-area: botones-der;
-                flex-direction: column;
-                align-items: stretch;
-                justify-content: center;
+                gap: clamp(6px, 1.2vh, 12px);
             }
 
             .btn-accion {
-                min-width: clamp(90px, 11vw, 130px);
+                min-width: clamp(110px, 13vw, 160px);
                 width: 100%;
-            }
-
-            /* Ocultar el botón Jugar en PC (escritorio) */
-            #btnJugarCarta {
-                display: none;
             }
         }
 
         @media (min-width: 1024px) {
             .juego {
-                grid-template-columns: minmax(120px, 14vw) 1fr minmax(120px, 14vw);
+                grid-template-columns: minmax(140px, 14vw) 1fr minmax(140px, 14vw);
                 max-width: 1500px;
             }
         }
@@ -872,8 +857,8 @@
     <div class="juego" id="juego">
         <!-- Zona CPU -->
         <div class="zona-cpu">
-            <span class="etiqueta-turno" id="etiquetaCpu">Turno de CPU</span>
             <div class="mano-cpu" id="manoCpu"></div>
+            <span class="etiqueta-turno" id="etiquetaCpu">Turno de CPU</span>
         </div>
 
         <!-- Zona mesa -->
@@ -889,7 +874,6 @@
                 <button class="btn-accion btn-quiero" id="btnQuieroIzq" disabled>✓ Quiero</button>
                 <button class="btn-accion btn-no-quiero" id="btnNoQuieroIzq" disabled>✗ No quiero</button>
                 <button class="btn-accion btn-var" id="btnVar" disabled>📺 VAR</button>
-                <button class="btn-accion btn-jugar-carta" id="btnJugarCarta" disabled>🃏 Jugar</button>
             </div>
 
             <div class="botones-laterales derecha" id="botonesDerecha">
@@ -1013,7 +997,6 @@
                 dom.btnQuieroDer = document.getElementById('btnQuieroDer');
                 dom.btnNoQuieroDer = document.getElementById('btnNoQuieroDer');
                 dom.btnGolazo = document.getElementById('btnGolazo');
-                dom.btnJugarCarta = document.getElementById('btnJugarCarta');
                 dom.indicadorCanto = document.getElementById('indicadorCanto');
                 dom.etiquetaCpu = document.getElementById('etiquetaCpu');
                 dom.etiquetaJugador = document.getElementById('etiquetaJugador');
@@ -1107,25 +1090,25 @@
                 const isWide = vw >= 768;
                 const aspectRatio = 1039 / 744;
 
-                const zonaCpu = vh * (isWide ? 0.10 : 0.09);
+                const zonaCpu = vh * (isWide ? 0.055 : 0.09);
                 const zonaBotones = isWide ? 0 : vh * 0.12;
-                const zonaJugador = vh * (isWide ? 0.16 : 0.15);
-                const zonaMarcador = vh * 0.07;
+                const zonaJugador = vh * (isWide ? 0.19 : 0.18);
+                const zonaMarcador = vh * 0.08;
                 const gaps = vh * 0.035;
                 const espacioMesa = vh - zonaCpu - zonaBotones - zonaJugador - zonaMarcador - gaps;
 
-                let cartaMesa = Math.min(espacioMesa * 0.52, vw * (isWide ? 0.221 : 0.39), vmin * 0.364, 214.5);
-                cartaMesa = Math.max(cartaMesa, vmin * 0.156);
+                let cartaMesa = Math.min(espacioMesa * 0.52, vw * (isWide ? 0.24 : 0.42), vmin * 0.36, 210);
+                cartaMesa = Math.max(cartaMesa, vmin * 0.15);
 
-                let cartaMano = Math.min(zonaJugador * 0.884, vw * 0.312, cartaMesa * 1.196, vmin * 0.286, 179.4);
-                cartaMano = Math.max(cartaMano, vmin * 0.143);
+                let cartaMano = Math.min(zonaJugador * 0.95, vw * 0.34, cartaMesa * 1.25, vmin * 0.31, 200);
+                cartaMano = Math.max(cartaMano, vmin * 0.16);
 
-                let cartaCpu = Math.min(cartaMano * 0.76, vw * 0.182, vmin * 0.195, 127.4);
-                cartaCpu = Math.max(cartaCpu, vmin * 0.117);
+                let cartaCpu = Math.min(cartaMano * 0.8, vw * 0.2, vmin * 0.21, 140) * 0.8;
+                cartaCpu = Math.max(cartaCpu, vmin * 0.13);
 
-                const btnFont = Math.max(10, Math.min(15, vmin * 0.034));
-                const btnPadY = Math.max(5, Math.min(12, vmin * 0.016));
-                const btnPadX = Math.max(6, Math.min(18, vmin * 0.024));
+                const btnFont = Math.max(12, Math.min(18, vmin * 0.04));
+                const btnPadY = Math.max(7, Math.min(15, vmin * 0.02));
+                const btnPadX = Math.max(8, Math.min(22, vmin * 0.03));
                 const manoAltura = cartaMano * aspectRatio + (isWide ? 18 : 14);
 
                 const root = document.documentElement;
@@ -1169,7 +1152,7 @@
                 }
 
                 const anchoDisponible = Math.min(window.innerWidth - 32, 920);
-                let anchoCartaJugador = anchoCarta * 1.15;
+                let anchoCartaJugador = anchoCarta * 1.25;
                 const factorSuperp = 0.85;
                 let superp = anchoCartaJugador * factorSuperp;
                 const anchoTotal = (mano.length - 1) * superp + anchoCartaJugador;
@@ -1316,7 +1299,7 @@
             function actualizarBotones() {
                 const todos = [
                     dom.btnPenal, dom.btnQuieroIzq, dom.btnNoQuieroIzq, dom.btnVar,
-                    dom.btnGol, dom.btnQuieroDer, dom.btnNoQuieroDer, dom.btnGolazo, dom.btnJugarCarta
+                    dom.btnGol, dom.btnQuieroDer, dom.btnNoQuieroDer, dom.btnGolazo
                 ];
                 todos.forEach(b => b.disabled = true);
 
@@ -1327,10 +1310,6 @@
                 const ultimaRonda = estado.rondaActual === 3;
                 const algunSinCartas = estado.manoJugador.length === 0 || estado.manoCpu.length === 0;
                 const puedeCantarGol = estado.manoJugador.length > 0 && estado.manoCpu.length > 0;
-
-                dom.btnJugarCarta.disabled = !(fase === 'esperando_seleccion' &&
-                    estado.cartaSeleccionada !== null &&
-                    estado.turnoActual === 'jugador');
 
                 switch (fase) {
                     case 'esperando_seleccion':
@@ -2285,7 +2264,6 @@
                 dom.btnQuieroDer.addEventListener('click', () => { if (!dom.btnQuieroDer.disabled) jugadorRespondeQuiero(); });
                 dom.btnNoQuieroDer.addEventListener('click', () => { if (!dom.btnNoQuieroDer.disabled) jugadorRespondeNoQuiero(); });
                 dom.btnGolazo.addEventListener('click', () => { if (!dom.btnGolazo.disabled) jugadorRespondeGolazo(); });
-                dom.btnJugarCarta.addEventListener('click', () => { if (!dom.btnJugarCarta.disabled) jugarCartaSeleccionada(); });
 
                 dom.panelMarcador.addEventListener('click', () => {
                     if (!estado.pausado || !dom.overlayMarcador.classList.contains('oculto')) mostrarMarcadorDetallado();
