@@ -944,6 +944,7 @@
             const MINUTOS = ["0' a 10'", "10' a 20'", "20' a 30'", "30' a 40'", "40' a 50'", "50' a 60'", "60' a 70'", "70' a 80'", "80' a 90'"];
             const RUTA_IMAGENES = 'img/';
             const RUTA_DORSO = 'img/Dorso.png';
+            const RUTA_SONIDOS = 'sounds/';
 
             // Estado global del juego
             const estado = {
@@ -1026,6 +1027,8 @@
                 dom.audioFondo = document.getElementById('audioFondo');
             }
 
+            let ultimoSonidoQuiero = 0;
+
             function reproducirAudioFondo() {
                 if (dom.audioFondo) {
                     dom.audioFondo.volume = 0.3;
@@ -1038,6 +1041,41 @@
                     dom.audioFondo.pause();
                     dom.audioFondo.currentTime = 0;
                 }
+            }
+
+            function reproducirSonidoCpu(nombre) {
+                const audio = new Audio(RUTA_SONIDOS + nombre + '.mp3');
+                audio.volume = 0.7;
+                audio.play().catch(err => console.warn('Error al reproducir sonido:', RUTA_SONIDOS + nombre + '.mp3', err));
+            }
+
+            function reproducirSonidoQuiero() {
+                ultimoSonidoQuiero++;
+                if (ultimoSonidoQuiero % 2 === 0) {
+                    reproducirSonidoCpu('quiero');
+                } else {
+                    reproducirSonidoCpu('mmmquiero');
+                }
+            }
+
+            function reproducirSonidoPunto(quien) {
+                if (quien === 'jugador') {
+                    reproducirSonidoCpu('puntoplayer');
+                } else {
+                    reproducirSonidoCpu('puntocpu');
+                }
+            }
+
+            function reproducirSonidoGol(quien) {
+                if (quien === 'jugador') {
+                    reproducirSonidoCpu('golplayer');
+                } else {
+                    reproducirSonidoCpu('golcpu');
+                }
+            }
+
+            function reproducirSonidoCarta() {
+                reproducirSonidoCpu('carta');
             }
 
             function aplicarNombreJugador() {
@@ -1414,6 +1452,7 @@
                 estado.manoJugador.splice(idx, 1);
                 estado.cartaSeleccionada = null;
                 estado.cartasEnMesa.push({ carta, origen: 'jugador' });
+                reproducirSonidoCarta();
 
                 if (cpuJugoEstaRonda()) {
                     estado.fase = 'resolviendo';
@@ -1449,6 +1488,7 @@
 
                 estado.manoCpu = estado.manoCpu.filter(c => c.id !== carta.id);
                 estado.cartasEnMesa.push({ carta, origen: 'cpu' });
+                reproducirSonidoCarta();
 
                 if (jugadorJugoEstaRonda()) {
                     estado.fase = 'resolviendo';
@@ -1525,10 +1565,12 @@
                     estado.puntosJugador++;
                     estado.turnoInicial = 'jugador';
                     mostrarMensaje('¡Ganaste la ronda!');
+                    reproducirSonidoPunto('jugador');
                 } else if (uc.carta.numero > uj.carta.numero) {
                     estado.puntosCpu++;
                     estado.turnoInicial = 'cpu';
                     mostrarMensaje('CPU gana la ronda');
+                    reproducirSonidoPunto('cpu');
                 } else {
                     mostrarMensaje('Empate');
                 }
@@ -1568,6 +1610,7 @@
                     gol = true;
                     golPorPuntos = true;
                     mostrarMensaje('⚽ ¡GOL DE ' + estado.nombreJugador.toUpperCase() + '!');
+                    reproducirSonidoGol('jugador');
                 }
                 if (estado.puntosCpu >= PUNTOS_PARA_GOL && !estado.golEnMano) {
                     estado.golesCpu++;
@@ -1580,6 +1623,7 @@
                     gol = true;
                     golPorPuntos = true;
                     mostrarMensaje('⚽ Gol de la CPU');
+                    reproducirSonidoGol('cpu');
                 }
                 renderizarMarcador(golPorPuntos);
                 renderizarTodo(golPorPuntos);
@@ -1637,6 +1681,7 @@
                 estado.penalUsado = true;
                 estado.penalCantadoPor = 'cpu';
                 renderizarTodo();
+                reproducirSonidoCpu('penal');
             }
 
             function jugadorPideGol() {
@@ -1658,6 +1703,7 @@
                 estado.esperandoRespuestaDe = 'jugador';
                 estado.golUsado = true;
                 renderizarTodo();
+                reproducirSonidoCpu('gol');
             }
 
             // --- Respuestas ---
@@ -1744,17 +1790,22 @@
                     const puntos = cantoActual === 'golazo' ? 2 : 1;
                     const golPorPuntos = sumarPuntos(quienCanto, puntos);
                     mostrarMensaje('CPU: No quiero');
+                    reproducirSonidoCpu('noquiero');
                     if (golPorPuntos) {
                         setTimeout(finalizarMano, 2200);
                     } else {
                         finalizarCanto();
                     }
+                } else if (resp === 'quiero') {
+                    reproducirSonidoQuiero();
+                    ejecutarCanto(cantoActual, cantoPedidoPor);
                 } else if (resp === 'var') {
                     // CPU pide VAR → jugador (atacante) decide aceptar/rechazar
                     estado.fase = 'var_decision';
                     estado.varPedidoPor = 'cpu';
                     estado.esperandoRespuestaDe = 'jugador';
                     renderizarTodo();
+                    setTimeout(() => reproducirSonidoCpu('var'), 300);
                 } else if (resp === 'golazo') {
                     estado.fase = 'golazo_pedido';
                     estado.cantoActual = 'golazo';
@@ -1762,8 +1813,7 @@
                     estado.esperandoRespuestaDe = 'jugador';
                     estado.golazoUsado = true;
                     renderizarTodo();
-                } else if (resp === 'quiero') {
-                    ejecutarCanto(cantoActual, cantoPedidoPor);
+                    setTimeout(() => reproducirSonidoCpu('golazo'), 300);
                 }
             }
 
@@ -1841,11 +1891,13 @@
                     if (origA === 'jugador') estado.manoJugador = estado.manoJugador.filter(c => c.id !== atacante.id);
                     else estado.manoCpu = estado.manoCpu.filter(c => c.id !== atacante.id);
                     estado.cartasEnMesa.push({ carta: atacante, origen: origA });
+                    reproducirSonidoCarta();
                 }
                 if (defensor) {
                     if (origD === 'jugador') estado.manoJugador = estado.manoJugador.filter(c => c.id !== defensor.id);
                     else estado.manoCpu = estado.manoCpu.filter(c => c.id !== defensor.id);
                     estado.cartasEnMesa.push({ carta: defensor, origen: origD });
+                    reproducirSonidoCarta();
                 }
                 renderizarTodo();
                 mostrarMensaje((tipo === 'penal' ? '🥅' : tipo === 'golazo' ? '💥' : '⚽') + ' ¡' + (tipo === 'penal' ? 'Penal' : tipo === 'golazo' ? 'Golazo' : 'Gol') + '!');
@@ -2030,7 +2082,10 @@
                             estado.golEnMano = true;
                             estado.ganadorManoAnterior = 'jugador';
                             mostrarMensaje('⚽ ¡GOL DE ' + estado.nombreJugador.toUpperCase() + '!');
+                            reproducirSonidoGol('jugador');
                             gol = true;
+                        } else {
+                            reproducirSonidoPunto('jugador');
                         }
                     } else {
                         estado.puntosCpu++;
@@ -2043,7 +2098,10 @@
                             estado.golEnMano = true;
                             estado.ganadorManoAnterior = 'cpu';
                             mostrarMensaje('⚽ Gol CPU');
+                            reproducirSonidoGol('cpu');
                             gol = true;
+                        } else {
+                            reproducirSonidoPunto('cpu');
                         }
                     }
                 }
@@ -2307,14 +2365,49 @@
                 estado.turnoActual = 'jugador';
                 estado.pausado = true;
 
+                // Desbloquear audio en móviles con primera interacción del usuario
+                let audioDesbloqueado = false;
+                const desbloquearAudio = () => {
+                    if (audioDesbloqueado) return;
+                    audioDesbloqueado = true;
+                    const audioPrueba = new Audio(RUTA_SONIDOS + 'carta.mp3');
+                    audioPrueba.volume = 0.01;
+                    audioPrueba.play().then(() => {
+                        setTimeout(() => { 
+                            audioPrueba.pause(); 
+                            audioPrueba.currentTime = 0;
+                        }, 50);
+                    }).catch(() => {});
+                    document.removeEventListener('touchstart', desbloquearAudio);
+                    document.removeEventListener('click', desbloquearAudio);
+                    document.removeEventListener('touchend', desbloquearAudio);
+                };
+                document.addEventListener('touchstart', desbloquearAudio, { once: true });
+                document.addEventListener('click', desbloquearAudio, { once: true });
+                document.addEventListener('touchend', desbloquearAudio, { once: true });
+                
+                // También desbloquear con el primer click en el botón de empezar
+                dom.inputNombre.addEventListener('click', desbloquearAudio, { once: true });
+                dom.inputNombre.addEventListener('touchstart', desbloquearAudio, { once: true });
+
                 dom.inputNombre.addEventListener('input', () => {
                     dom.contadorCaracteres.textContent = dom.inputNombre.value.length + '/12';
                 });
                 dom.btnEmpezar.addEventListener('click', () => {
+                    desbloquearAudio();
                     const nombre = dom.inputNombre.value.trim();
                     estado.nombreJugador = nombre.length > 0 ? nombre : 'Jugador';
                     aplicarNombreJugador();
                     iniciarPartido();
+                });
+                dom.inputNombre.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        desbloquearAudio();
+                        const nombre = dom.inputNombre.value.trim();
+                        estado.nombreJugador = nombre.length > 0 ? nombre : 'Jugador';
+                        aplicarNombreJugador();
+                        iniciarPartido();
+                    }
                 });
                 dom.inputNombre.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter') {
