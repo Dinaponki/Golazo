@@ -795,30 +795,34 @@
                 transform: translate(-50%, -50%) translateY(6px);
             }
 
-            /* 2. Botones: ancho/alto uniformes, dos filas si no entran */
+            /* 2. Botones: compactos en columnas izquierda y derecha */
             .zona-botones {
-                justify-content: center;
-                align-items: flex-start;
-                flex-wrap: wrap;
-                padding: clamp(2px, 0.5vh, 6px) 0;
-                gap: clamp(4px, 1vmin, 8px);
+                justify-content: space-between;
+                align-items: stretch;
+                flex-wrap: nowrap;
+                padding: 0;
+                gap: 0;
             }
 
             .botones-laterales {
-                flex: 0 1 48%;
-                max-width: 48%;
+                flex: 1;
+                max-width: none;
                 flex-direction: column;
-                justify-content: center;
                 gap: clamp(4px, 1vmin, 8px);
+                padding: 0;
             }
 
             .botones-laterales.izquierda {
                 grid-area: auto;
+                justify-content: flex-start;
+                align-items: flex-start;
+                margin-right: 0;
             }
 
             .botones-laterales.derecha {
                 margin-left: 0;
-                justify-content: center;
+                justify-content: flex-end;
+                align-items: flex-end;
             }
 
             .btn-accion {
@@ -827,7 +831,7 @@
                 flex: 0 0 auto;
                 height: clamp(40px, 9vmin, 48px);
                 font-size: clamp(10px, 2.5vmin, 13px);
-                padding: 0;
+                padding: var(--btn-pad-y) clamp(4px, 1vmin, 8px);
                 white-space: nowrap;
                 text-align: center;
                 line-height: 1;
