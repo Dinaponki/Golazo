@@ -35,9 +35,9 @@
             --carta-cpu: clamp(105.456px, 22.308vmin, 186.576px);
             --carta-cpu-max-h: clamp(146.016px, 30.34vmin, 263.64px);
             --mano-altura: clamp(279.15px, 45.63vmin, 443.625px);
-            --btn-font: clamp(11px, 2.6vmin, 15px);
-            --btn-pad-y: clamp(7px, 1.6vmin, 13px);
-            --btn-pad-x: clamp(9px, 2.2vmin, 20px);
+            --btn-font: clamp(15px, 3.6vmin, 22px);
+            --btn-pad-y: clamp(10px, 2.2vmin, 18px);
+            --btn-pad-x: clamp(12px, 3vmin, 28px);
         }
 
         * {
@@ -253,7 +253,7 @@
             color: var(--blanco);
             white-space: nowrap;
             position: relative;
-            min-width: clamp(70px, 16vmin, 110px);
+            min-width: clamp(90px, 20vmin, 140px);
             text-align: center;
         }
 
@@ -828,9 +828,9 @@
                 min-width: 0;
                 width: 100%;
                 flex: 0 0 auto;
-                height: clamp(20px, 4.5vmin, 24px);
-                font-size: clamp(6px, 1.4vmin, 8px);
-                padding: var(--btn-pad-y) clamp(5px, 1.2vmin, 7px);
+                height: clamp(28px, 6vmin, 34px);
+                font-size: clamp(10px, 2.4vmin, 14px);
+                padding: var(--btn-pad-y) clamp(8px, 2vmin, 12px);
                 white-space: nowrap;
                 text-align: center;
                 line-height: 1.2;
@@ -872,7 +872,7 @@
             }
 
             .btn-accion {
-                min-width: clamp(110px, 13vw, 160px);
+                min-width: clamp(140px, 16vw, 200px);
                 width: 100%;
             }
         }
@@ -1288,9 +1288,9 @@
                 let cartaCpu = Math.min(cartaMano * 0.8, vw * 0.2, vmin * 0.21, 140) * 0.8;
                 cartaCpu = Math.max(cartaCpu, vmin * 0.13);
 
-                const btnFont = Math.max(12, Math.min(18, vmin * 0.04));
-                const btnPadY = Math.max(7, Math.min(15, vmin * 0.02));
-                const btnPadX = Math.max(8, Math.min(22, vmin * 0.03));
+                const btnFont = Math.max(15, Math.min(24, vmin * 0.05));
+                const btnPadY = Math.max(10, Math.min(20, vmin * 0.028));
+                const btnPadX = Math.max(14, Math.min(32, vmin * 0.04));
                 const manoAltura = cartaMano * aspectRatio + (isWide ? 18 : 14);
 
                 const root = document.documentElement;
