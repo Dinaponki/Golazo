@@ -1110,19 +1110,71 @@
             }
 
             let ultimoSonidoQuiero = 0;
+            let audioDesbloqueado = false;
+            let audioContext = null;
+
+            // Crear y desbloquear AudioContext en la primera interacción del usuario
+            function desbloquearAudio() {
+                if (audioDesbloqueado) return;
+                audioDesbloqueado = true;
+
+                // Crear AudioContext (compatible con iOS/Safari)
+                try {
+                    const AC = window.AudioContext || window.webkitAudioContext;
+                    if (AC) {
+                        audioContext = new AC();
+                        if (audioContext.state === 'suspended') {
+                            audioContext.resume().catch(() => {});
+                        }
+                    }
+                } catch (e) {}
+
+                // Desbloquear todos los elementos Audio reproduciendo y pausando
+                Object.values(dom.sonidos).forEach(audio => {
+                    if (audio) {
+                        try {
+                            audio.load();
+                            audio.currentTime = 0;
+                            audio.play().then(() => {
+                                audio.pause();
+                                audio.currentTime = 0;
+                            }).catch(() => {});
+                        } catch (e) {}
+                    }
+                });
+                if (dom.audioFondo) {
+                    try {
+                        dom.audioFondo.load();
+                        dom.audioFondo.currentTime = 0;
+                        dom.audioFondo.play().then(() => {
+                            dom.audioFondo.pause();
+                            dom.audioFondo.currentTime = 0;
+                        }).catch(() => {});
+                    } catch (e) {}
+                }
+            }
 
             function reproducirSonidoCpu(nombre) {
                 const audio = dom.sonidos[nombre];
                 if (!audio) return;
-                audio.volume = 0.7;
-                audio.currentTime = 0;
-                audio.play().catch(() => {});
+                try {
+                    audio.volume = 0.7;
+                    audio.currentTime = 0;
+                    // Asegurar que el audio esté cargado antes de reproducir
+                    if (audio.readyState < 2) audio.load();
+                    const p = audio.play();
+                    if (p && p.catch) p.catch(() => {});
+                } catch (e) {}
             }
 
             function reproducirAudioFondo() {
                 if (dom.audioFondo) {
-                    dom.audioFondo.volume = 0.3;
-                    dom.audioFondo.play().catch(() => {});
+                    try {
+                        dom.audioFondo.volume = 0.3;
+                        if (dom.audioFondo.readyState < 2) dom.audioFondo.load();
+                        const p = dom.audioFondo.play();
+                        if (p && p.catch) p.catch(() => {});
+                    } catch (e) {}
                 }
             }
 
@@ -2571,16 +2623,7 @@
                     dom.contadorCaracteres.textContent = dom.inputNombre.value.length + '/12';
                 });
                 dom.btnEmpezar.addEventListener('click', () => {
-                    // Desbloquear audio en móviles reproduciendo y pausando todos los audios estáticos
-                    Object.values(dom.sonidos).forEach(audio => {
-                        if (audio) {
-                            audio.currentTime = 0;
-                            audio.play().then(() => {
-                                audio.pause();
-                                audio.currentTime = 0;
-                            }).catch(() => {});
-                        }
-                    });
+                    desbloquearAudio();
                     
                     const nombre = dom.inputNombre.value.trim();
                     estado.nombreJugador = nombre.length > 0 ? nombre : 'Jugador';
@@ -2618,6 +2661,11 @@
                 dom.btnInicio.addEventListener('click', () => {
                     detenerAudioFondo();
                     window.location.href = 'index.html';
+                });
+
+                // Desbloquear audio en la primera interacción del usuario (móviles)
+                ['touchstart', 'pointerdown', 'click'].forEach(evt => {
+                    document.addEventListener(evt, desbloquearAudio, { once: true, passive: true });
                 });
 
                 window.addEventListener('resize', () => { if (!estado.pausado) renderizarTodo(); });
