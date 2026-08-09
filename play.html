@@ -795,20 +795,19 @@
                 transform: translate(-50%, -50%) translateY(6px);
             }
 
-            /* 2. Botones: compactos en columnas izquierda y derecha */
+            /* 2. Botones: columnas verticales compactas a los lados */
             .zona-botones {
                 justify-content: space-between;
-                align-items: stretch;
-                flex-wrap: nowrap;
+                align-items: flex-start;
                 padding: 0;
                 gap: 0;
             }
 
             .botones-laterales {
-                flex: 1;
-                max-width: none;
+                flex: 0 0 auto;
+                max-width: 30%;
                 flex-direction: column;
-                gap: clamp(4px, 1vmin, 8px);
+                gap: clamp(2px, 0.6vmin, 5px);
                 padding: 0;
             }
 
@@ -816,25 +815,26 @@
                 grid-area: auto;
                 justify-content: flex-start;
                 align-items: flex-start;
-                margin-right: 0;
+                align-self: flex-start;
             }
 
             .botones-laterales.derecha {
-                margin-left: 0;
                 justify-content: flex-end;
                 align-items: flex-end;
+                align-self: flex-start;
             }
 
             .btn-accion {
                 min-width: 0;
-                width: 100%;
+                width: auto;
                 flex: 0 0 auto;
-                height: clamp(40px, 9vmin, 48px);
-                font-size: clamp(10px, 2.5vmin, 13px);
-                padding: var(--btn-pad-y) clamp(4px, 1vmin, 8px);
+                height: clamp(24px, 5.5vmin, 28px);
+                font-size: clamp(6px, 1.3vmin, 7px);
+                padding: var(--btn-pad-y) clamp(2px, 0.5vmin, 4px);
                 white-space: nowrap;
                 text-align: center;
                 line-height: 1;
+                letter-spacing: 0.01em;
             }
         }
 
