@@ -795,7 +795,7 @@
                 transform: translate(-50%, -50%) translateY(6px);
             }
 
-            /* 2. Botones: columnas verticales compactas a los lados */
+            /* 2. Botones: columnas verticales a los lados con espacio central */
             .zona-botones {
                 justify-content: space-between;
                 align-items: flex-start;
@@ -805,9 +805,9 @@
 
             .botones-laterales {
                 flex: 0 0 auto;
-                max-width: 26%;
+                max-width: 28%;
                 flex-direction: column;
-                gap: clamp(2px, 0.5vmin, 3px);
+                gap: clamp(4px, 0.8vmin, 6px);
                 padding: 0;
             }
 
@@ -828,9 +828,9 @@
                 min-width: 0;
                 width: 100%;
                 flex: 0 0 auto;
-                height: clamp(8px, 1.9vmin, 10px);
-                font-size: clamp(2px, 0.5vmin, 3px);
-                padding: var(--btn-pad-y) clamp(2px, 0.6vmin, 3px);
+                height: clamp(20px, 4.5vmin, 24px);
+                font-size: clamp(6px, 1.4vmin, 8px);
+                padding: var(--btn-pad-y) clamp(5px, 1.2vmin, 7px);
                 white-space: nowrap;
                 text-align: center;
                 line-height: 1.2;
