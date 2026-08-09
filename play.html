@@ -780,28 +780,58 @@
             transform: translate(-50%, -50%) scale(1);
         }
 
-        /* Responsive - desktop: botones a los lados de la mesa */
+        /* Responsive - móviles */
         @media (max-width: 767px) {
+            /* 1. Cartas jugadas: bajar para dejar visible el texto de cantos */
+            .mesa-cartas .carta-contenedor {
+                top: 64%;
+            }
+
+            .mesa-cartas .carta-contenedor.ganadora {
+                transform: translate(-50%, -50%) translateY(-10px) scale(1.02);
+            }
+
+            .mesa-cartas .carta-contenedor.perdedora {
+                transform: translate(-50%, -50%) translateY(6px);
+            }
+
+            /* 2. Botones: ancho/alto uniformes, dos filas si no entran */
             .zona-botones {
-                justify-content: space-between;
+                justify-content: center;
                 align-items: flex-start;
+                flex-wrap: wrap;
                 padding: clamp(2px, 0.5vh, 6px) 0;
+                gap: clamp(4px, 1vmin, 8px);
             }
 
             .botones-laterales {
-                flex: 0 1 auto;
-                max-width: 42%;
+                flex: 0 1 48%;
+                max-width: 48%;
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: clamp(4px, 1vmin, 8px);
+            }
+
+            .botones-laterales.izquierda {
+                grid-area: auto;
             }
 
             .botones-laterales.derecha {
-                margin-left: auto;
+                margin-left: 0;
+                justify-content: center;
             }
 
             .btn-accion {
                 min-width: 0;
-                width: 100%;
+                width: calc(50% - clamp(2px, 0.5vmin, 4px));
+                flex: 0 0 calc(50% - clamp(2px, 0.5vmin, 4px));
+                height: clamp(40px, 9vmin, 48px);
                 font-size: clamp(10px, 2.5vmin, 13px);
-                padding: clamp(5px, 1.5vmin, 9px) clamp(6px, 1.4vmin, 10px);
+                padding: 0;
+                white-space: nowrap;
+                text-align: center;
+                line-height: 1;
             }
         }
 
