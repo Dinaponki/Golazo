@@ -805,11 +805,9 @@
             }
 
             .botones-laterales {
-                flex: 0 1 48%;
-                max-width: 48%;
-                flex-direction: row;
-                flex-wrap: wrap;
-                justify-content: center;
+                flex: 0 0 100%;
+                max-width: 100%;
+                flex-direction: column;
                 gap: clamp(4px, 1vmin, 8px);
             }
 
@@ -819,13 +817,12 @@
 
             .botones-laterales.derecha {
                 margin-left: 0;
-                justify-content: center;
             }
 
             .btn-accion {
                 min-width: 0;
-                width: calc(50% - clamp(2px, 0.5vmin, 4px));
-                flex: 0 0 calc(50% - clamp(2px, 0.5vmin, 4px));
+                width: 100%;
+                flex: 0 0 100%;
                 height: clamp(40px, 9vmin, 48px);
                 font-size: clamp(10px, 2.5vmin, 13px);
                 padding: 0;
@@ -841,6 +838,7 @@
             }
 
             .juego {
+
                 grid-template-rows: auto minmax(0, 1fr) auto auto;
                 grid-template-columns: minmax(120px, 13vw) 1fr minmax(120px, 13vw);
                 grid-template-areas:
