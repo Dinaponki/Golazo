@@ -2177,37 +2177,30 @@
                 mostrarMensaje(`📺 VAR: ${estado.nombreJugador} ${dj} vs CPU ${dc}`);
 
                 if (dj > dc) {
-                    // Jugador gana el VAR
-                    if (varPedidoPor === 'jugador') {
-                        // Jugador pidió VAR → +1 punto, penal cancelado
-                        sumarPuntos('jugador', 1);
-                        mostrarMensaje(`📺 VAR: ${estado.nombreJugador} ${dj} vs CPU ${dc} - Ganaste. Penal cancelado`);
-                        finalizarCanto();
-                    } else {
-                        // CPU pidió VAR, jugador (atacante) gana → +1 punto, penal se ejecuta
-                        sumarPuntos('jugador', 1);
-                        mostrarMensaje(`📺 VAR: ${estado.nombreJugador} ${dj} vs CPU ${dc} - Ganaste. Se ejecuta el penal`);
-                        ejecutarCanto('penal', cantoPedidoPor);
-                    }
-                } else if (dc > dj) {
-                    // CPU gana el VAR
-                    if (varPedidoPor === 'cpu') {
-                        // CPU pidió VAR → +1 punto, penal cancelado
-                        sumarPuntos('cpu', 1);
-                        mostrarMensaje(`📺 VAR: CPU ${dc} vs ${estado.nombreJugador} ${dj} - CPU gana. Penal cancelado`);
-                        finalizarCanto();
-                    } else {
-                        // Jugador pidió VAR, CPU (atacante) gana → +1 punto, penal se ejecuta
-                        sumarPuntos('cpu', 1);
-                        mostrarMensaje(`📺 VAR: CPU ${dc} vs ${estado.nombreJugador} ${dj} - CPU gana. Se ejecuta el penal`);
-                        ejecutarCanto('penal', cantoPedidoPor);
-                    }
-                } else {
-                    // Empate → penal se ejecuta sin puntos
-                    mostrarMensaje(`📺 VAR: ${estado.nombreJugador} ${dj} vs CPU ${dc} - Empate. Se ejecuta el penal`);
-                    ejecutarCanto('penal', cantoPedidoPor);
-                }
-            }
+    if (varPedidoPor === 'jugador') {
+        // Jugador pidió VAR y gana → +2 puntos, penal cancelado
+        sumarPuntos('jugador', 2);
+        mostrarMensaje(`📺 VAR: ${estado.nombreJugador} ${dj} vs CPU ${dc} - Ganaste. Penal cancelado`);
+        finalizarCanto();
+    } else {
+        // CPU pidió VAR, atacante gana → +1 punto y se ejecuta el penal
+        sumarPuntos('jugador', 1);
+        mostrarMensaje(`📺 VAR: ${estado.nombreJugador} ${dj} vs CPU ${dc} - Ganaste. Se ejecuta el penal`);
+        ejecutarCanto('penal', cantoPedidoPor);
+    }
+} else if (dc > dj) {
+    if (varPedidoPor === 'cpu') {
+        // CPU pidió VAR y gana → +2 puntos, penal cancelado
+        sumarPuntos('cpu', 2);
+        mostrarMensaje(`📺 VAR: CPU ${dc} vs ${estado.nombreJugador} ${dj} - CPU gana. Penal cancelado`);
+        finalizarCanto();
+    } else {
+        // Jugador pidió VAR, atacante gana → +1 punto y se ejecuta el penal
+        sumarPuntos('cpu', 1);
+        mostrarMensaje(`📺 VAR: CPU ${dc} vs ${estado.nombreJugador} ${dj} - CPU gana. Se ejecuta el penal`);
+        ejecutarCanto('penal', cantoPedidoPor);
+    }
+}
 
             // --- Ejecutar canto (penal, gol, golazo: elección manual de cartas) ---
             function ejecutarCanto(tipo, pedidoPor) {
