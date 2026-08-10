@@ -1057,6 +1057,9 @@
                 penalActivo: false,
                 penalAtacante: null,
                 penalCartas: [],
+                golActivo: false,
+                golAtacante: null,
+                golCartas: [],
                 golUsado: false,
                 golazoUsado: false,
                 cantoPedidoPor: null,
@@ -1500,10 +1503,10 @@
 
                 switch (fase) {
                     case 'esperando_seleccion':
-                        if (estado.rondaActual === 0 && !estado.penalUsado && !estado.penalCantadoPor && quedan && estado.turnoActual === 'jugador') {
+                        if (estado.rondaActual === 0 && !estado.penalUsado && !estado.penalCantadoPor && !estado.penalActivo && !estado.golActivo && quedan && estado.turnoActual === 'jugador') {
                             dom.btnPenal.disabled = false;
                         }
-                        if (puedeCantarGol && estado.rondaActual >= 1 && !estado.golUsado && quedan && estado.turnoActual === 'jugador') {
+                        if (puedeCantarGol && estado.rondaActual >= 1 && !estado.golUsado && !estado.penalActivo && !estado.golActivo && quedan && estado.turnoActual === 'jugador') {
                             dom.btnGol.disabled = false;
                         }
                         break;
@@ -1594,6 +1597,26 @@
                     return;
                 }
 
+                // Si hay gol activo y el jugador ataca, guardar su carta de gol
+                if (estado.golActivo && estado.golAtacante === 'jugador') {
+                    estado.golCartas.push({ carta, origen: 'jugador' });
+                    // El CPU debe jugar su defensor automáticamente
+                    estado.fase = 'esperando_cpu';
+                    estado.turnoActual = 'cpu';
+                    renderizarTodo();
+                    setTimeout(turnoCpu, 600 + Math.random() * 400);
+                    return;
+                }
+
+                // Si hay gol activo y el jugador defiende, guardar su carta de gol
+                if (estado.golActivo && estado.golAtacante === 'cpu') {
+                    estado.golCartas.push({ carta, origen: 'jugador' });
+                    estado.fase = 'resolviendo';
+                    renderizarTodo();
+                    setTimeout(resolverRonda, 500);
+                    return;
+                }
+
                 if (cpuJugoEstaRonda()) {
                     estado.fase = 'resolviendo';
                     renderizarTodo();
@@ -1611,11 +1634,11 @@
 
                 const hayCartasAmbos = estado.manoJugador.length > 0 && estado.manoCpu.length > 0;
 
-                if (estado.rondaActual === 0 && !estado.penalUsado && !estado.penalCantadoPor && hayCartasAmbos && estado.esperandoRespuestaDe !== 'cpu' && iaDecidirCantarPenal()) {
+                if (estado.rondaActual === 0 && !estado.penalUsado && !estado.penalCantadoPor && !estado.penalActivo && !estado.golActivo && hayCartasAmbos && estado.esperandoRespuestaDe !== 'cpu' && iaDecidirCantarPenal()) {
                     cpuPidePenal();
                     return;
                 }
-                if (estado.rondaActual >= 1 && !estado.golUsado && hayCartasAmbos && estado.esperandoRespuestaDe !== 'cpu' && iaDecidirCantarGol()) {
+                if (estado.rondaActual >= 1 && !estado.golUsado && !estado.penalActivo && !estado.golActivo && hayCartasAmbos && estado.esperandoRespuestaDe !== 'cpu' && iaDecidirCantarGol()) {
                     cpuPideGol();
                     return;
                 }
@@ -1640,6 +1663,26 @@
                 // Si hay penal activo y CPU es el atacante, guardar su carta de penal
                 if (estado.penalActivo && estado.penalAtacante === 'cpu') {
                     estado.penalCartas.push({ carta, origen: 'cpu' });
+                    // Ahora el jugador debe defender con una carta nueva
+                    estado.turnoActual = 'jugador';
+                    estado.fase = 'esperando_seleccion';
+                    estado.cartaSeleccionada = null;
+                    renderizarTodo();
+                    return;
+                }
+
+                // Si hay gol activo y CPU es el defensor, guardar su carta de gol
+                if (estado.golActivo && estado.golAtacante === 'jugador') {
+                    estado.golCartas.push({ carta, origen: 'cpu' });
+                    estado.fase = 'resolviendo';
+                    renderizarTodo();
+                    setTimeout(resolverRonda, 500);
+                    return;
+                }
+
+                // Si hay gol activo y CPU es el atacante, guardar su carta de gol
+                if (estado.golActivo && estado.golAtacante === 'cpu') {
+                    estado.golCartas.push({ carta, origen: 'cpu' });
                     // Ahora el jugador debe defender con una carta nueva
                     estado.turnoActual = 'jugador';
                     estado.fase = 'esperando_seleccion';
@@ -1674,6 +1717,20 @@
                 if (estado.penalActivo && estado.penalAtacante === 'cpu') {
                     const del = mejorCartaDe(mano, 'Del');
                     if (del) return del;
+                }
+                
+                // Si hay gol activo y CPU es el defensor, jugar Arq/Def más alto (o carta más alta)
+                if (estado.golActivo && estado.golAtacante === 'jugador') {
+                    const def = mejorCartaDeVarias(mano, ['Arq', 'Def']);
+                    if (def) return def;
+                    return cartaMasAlta(mano);
+                }
+                
+                // Si hay gol activo y CPU es el atacante, jugar el delantero (o carta más alta)
+                if (estado.golActivo && estado.golAtacante === 'cpu') {
+                    const del = mejorCartaDe(mano, 'Del');
+                    if (del) return del;
+                    return cartaMasAlta(mano);
                 }
                 
                 const r = Math.random();
@@ -1730,6 +1787,10 @@
             function resolverRonda() {
                 if (estado.penalActivo) {
                     resolverPenal();
+                    return;
+                }
+                if (estado.golActivo) {
+                    resolverGol();
                     return;
                 }
                 const uj = estado.cartasEnMesa.filter(c => c.origen === 'jugador').pop();
@@ -1802,6 +1863,36 @@
                 }
             }
 
+            function resolverGol() {
+                const cartasGol = estado.golCartas;
+                const uj = cartasGol.filter(c => c.origen === 'jugador').pop();
+                const uc = cartasGol.filter(c => c.origen === 'cpu').pop();
+                if (!uj || !uc) return;
+
+                const atacanteEsJugador = estado.golAtacante === 'jugador';
+                const cartaAtacante = atacanteEsJugador ? uj : uc;
+                const cartaDefensor = atacanteEsJugador ? uc : uj;
+
+                const quienAtaca = estado.golAtacante;
+                estado.golActivo = false;
+                estado.golAtacante = null;
+                estado.golCartas = [];
+
+                if (cartaAtacante.carta.numero > cartaDefensor.carta.numero) {
+                    convertirGol(quienAtaca);
+                    mostrarMensaje('⚽ ¡GOL DE ' + (quienAtaca === 'jugador' ? estado.nombreJugador.toUpperCase() : 'CPU') + '!');
+                    setTimeout(finalizarMano, 2200);
+                } else {
+                    const golPorPuntos = sumarPuntos(atacanteEsJugador ? 'cpu' : 'jugador', 2);
+                    mostrarMensaje('Defendido - +2 defensor');
+                    if (golPorPuntos) {
+                        setTimeout(finalizarMano, 2200);
+                    } else {
+                        finalizarCanto();
+                    }
+                }
+            }
+
             function alguienSinCartas() {
                 return estado.manoJugador.length === 0 || estado.manoCpu.length === 0;
             }
@@ -1865,11 +1956,11 @@
                 estado.inicioRonda = estado.cartasEnMesa.length;
 
                 if (estado.turnoActual === 'cpu') {
-                    if (estado.rondaActual === 0 && !estado.penalUsado && !estado.penalCantadoPor && estado.esperandoRespuestaDe !== 'cpu' && iaDecidirCantarPenal()) {
+                    if (estado.rondaActual === 0 && !estado.penalUsado && !estado.penalCantadoPor && !estado.penalActivo && !estado.golActivo && estado.esperandoRespuestaDe !== 'cpu' && iaDecidirCantarPenal()) {
                         cpuPidePenal();
                         return;
                     }
-                    if (estado.rondaActual >= 1 && !estado.golUsado && estado.esperandoRespuestaDe !== 'cpu' && iaDecidirCantarGol()) {
+                    if (estado.rondaActual >= 1 && !estado.golUsado && !estado.penalActivo && !estado.golActivo && estado.esperandoRespuestaDe !== 'cpu' && iaDecidirCantarGol()) {
                         cpuPideGol();
                         return;
                     }
@@ -2112,30 +2203,13 @@
                 }
             }
 
-            // --- Ejecutar canto ---
+            // --- Ejecutar canto (penal, gol, golazo: elección manual de cartas) ---
             function ejecutarCanto(tipo, pedidoPor) {
-                const mAtacante = pedidoPor === 'jugador' ? estado.manoJugador : estado.manoCpu;
-                const mDefensor = pedidoPor === 'jugador' ? estado.manoCpu : estado.manoJugador;
-                const origA = pedidoPor === 'jugador' ? 'jugador' : 'cpu';
-                const origD = pedidoPor === 'jugador' ? 'cpu' : 'jugador';
-
-                let atacante, defensor;
-
-                if (tipo === 'penal') {
-                    atacante = mejorCartaDe(mAtacante, 'Del');
-                    defensor = mejorCartaDe(mDefensor, 'Arq');
-                } else {
-                    // Gol o Golazo
-                    atacante = mejorCartaDe(mAtacante, 'Del');
-                    defensor = mejorCartaDeVarias(mDefensor, ['Def', 'Arq']);
-                }
-
                 if (tipo === 'penal') {
                     estado.penalActivo = true;
                     estado.penalAtacante = pedidoPor;
                     estado.penalCartas = [];
                     if (pedidoPor === 'cpu') {
-                        // CPU ataca: primero juega su delantero, luego el jugador defiende con carta nueva
                         estado.fase = 'esperando_cpu';
                         renderizarTodo();
                         setTimeout(turnoCpu, 500 + Math.random() * 400);
@@ -2148,132 +2222,20 @@
                     return;
                 }
 
-                // Jugar cartas del canto
-                if (atacante) {
-                    if (origA === 'jugador') estado.manoJugador = estado.manoJugador.filter(c => c.id !== atacante.id);
-                    else estado.manoCpu = estado.manoCpu.filter(c => c.id !== atacante.id);
-                    estado.cartasEnMesa.push({ carta: atacante, origen: origA });
+                // Gol o Golazo: elección manual de cartas como el penal
+                estado.golActivo = true;
+                estado.golAtacante = pedidoPor;
+                estado.golCartas = [];
+                if (pedidoPor === 'cpu') {
+                    estado.fase = 'esperando_cpu';
+                    renderizarTodo();
+                    setTimeout(turnoCpu, 500 + Math.random() * 400);
+                } else {
+                    estado.fase = 'esperando_seleccion';
+                    estado.turnoActual = pedidoPor;
+                    renderizarTodo();
                 }
-                if (defensor) {
-                    if (origD === 'jugador') estado.manoJugador = estado.manoJugador.filter(c => c.id !== defensor.id);
-                    else estado.manoCpu = estado.manoCpu.filter(c => c.id !== defensor.id);
-                    estado.cartasEnMesa.push({ carta: defensor, origen: origD });
-                }
-                renderizarTodo();
-                
                 mostrarMensaje((tipo === 'golazo' ? '💥' : '⚽') + ' ¡' + (tipo === 'golazo' ? 'Golazo' : 'Gol') + '!');
-
-                setTimeout(() => {
-                    let gol = false;
-
-                    if (tipo === 'penal') {
-                        // === PENAL ===
-                        if (!atacante && !defensor) {
-                            // Ambos sin cartas necesarias → jugar carta más alta
-                            const cA = cartaMasAlta(mAtacante);
-                            const cD = cartaMasAlta(mDefensor);
-                            if (cA) {
-                                if (origA === 'jugador') estado.manoJugador = estado.manoJugador.filter(c => c.id !== cA.id);
-                                else estado.manoCpu = estado.manoCpu.filter(c => c.id !== cA.id);
-                                estado.cartasEnMesa.push({ carta: cA, origen: origA });
-                            }
-                            if (cD) {
-                                if (origD === 'jugador') estado.manoJugador = estado.manoJugador.filter(c => c.id !== cD.id);
-                                else estado.manoCpu = estado.manoCpu.filter(c => c.id !== cD.id);
-                                estado.cartasEnMesa.push({ carta: cD, origen: origD });
-                            }
-                            renderizarTodo();
-                            if (cA && cD) {
-                                if (cA.numero > cD.numero) {
-                                    sumarPuntos(pedidoPor, 2);
-                                    mostrarMensaje('Sin delantero ni arquero - +2 ' + (pedidoPor === 'jugador' ? estado.nombreJugador : 'CPU'));
-                                } else if (cD.numero > cA.numero) {
-                                    sumarPuntos(pedidoPor === 'jugador' ? 'cpu' : 'jugador', 2);
-                                    mostrarMensaje('Sin delantero ni arquero - +2 defensor');
-                                } else {
-                                    mostrarMensaje('Empate');
-                                }
-                            } else {
-                                mostrarMensaje('Sin cartas para resolver');
-                            }
-                        } else if (!atacante) {
-                            // Atacante sin Delantero → defensor +2 puntos
-                            sumarPuntos(pedidoPor === 'jugador' ? 'cpu' : 'jugador', 2);
-                            mostrarMensaje('Atacante sin delantero - +2 defensor');
-                        } else if (!defensor) {
-                            // Defensor sin Arquero → gol automático
-                            convertirGol(pedidoPor);
-                            gol = true;
-                            mostrarMensaje('⚽ ¡GOL DE ' + (pedidoPor === 'jugador' ? estado.nombreJugador.toUpperCase() : 'CPU') + '! Defensor sin arquero');
-                        } else {
-                            // Ambos tienen → comparar
-                            if (atacante.numero > defensor.numero) {
-                                convertirGol(pedidoPor);
-                                gol = true;
-                                mostrarMensaje('⚽ ¡GOL DE ' + (pedidoPor === 'jugador' ? estado.nombreJugador.toUpperCase() : 'CPU') + '!');
-                            } else {
-                                // Arquero ataja (igual o mayor)
-                                sumarPuntos(pedidoPor === 'jugador' ? 'cpu' : 'jugador', 2);
-                                mostrarMensaje('Arquero ataja - +2 defensor');
-                            }
-                        }
-                    } else {
-                        // === GOL o GOLAZO ===
-                        if (!atacante && defensor) {
-                            // Atacante sin Delantero pero defensor con defensa → defensor gana
-                            const golPorPuntos = sumarPuntos(pedidoPor === 'jugador' ? 'cpu' : 'jugador', 2);
-                            mostrarMensaje('Atacante sin delantero - +2 defensor');
-                            if (golPorPuntos) {
-                                setTimeout(finalizarMano, 2200);
-                            } else {
-                                finalizarCanto();
-                            }
-                            return;
-                        }
-                        if (!atacante) {
-                            // Atacante sin Delantero → jugar carta más alta
-                            atacante = cartaMasAlta(mAtacante);
-                            if (atacante) {
-                                if (origA === 'jugador') estado.manoJugador = estado.manoJugador.filter(c => c.id !== atacante.id);
-                                else estado.manoCpu = estado.manoCpu.filter(c => c.id !== atacante.id);
-                                estado.cartasEnMesa.push({ carta: atacante, origen: origA });
-                            }
-                        }
-                        if (!defensor) {
-                            // Defensor sin Arq/Def → jugar carta más alta
-                            defensor = cartaMasAlta(mDefensor);
-                            if (defensor) {
-                                if (origD === 'jugador') estado.manoJugador = estado.manoJugador.filter(c => c.id !== defensor.id);
-                                else estado.manoCpu = estado.manoCpu.filter(c => c.id !== defensor.id);
-                                estado.cartasEnMesa.push({ carta: defensor, origen: origD });
-                            }
-                        }
-                        renderizarTodo();
-
-                        if (!atacante || !defensor) {
-                            // Alguien se quedó sin cartas → no se puede resolver
-                            finalizarCanto();
-                            return;
-                        }
-
-                        if (atacante.numero > defensor.numero) {
-                            convertirGol(pedidoPor);
-                            gol = true;
-                            mostrarMensaje('⚽ ¡GOL DE ' + (pedidoPor === 'jugador' ? estado.nombreJugador.toUpperCase() : 'CPU') + '!');
-                        } else if (defensor.numero > atacante.numero) {
-                            sumarPuntos(pedidoPor === 'jugador' ? 'cpu' : 'jugador', 2);
-                            mostrarMensaje('Defendido - +2 defensor');
-                        } else {
-                            mostrarMensaje('Empate');
-                        }
-                    }
-
-                    if (gol || estado.golEnMano) {
-                        setTimeout(finalizarMano, 2200);
-                    } else {
-                        finalizarCanto();
-                    }
-                }, 1200);
             }
 
             function finalizarCanto() {
@@ -2283,6 +2245,9 @@
                 estado.varDeclaraciones = { jugador: null, cpu: null };
                 estado.varTurnoDeclarar = null;
                 estado.varPedidoPor = null;
+                estado.golActivo = false;
+                estado.golAtacante = null;
+                estado.golCartas = [];
 
                 if (estado.golEnMano || alguienSinCartas() || estado.rondaActual >= 4) {
                     setTimeout(finalizarMano, 800);
@@ -2419,6 +2384,9 @@
                 estado.penalActivo = false;
                 estado.penalAtacante = null;
                 estado.penalCartas = [];
+                estado.golActivo = false;
+                estado.golAtacante = null;
+                estado.golCartas = [];
                 estado.golUsado = false;
                 estado.golazoUsado = false;
                 estado.cantoActual = null;
@@ -2569,6 +2537,9 @@
                     penalActivo: false,
                     penalAtacante: null,
                     penalCartas: [],
+                    golActivo: false,
+                    golAtacante: null,
+                    golCartas: [],
                     golUsado: false,
                     golazoUsado: false,
                     cantoActual: null,
