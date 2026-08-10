@@ -1821,7 +1821,13 @@
                 const cartasPenal = estado.penalCartas;
                 const uj = cartasPenal.filter(c => c.origen === 'jugador').pop();
                 const uc = cartasPenal.filter(c => c.origen === 'cpu').pop();
-                if (!uj || !uc) return;
+                if (!uj || !uc) {
+                    estado.penalActivo = false;
+                    estado.penalAtacante = null;
+                    estado.penalCartas = [];
+                    finalizarCanto();
+                    return;
+                }
 
                 const atacanteEsJugador = estado.penalAtacante === 'jugador';
                 const cartaAtacante = atacanteEsJugador ? uj : uc;
@@ -2245,6 +2251,9 @@
                 estado.varDeclaraciones = { jugador: null, cpu: null };
                 estado.varTurnoDeclarar = null;
                 estado.varPedidoPor = null;
+                estado.penalActivo = false;
+                estado.penalAtacante = null;
+                estado.penalCartas = [];
                 estado.golActivo = false;
                 estado.golAtacante = null;
                 estado.golCartas = [];
