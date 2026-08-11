@@ -390,6 +390,48 @@
             flex-shrink: 0;
         }
 
+        /* Botones de sonido */
+        .botones-sonido {
+            display: flex;
+            gap: clamp(6px, 1vmin, 10px);
+            flex-shrink: 0;
+        }
+
+        .btn-sonido {
+            padding: clamp(6px, 1.2vh, 10px) clamp(10px, 2vw, 14px);
+            border-radius: 50px;
+            font-size: clamp(12px, 2.8vmin, 16px);
+            font-weight: 700;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: var(--transicion-rapida);
+            background: var(--gris-medio);
+            color: var(--blanco);
+            white-space: nowrap;
+            min-width: clamp(50px, 12vmin, 70px);
+            text-align: center;
+        }
+
+        .btn-sonido:hover {
+            background: #444;
+            transform: scale(1.05);
+        }
+
+        .btn-sonido:active {
+            transform: scale(0.95);
+        }
+
+        .btn-sonido.desactivado {
+            opacity: 0.4;
+            background: var(--gris-oscuro);
+            border-color: var(--gris-medio);
+        }
+
+        .btn-sonido.activo {
+            background: #27ae60;
+            border-color: #1e8449;
+        }
+
         .panel-marcador:hover {
             background: #222;
         }
@@ -949,6 +991,9 @@
     <audio id="sndPuntocpu" preload="auto"><source src="sounds/puntocpu.mp3" type="audio/mpeg"></audio>
     <audio id="sndPuntoplayer" preload="auto"><source src="sounds/puntoplayer.mp3" type="audio/mpeg"></audio>
     <audio id="sndVar" preload="auto"><source src="sounds/var.mp3" type="audio/mpeg"></audio>
+    <audio id="sndGanar" preload="auto"><source src="sounds/ganar.mp3" type="audio/mpeg"></audio>
+    <audio id="sndEmpate" preload="auto"><source src="sounds/empate.mp3" type="audio/mpeg"></audio>
+    <audio id="sndPerder" preload="auto"><source src="sounds/perder.mp3" type="audio/mpeg"></audio>
 
     <!-- Contenedor del juego -->
     <div class="juego" id="juego">
@@ -1010,6 +1055,10 @@
                 <span class="estrellas" id="estrellasCpu">
                     <span class="estrella">★</span><span class="estrella">★</span><span class="estrella">★</span>
                 </span>
+            </div>
+            <div class="botones-sonido">
+                <button class="btn-sonido activo" id="btnSonido" title="Efectos de sonido">🔊</button>
+                <button class="btn-sonido activo" id="btnMusica" title="Música de fondo">🎵</button>
             </div>
         </div>
     </div>
@@ -1073,6 +1122,8 @@
                 pausado: false,
                 nombreJugador: 'Jugador',
                 ganadorManoAnterior: null,
+                sonidosActivados: true,
+                musicaActivada: true,
             };
 
             // Referencias DOM cacheadas
@@ -1107,6 +1158,8 @@
                 dom.btnQuieroDer = document.getElementById('btnQuieroDer');
                 dom.btnNoQuieroDer = document.getElementById('btnNoQuieroDer');
                 dom.btnGolazo = document.getElementById('btnGolazo');
+                dom.btnSonido = document.getElementById('btnSonido');
+                dom.btnMusica = document.getElementById('btnMusica');
                 dom.indicadorCanto = document.getElementById('indicadorCanto');
                 dom.etiquetaCpu = document.getElementById('etiquetaCpu');
                 dom.etiquetaJugador = document.getElementById('etiquetaJugador');
@@ -1132,6 +1185,9 @@
                 dom.audioPuntocpu = document.getElementById('sndPuntocpu');
                 dom.audioPuntoplayer = document.getElementById('sndPuntoplayer');
                 dom.audioVar = document.getElementById('sndVar');
+                dom.audioGanar = document.getElementById('sndGanar');
+                dom.audioEmpate = document.getElementById('sndEmpate');
+                dom.audioPerder = document.getElementById('sndPerder');
                 
                 // Mapeo de sonidos
                 dom.sonidos = {
@@ -1147,12 +1203,16 @@
                     'puntocpu': dom.audioPuntocpu,
                     'puntoplayer': dom.audioPuntoplayer,
                     'var': dom.audioVar,
+                    'ganar': dom.audioGanar,
+                    'empate': dom.audioEmpate,
+                    'perder': dom.audioPerder,
                 };
             }
 
             let ultimoSonidoQuiero = 0;
 
             function reproducirSonidoCpu(nombre) {
+                if (!estado.sonidosActivados) return;
                 const audio = dom.sonidos[nombre];
                 if (!audio) return;
                 audio.volume = 0.7;
@@ -1161,6 +1221,7 @@
             }
 
             function reproducirAudioFondo() {
+                if (!estado.musicaActivada) return;
                 if (dom.audioFondo) {
                     dom.audioFondo.volume = 0.3;
                     dom.audioFondo.play().catch(() => {});
@@ -1203,6 +1264,16 @@
                 dom.nombreJugadorEtiqueta.textContent = estado.nombreJugador;
                 dom.nombreEnTurno.textContent = estado.nombreJugador;
                 dom.thJugador.textContent = estado.nombreJugador;
+            }
+
+            function reproducirSonidoFinPartido(resultado) {
+                if (resultado === 'ganar') {
+                    reproducirSonidoCpu('ganar');
+                } else if (resultado === 'empate') {
+                    reproducirSonidoCpu('empate');
+                } else if (resultado === 'perder') {
+                    reproducirSonidoCpu('perder');
+                }
             }
 
             // --- Utilidades de cartas ---
@@ -2504,17 +2575,22 @@
                 estado.pausado = true;
                 dom.overlayFin.classList.remove('oculto');
                 const gJ = estado.golesJugador, gC = estado.golesCpu;
+                let resultado;
                 if (gJ > gC) {
                     dom.resultadoTitulo.textContent = '¡GANASTE!';
                     dom.resultadoTitulo.className = 'resultado-titulo ganaste';
+                    resultado = 'ganar';
                 } else if (gC > gJ) {
                     dom.resultadoTitulo.textContent = 'PERDISTE';
                     dom.resultadoTitulo.className = 'resultado-titulo perdiste';
+                    resultado = 'perder';
                 } else {
                     dom.resultadoTitulo.textContent = 'EMPATE';
                     dom.resultadoTitulo.className = 'resultado-titulo empate';
+                    resultado = 'empate';
                 }
                 dom.resultadoMarcador.textContent = `${estado.nombreJugador} ${gJ} - ${gC} CPU`;
+                reproducirSonidoFinPartido(resultado);
             }
 
             let timeoutMensaje;
@@ -2645,6 +2721,25 @@
                 dom.btnQuieroDer.addEventListener('click', () => { if (!dom.btnQuieroDer.disabled) jugadorRespondeQuiero(); });
                 dom.btnNoQuieroDer.addEventListener('click', () => { if (!dom.btnNoQuieroDer.disabled) jugadorRespondeNoQuiero(); });
                 dom.btnGolazo.addEventListener('click', () => { if (!dom.btnGolazo.disabled) jugadorRespondeGolazo(); });
+
+                dom.btnSonido.addEventListener('click', () => {
+                    estado.sonidosActivados = !estado.sonidosActivados;
+                    dom.btnSonido.classList.toggle('activo', estado.sonidosActivados);
+                    dom.btnSonido.classList.toggle('desactivado', !estado.sonidosActivados);
+                    dom.btnSonido.textContent = estado.sonidosActivados ? '🔊' : '🔇';
+                });
+
+                dom.btnMusica.addEventListener('click', () => {
+                    estado.musicaActivada = !estado.musicaActivada;
+                    dom.btnMusica.classList.toggle('activo', estado.musicaActivada);
+                    dom.btnMusica.classList.toggle('desactivado', !estado.musicaActivada);
+                    dom.btnMusica.textContent = estado.musicaActivada ? '🎵' : '🎵';
+                    if (!estado.musicaActivada) {
+                        detenerAudioFondo();
+                    } else {
+                        reproducirAudioFondo();
+                    }
+                });
 
                 dom.panelMarcador.addEventListener('click', () => {
                     if (!estado.pausado || !dom.overlayMarcador.classList.contains('oculto')) mostrarMarcadorDetallado();
