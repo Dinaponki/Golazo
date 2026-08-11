@@ -2722,14 +2722,16 @@
                 dom.btnNoQuieroDer.addEventListener('click', () => { if (!dom.btnNoQuieroDer.disabled) jugadorRespondeNoQuiero(); });
                 dom.btnGolazo.addEventListener('click', () => { if (!dom.btnGolazo.disabled) jugadorRespondeGolazo(); });
 
-                dom.btnSonido.addEventListener('click', () => {
+                dom.btnSonido.addEventListener('click', (e) => {
+                    e.stopPropagation();
                     estado.sonidosActivados = !estado.sonidosActivados;
                     dom.btnSonido.classList.toggle('activo', estado.sonidosActivados);
                     dom.btnSonido.classList.toggle('desactivado', !estado.sonidosActivados);
                     dom.btnSonido.textContent = estado.sonidosActivados ? '🔊' : '🔇';
                 });
 
-                dom.btnMusica.addEventListener('click', () => {
+                dom.btnMusica.addEventListener('click', (e) => {
+                    e.stopPropagation();
                     estado.musicaActivada = !estado.musicaActivada;
                     dom.btnMusica.classList.toggle('activo', estado.musicaActivada);
                     dom.btnMusica.classList.toggle('desactivado', !estado.musicaActivada);
@@ -2741,7 +2743,9 @@
                     }
                 });
 
-                dom.panelMarcador.addEventListener('click', () => {
+                dom.panelMarcador.addEventListener('click', (e) => {
+                    // No abrir marcador si se clickea los botones de sonido
+                    if (dom.btnSonido.contains(e.target) || dom.btnMusica.contains(e.target)) return;
                     if (!estado.pausado || !dom.overlayMarcador.classList.contains('oculto')) mostrarMarcadorDetallado();
                 });
                 dom.btnVolverMarcador.addEventListener('click', ocultarMarcadorDetallado);
