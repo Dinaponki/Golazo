@@ -1098,7 +1098,7 @@
         // ============================================================
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
-        import { getDatabase, ref, runTransaction } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-database.js";
+        import { getDatabase, ref, get, set } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDsgQ2dwokGq3umlptHtMCVgFISLe8ySM0",
@@ -1132,45 +1132,46 @@
             if (!user) return;
             try {
                 const userRef = ref(db, 'usuarios/' + user.uid);
-                await runTransaction(db, userRef, (datos) => {
-                    if (datos === null) {
-                        datos = {};
-                    }
-                    const partidosJugados = (datos.partidosJugados || 0) + 1;
-                    const partidosGanados = (datos.partidosGanados || 0) + (resultado === 'ganar' ? 1 : 0);
-                    const partidosEmpatados = (datos.partidosEmpatados || 0) + (resultado === 'empate' ? 1 : 0);
-                    const partidosPerdidos = (datos.partidosPerdidos || 0) + (resultado === 'perder' ? 1 : 0);
+                // Leer datos actuales
+                const snap = await get(userRef);
+                const datos = snap.exists() ? snap.val() : {};
 
-                    let rachaActual = datos.rachaActual || 0;
-                    if (resultado === 'ganar') rachaActual++;
-                    if (resultado === 'perder') rachaActual = 0;
+                const partidosJugados = (datos.partidosJugados || 0) + 1;
+                const partidosGanados = (datos.partidosGanados || 0) + (resultado === 'ganar' ? 1 : 0);
+                const partidosEmpatados = (datos.partidosEmpatados || 0) + (resultado === 'empate' ? 1 : 0);
+                const partidosPerdidos = (datos.partidosPerdidos || 0) + (resultado === 'perder' ? 1 : 0);
 
-                    const mejorRacha = Math.max(datos.mejorRacha || 0, rachaActual);
-                    const efectividad = partidosJugados > 0 ? Math.round((partidosGanados / partidosJugados) * 1000) / 10 : 0;
-                    const puntos = (partidosGanados * 3) + (partidosEmpatados * 1) - (partidosPerdidos * 5);
+                let rachaActual = datos.rachaActual || 0;
+                if (resultado === 'ganar') rachaActual++;
+                if (resultado === 'perder') rachaActual = 0;
 
-                    return {
-                        ...datos,
-                        nickname: (datos.nickname && datos.nickname.length > 0) ? datos.nickname : (user.displayName || 'Jugador'),
-                        email: datos.email || (user.email || ''),
-                        partidosJugados,
-                        partidosGanados,
-                        partidosEmpatados,
-                        partidosPerdidos,
-                        puntos,
-                        efectividad,
-                        rachaActual,
-                        mejorRacha,
-                        ultimaActualizacion: Date.now()
-                    };
-                });
-                console.log('Resultado guardado en Firebase:', resultado);
+                const mejorRacha = Math.max(datos.mejorRacha || 0, rachaActual);
+                const efectividad = partidosJugados > 0 ? Math.round((partidosGanados / partidosJugados) * 1000) / 10 : 0;
+                const puntos = (partidosGanados * 3) + (partidosEmpatados * 1) - (partidosPerdidos * 5);
+
+                const nuevosDatos = {
+                    ...datos,
+                    nickname: (datos.nickname && datos.nickname.length > 0) ? datos.nickname : (user.displayName || 'Jugador'),
+                    email: datos.email || (user.email || ''),
+                    partidosJugados,
+                    partidosGanados,
+                    partidosEmpatados,
+                    partidosPerdidos,
+                    puntos,
+                    efectividad,
+                    rachaActual,
+                    mejorRacha,
+                    ultimaActualizacion: Date.now()
+                };
+
+                await set(userRef, nuevosDatos);
+                console.log('Resultado guardado en Firebase:', resultado, nuevosDatos);
             } catch (error) {
                 console.error('Error guardando resultado del partido:', error);
                 // Mostrar el error en pantalla para diagnóstico
                 const mensaje = document.getElementById('mensajeFlotante');
                 if (mensaje) {
-                    mensaje.textContent = '⚠ No se pudo guardar el resultado: ' + (error.code || error.message || 'error desconocido') + '. Revisá las reglas de la base de datos.';
+                    mensaje.textContent = '⚠ No se pudo guardar el resultado: ' + (error.code || error.message || 'error desconocido');
                     mensaje.classList.add('mostrar');
                     setTimeout(() => mensaje.classList.remove('mostrar'), 5000);
                 }
