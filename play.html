@@ -569,36 +569,6 @@
             text-align: center;
         }
 
-        .input-nombre {
-            width: 100%;
-            padding: 14px 16px;
-            border-radius: 12px;
-            border: 2px solid var(--gris-medio);
-            background: var(--gris-medio);
-            color: var(--blanco);
-            font-size: clamp(16px, 4vmin, 20px);
-            font-weight: 700;
-            text-align: center;
-            outline: none;
-            transition: var(--transicion);
-        }
-
-        .input-nombre:focus {
-            border-color: var(--dorado);
-            background: #3a3a3a;
-        }
-
-        .input-nombre::placeholder {
-            color: rgba(255, 255, 255, 0.3);
-            font-weight: 400;
-        }
-
-        .contador-caracteres {
-            font-size: clamp(11px, 2.5vmin, 13px);
-            color: rgba(255, 255, 255, 0.4);
-            letter-spacing: 0.05em;
-        }
-
         .btn-empezar {
             width: 100%;
             padding: 16px 24px;
@@ -621,6 +591,54 @@
 
         .btn-empezar:active {
             transform: scale(0.97);
+        }
+
+        /* Bienvenida con sesión de Google */
+        .foto-inicio {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid var(--dorado);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+        }
+
+        .bienvenida-usuario {
+            font-size: clamp(18px, 4.5vmin, 24px);
+            font-weight: 800;
+            color: var(--blanco);
+            text-align: center;
+        }
+
+        .mensaje-inicio-sesion {
+            font-size: clamp(13px, 3vmin, 15px);
+            color: var(--rojo);
+            text-align: center;
+            line-height: 1.5;
+            padding: 12px;
+            background: rgba(192, 57, 43, 0.12);
+            border: 1px solid rgba(192, 57, 43, 0.3);
+            border-radius: 12px;
+        }
+
+        .btn-inicio-bienvenida {
+            width: 100%;
+            padding: 12px 24px;
+            border-radius: 50px;
+            font-size: clamp(14px, 3.5vmin, 16px);
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            background: transparent;
+            color: var(--blanco);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            transition: var(--transicion);
+        }
+
+        .btn-inicio-bienvenida:hover {
+            border-color: var(--dorado);
+            color: var(--dorado);
+            background: rgba(200, 168, 78, 0.08);
         }
 
         /* Overlay marcador */
@@ -943,10 +961,15 @@
     <div class="overlay-bienvenida" id="overlayBienvenida">
         <div class="bienvenida-contenedor">
             <div class="bienvenida-titulo">⚽ GOLAZO</div>
-            <div class="bienvenida-subtitulo">Elegí tu nombre</div>
-            <input type="text" id="inputNombre" class="input-nombre" maxlength="12" placeholder="Tu nombre..." autocomplete="off">
-            <div class="contador-caracteres" id="contadorCaracteres">0/12</div>
-            <button class="btn-empezar" id="btnEmpezar">▶ JUGAR</button>
+            <div class="bienvenida-subtitulo" id="bienvenidaSubtitulo">Cargando sesión...</div>
+            <img id="bienvenidaFoto" class="foto-inicio" alt="Foto de perfil" style="display:none;">
+            <div class="bienvenida-usuario" id="bienvenidaNombre" style="display:none;"></div>
+            <div class="mensaje-inicio-sesion" id="mensajeSinSesion" style="display:none;">
+                Necesitás iniciar sesión con Google para jugar y guardar tu progreso.<br>
+                Volvé al inicio e iniciá sesión.
+            </div>
+            <button class="btn-empezar" id="btnEmpezar" disabled>▶ JUGAR</button>
+            <button class="btn-inicio-bienvenida" id="btnIrAlInicio">🏠 Volver al inicio</button>
         </div>
     </div>
 
@@ -1069,6 +1092,86 @@
         </div>
     </div>
 
+    <script type="module">
+        // ============================================================
+        // GOLAZO - SESIÓN + GUARDADO DE ESTADÍSTICAS (Firebase)
+        // ============================================================
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
+        import { getDatabase, ref, runTransaction } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDsgQ2dwokGq3umlptHtMCVgFISLe8ySM0",
+            authDomain: "golazo-juego.firebaseapp.com",
+            databaseURL: "https://golazo-juego-default-rtdb.firebaseio.com/",
+            projectId: "golazo-juego",
+            storageBucket: "golazo-juego.firebasestorage.app",
+            messagingSenderId: "642135658463",
+            appId: "1:642135658463:web:4177f755fa612370dcfe6a",
+            measurementId: "G-58N0YWBXYM"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+
+        window.GolazoFirebase = {
+            db,
+            usuario: null,
+            esperandoAuth: true
+        };
+
+        onAuthStateChanged(auth, (user) => {
+            window.GolazoFirebase.usuario = user;
+            window.GolazoFirebase.esperandoAuth = false;
+            window.dispatchEvent(new CustomEvent('golazo-auth-change', { detail: { user } }));
+        });
+
+        async function guardarResultadoPartido(resultado) {
+            const user = window.GolazoFirebase.usuario;
+            if (!user) return;
+            try {
+                const userRef = ref(db, 'usuarios/' + user.uid);
+                await runTransaction(db, userRef, (datos) => {
+                    if (datos === null) {
+                        datos = {};
+                    }
+                    const partidosJugados = (datos.partidosJugados || 0) + 1;
+                    const partidosGanados = (datos.partidosGanados || 0) + (resultado === 'ganar' ? 1 : 0);
+                    const partidosEmpatados = (datos.partidosEmpatados || 0) + (resultado === 'empate' ? 1 : 0);
+                    const partidosPerdidos = (datos.partidosPerdidos || 0) + (resultado === 'perder' ? 1 : 0);
+
+                    let rachaActual = datos.rachaActual || 0;
+                    if (resultado === 'ganar') rachaActual++;
+                    if (resultado === 'perder') rachaActual = 0;
+
+                    const mejorRacha = Math.max(datos.mejorRacha || 0, rachaActual);
+                    const efectividad = partidosJugados > 0 ? Math.round((partidosGanados / partidosJugados) * 1000) / 10 : 0;
+                    const puntos = (partidosGanados * 3) + (partidosEmpatados * 1) - (partidosPerdidos * 5);
+
+                    return {
+                        ...datos,
+                        nickname: (datos.nickname && datos.nickname.length > 0) ? datos.nickname : (user.displayName || 'Jugador'),
+                        email: datos.email || (user.email || ''),
+                        partidosJugados,
+                        partidosGanados,
+                        partidosEmpatados,
+                        partidosPerdidos,
+                        puntos,
+                        efectividad,
+                        rachaActual,
+                        mejorRacha,
+                        ultimaActualizacion: Date.now()
+                    };
+                });
+            } catch (error) {
+                console.error('Error guardando resultado del partido:', error);
+            }
+        }
+
+        window.GolazoFirebase.guardarResultadoPartido = guardarResultadoPartido;
+    </script>
+
     <script>
         (function() {
             // ============================================================
@@ -1171,9 +1274,12 @@
                 dom.etiquetaCpu = document.getElementById('etiquetaCpu');
                 dom.etiquetaJugador = document.getElementById('etiquetaJugador');
                 dom.overlayBienvenida = document.getElementById('overlayBienvenida');
-                dom.inputNombre = document.getElementById('inputNombre');
-                dom.contadorCaracteres = document.getElementById('contadorCaracteres');
                 dom.btnEmpezar = document.getElementById('btnEmpezar');
+                dom.bienvenidaSubtitulo = document.getElementById('bienvenidaSubtitulo');
+                dom.bienvenidaFoto = document.getElementById('bienvenidaFoto');
+                dom.bienvenidaNombre = document.getElementById('bienvenidaNombre');
+                dom.mensajeSinSesion = document.getElementById('mensajeSinSesion');
+                dom.btnIrAlInicio = document.getElementById('btnIrAlInicio');
                 dom.thJugador = document.getElementById('thJugador');
                 dom.nombreEnTurno = document.getElementById('nombreEnTurno');
                 dom.nombreJugadorEtiqueta = document.getElementById('nombreJugadorEtiqueta');
@@ -2627,6 +2733,10 @@
                 }
                 dom.resultadoMarcador.textContent = `${estado.nombreJugador} ${gJ} - ${gC} CPU`;
                 reproducirSonidoFinPartido(resultado);
+                // Guardar estadísticas del partido en Firebase Realtime Database
+                if (window.GolazoFirebase && window.GolazoFirebase.guardarResultadoPartido) {
+                    window.GolazoFirebase.guardarResultadoPartido(resultado);
+                }
             }
 
             let timeoutMensaje;
@@ -2716,10 +2826,13 @@
                 estado.turnoActual = 'jugador';
                 estado.pausado = true;
 
-                dom.inputNombre.addEventListener('input', () => {
-                    dom.contadorCaracteres.textContent = dom.inputNombre.value.length + '/12';
-                });
                 dom.btnEmpezar.addEventListener('click', () => {
+                    // Si no hay sesión, enviar al inicio para iniciar sesión con Google
+                    const fb = window.GolazoFirebase;
+                    if (!fb || !fb.usuario || fb.esperandoAuth) {
+                        window.location.href = 'index.html';
+                        return;
+                    }
                     // Desbloquear audio en móviles reproduciendo y pausando todos los audios estáticos
                     Object.values(dom.sonidos).forEach(audio => {
                         if (audio) {
@@ -2730,20 +2843,53 @@
                             }).catch(() => {});
                         }
                     });
-                    
-                    const nombre = dom.inputNombre.value.trim();
-                    estado.nombreJugador = nombre.length > 0 ? nombre : 'Jugador';
-                    aplicarNombreJugador();
                     iniciarPartido();
                 });
-                dom.inputNombre.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter') {
-                        const nombre = dom.inputNombre.value.trim();
-                        estado.nombreJugador = nombre.length > 0 ? nombre : 'Jugador';
-                        aplicarNombreJugador();
-                        iniciarPartido();
+
+                // Aplica la sesión de Firebase (reemplaza el campo de nombre)
+                function aplicarSesionDesdeFirebase() {
+                    const fb = window.GolazoFirebase;
+                    if (!fb) {
+                        dom.bienvenidaSubtitulo.textContent = 'Sin conexión a Firebase';
+                        dom.btnEmpezar.disabled = true;
+                        dom.btnEmpezar.textContent = '🔒 Iniciar sesión';
+                        return;
                     }
+                    if (fb.esperandoAuth) {
+                        dom.bienvenidaSubtitulo.textContent = 'Cargando sesión...';
+                        dom.btnEmpezar.disabled = true;
+                        return;
+                    }
+                    const user = fb.usuario;
+                    if (user) {
+                        estado.nombreJugador = user.displayName || 'Jugador';
+                        aplicarNombreJugador();
+                        dom.bienvenidaSubtitulo.textContent = user.displayName || 'Jugador';
+                        dom.bienvenidaNombre.textContent = user.displayName || 'Jugador';
+                        if (user.photoURL) {
+                            dom.bienvenidaFoto.src = user.photoURL;
+                            dom.bienvenidaFoto.style.display = 'block';
+                        }
+                        dom.bienvenidaNombre.style.display = 'block';
+                        dom.mensajeSinSesion.style.display = 'none';
+                        dom.btnEmpezar.disabled = false;
+                        dom.btnEmpezar.textContent = '▶ JUGAR';
+                    } else {
+                        dom.bienvenidaSubtitulo.textContent = 'Iniciá sesión con Google';
+                        dom.bienvenidaFoto.style.display = 'none';
+                        dom.bienvenidaNombre.style.display = 'none';
+                        dom.mensajeSinSesion.style.display = 'block';
+                        dom.btnEmpezar.disabled = true;
+                        dom.btnEmpezar.textContent = '🔒 Iniciar sesión';
+                    }
+                }
+
+                window.addEventListener('golazo-auth-change', aplicarSesionDesdeFirebase);
+                dom.btnIrAlInicio.addEventListener('click', () => {
+                    window.location.href = 'index.html';
                 });
+
+                aplicarSesionDesdeFirebase();
 
                 dom.btnPenal.addEventListener('click', () => { if (!dom.btnPenal.disabled) jugadorPidePenal(); });
                 dom.btnQuieroIzq.addEventListener('click', () => { if (!dom.btnQuieroIzq.disabled) jugadorRespondeQuiero(); });

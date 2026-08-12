@@ -205,6 +205,217 @@
             margin-top: 8px;
         }
 
+        /* ---------- Sesión ---------- */
+        .sesion-contenedor {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 48px;
+        }
+
+        .btn-google {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 28px;
+            border-radius: 50px;
+            background: #ffffff;
+            color: #333;
+            font-size: 15px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: var(--transicion);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+            font-family: inherit;
+        }
+
+        .btn-google:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+        }
+
+        .btn-google:active {
+            transform: translateY(0);
+        }
+
+        .btn-google:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-google svg {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+        }
+
+        .usuario-logueado {
+            display: none;
+            align-items: center;
+            gap: 12px;
+            background: rgba(0, 0, 0, 0.35);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            padding: 8px 10px 8px 8px;
+            border-radius: 50px;
+            max-width: 100%;
+        }
+
+        .usuario-logueado .foto {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--dorado);
+            flex-shrink: 0;
+        }
+
+        .usuario-logueado .nombre {
+            font-weight: 700;
+            font-size: 14px;
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .btn-cerrar {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: var(--blanco);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transicion);
+            font-family: inherit;
+            flex-shrink: 0;
+        }
+
+        .btn-cerrar:hover {
+            border-color: var(--dorado);
+            color: var(--dorado);
+            background: rgba(200, 168, 78, 0.08);
+        }
+
+        /* ---------- Ranking ---------- */
+        .ranking-seccion {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.35);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--borde-redondo);
+            padding: 24px 16px;
+            box-shadow: var(--sombra);
+        }
+
+        .ranking-seccion h2 {
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--dorado);
+            text-align: center;
+            margin-bottom: 16px;
+            letter-spacing: 0.04em;
+        }
+
+        .tabla-ranking-wrap {
+            overflow-x: auto;
+            width: 100%;
+            border-radius: 10px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .tabla-ranking {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 580px;
+            font-size: 13px;
+        }
+
+        .tabla-ranking th,
+        .tabla-ranking td {
+            padding: 10px 8px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            white-space: nowrap;
+        }
+
+        .tabla-ranking th {
+            color: rgba(255, 255, 255, 0.45);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            font-weight: 700;
+        }
+
+        .tabla-ranking tr:hover td {
+            background: rgba(200, 168, 78, 0.06);
+        }
+
+        .tabla-ranking .posicion {
+            font-weight: 800;
+            font-size: 14px;
+            width: 30px;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .tabla-ranking .posicion.top3 {
+            color: var(--dorado);
+        }
+
+        .tabla-ranking .td-nick {
+            font-weight: 700;
+            color: var(--blanco);
+            text-align: left;
+            padding-left: 12px;
+            max-width: 160px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .tabla-ranking .puntos-td {
+            color: var(--dorado);
+            font-weight: 800;
+            font-size: 14px;
+        }
+
+        .cargando-ranking,
+        .vacio-ranking {
+            text-align: center;
+            padding: 24px;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 14px;
+        }
+
+        /* ---------- Toast ---------- */
+        .toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            background: rgba(0, 0, 0, 0.9);
+            color: var(--dorado);
+            padding: 12px 24px;
+            border-radius: 50px;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 999;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            pointer-events: none;
+            text-align: center;
+            max-width: 90vw;
+        }
+
+        .toast.mostrar {
+            transform: translateX(-50%) translateY(0);
+        }
+
         @media (max-width: 480px) {
             .contenedor {
                 gap: 24px;
@@ -241,7 +452,25 @@
         <h1 class="titulo">GOLAZO</h1>
         <p class="subtitulo">El Truco del Fútbol</p>
 
-        <a href="play.html" class="boton boton-jugar">⚽ JUGAR</a>
+        <!-- Sesión de Google -->
+        <div class="sesion-contenedor">
+            <button class="btn-google" id="btnGoogle">
+                <svg viewBox="0 0 48 48" aria-hidden="true">
+                    <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                    <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                    <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                    <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                </svg>
+                <span id="textoBotonGoogle">Iniciar sesión con Google</span>
+            </button>
+            <div class="usuario-logueado" id="panelUsuario">
+                <img id="fotoUsuario" class="foto" alt="Foto de perfil">
+                <span class="nombre" id="nombreUsuario"></span>
+                <button class="btn-cerrar" id="btnCerrarSesion">Salir</button>
+            </div>
+        </div>
+
+        <a href="play.html" class="boton boton-jugar" id="btnJugar">⚽ JUGAR</a>
 
         <a href="rules.html" class="boton boton-donar">📖 REGLAS</a>
 
@@ -259,6 +488,31 @@
    class="boton boton-donar">
     💬 Enviar opinión/reporte
 </a>
+
+        <!-- Ranking global -->
+        <section class="ranking-seccion">
+            <h2>🏆 Ranking Global</h2>
+            <div class="tabla-ranking-wrap">
+                <table class="tabla-ranking">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Nick</th>
+                            <th>PJ</th>
+                            <th>PG</th>
+                            <th>PE</th>
+                            <th>PP</th>
+                            <th>PTS</th>
+                            <th>EFEC</th>
+                            <th>Racha</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cuerpoRanking">
+                        <tr><td colspan="9" class="cargando-ranking">Cargando ranking...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
 
         <div class="reglamento">
 
@@ -401,9 +655,215 @@
 </p>
     </div>
 
+    <div class="toast" id="toast"></div>
+
     <script>
         const ENLACE_DONACION = 'https://link.mercadopago.com.ar/dinaponki';
         document.getElementById('btnDonar').href = ENLACE_DONACION;
+    </script>
+
+    <script type="module">
+        // Importa los módulos de Firebase
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
+        import { getDatabase, ref, get, set, update, onValue } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDsgQ2dwokGq3umlptHtMCVgFISLe8ySM0",
+            authDomain: "golazo-juego.firebaseapp.com",
+            databaseURL: "https://golazo-juego-default-rtdb.firebaseio.com/",
+            projectId: "golazo-juego",
+            storageBucket: "golazo-juego.firebasestorage.app",
+            messagingSenderId: "642135658463",
+            appId: "1:642135658463:web:4177f755fa612370dcfe6a",
+            measurementId: "G-58N0YWBXYM"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+        const provider = new GoogleAuthProvider();
+
+        // Elementos DOM
+        const btnGoogle = document.getElementById('btnGoogle');
+        const panelUsuario = document.getElementById('panelUsuario');
+        const fotoUsuario = document.getElementById('fotoUsuario');
+        const nombreUsuario = document.getElementById('nombreUsuario');
+        const btnCerrarSesion = document.getElementById('btnCerrarSesion');
+        const btnJugar = document.getElementById('btnJugar');
+        const toast = document.getElementById('toast');
+
+        let usuarioActual = null;
+        let timeoutToast = null;
+
+        function mostrarToast(texto) {
+            toast.textContent = texto;
+            toast.classList.add('mostrar');
+            if (timeoutToast) clearTimeout(timeoutToast);
+            timeoutToast = setTimeout(() => toast.classList.remove('mostrar'), 3000);
+        }
+
+        async function iniciarSesionGoogle() {
+            try {
+                btnGoogle.disabled = true;
+                const resultado = await signInWithPopup(auth, provider);
+                mostrarToast('¡Bienvenido, ' + (resultado.user.displayName || 'Jugador') + '!');
+            } catch (error) {
+                console.error('Error al iniciar sesión:', error);
+                const codigo = error.code || 'desconocido';
+                if (codigo === 'auth/popup-closed-by-user') {
+                    mostrarToast('Inicio de sesión cancelado');
+                } else if (codigo === 'auth/popup-blocked') {
+                    mostrarToast('Permite ventanas emergentes para iniciar sesión');
+                } else if (codigo === 'auth/unauthorized-domain') {
+                    mostrarToast('⚠ Dominio no autorizado. Agregá este dominio en Firebase Console → Authentication → Settings → Authorized domains.');
+                } else if (codigo === 'auth/network-request-failed') {
+                    mostrarToast('⚠ Error de red. Revisá tu conexión a internet.');
+                } else if (codigo === 'auth/operation-not-supported-in-this-environment') {
+                    mostrarToast('⚠ No se puede iniciar sesión en este navegador/entorno.');
+                } else if (codigo === 'auth/invalid-api-key') {
+                    mostrarToast('⚠ Error de configuración: API key inválida.');
+                } else {
+                    mostrarToast('Error: ' + codigo + '. Inténtalo de nuevo.');
+                }
+            } finally {
+                btnGoogle.disabled = false;
+            }
+        }
+
+        async function registrarUsuario(user) {
+            try {
+                const userRef = ref(db, 'usuarios/' + user.uid);
+                const snap = await get(userRef);
+                const nickNuevo = user.displayName || 'Jugador';
+                if (!snap.exists()) {
+                    await set(userRef, {
+                        nickname: nickNuevo,
+                        email: user.email || '',
+                        partidosJugados: 0,
+                        partidosGanados: 0,
+                        partidosEmpatados: 0,
+                        partidosPerdidos: 0,
+                        puntos: 0,
+                        efectividad: 0,
+                        rachaActual: 0,
+                        mejorRacha: 0,
+                        ultimaActualizacion: Date.now()
+                    });
+                } else {
+                    const datos = snap.val();
+                    if (datos.nickname !== nickNuevo) {
+                        await update(userRef, { nickname: nickNuevo });
+                    }
+                }
+            } catch (error) {
+                console.error('Error registrando usuario:', error);
+            }
+        }
+
+        function actualizarUIUsuario(user) {
+            usuarioActual = user;
+            if (user) {
+                btnGoogle.style.display = 'none';
+                panelUsuario.style.display = 'flex';
+                fotoUsuario.src = user.photoURL || '';
+                nombreUsuario.textContent = user.displayName || 'Jugador';
+                registrarUsuario(user);
+            } else {
+                btnGoogle.style.display = 'inline-flex';
+                panelUsuario.style.display = 'none';
+            }
+        }
+
+        onAuthStateChanged(auth, (user) => {
+            actualizarUIUsuario(user);
+        });
+
+        btnGoogle.addEventListener('click', iniciarSesionGoogle);
+
+        btnCerrarSesion.addEventListener('click', async () => {
+            try {
+                await signOut(auth);
+                mostrarToast('Sesión cerrada');
+            } catch (error) {
+                console.error('Error al cerrar sesión:', error);
+            }
+        });
+
+        // Si no hay sesión, el botón JUGAR inicia el login
+        btnJugar.addEventListener('click', (e) => {
+            if (!usuarioActual) {
+                e.preventDefault();
+                iniciarSesionGoogle();
+            }
+        });
+
+        // ================= RANKING GLOBAL =================
+        function escaparHTML(texto) {
+            const div = document.createElement('div');
+            div.textContent = texto;
+            return div.innerHTML;
+        }
+
+        function renderRanking(lista) {
+            const tbody = document.getElementById('cuerpoRanking');
+            if (!lista || lista.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" class="vacio-ranking">Aún no hay jugadores registrados</td></tr>';
+                return;
+            }
+            // Ordenar por puntos (mayor primero), luego por efectividad
+            lista.sort((a, b) => {
+                const difPuntos = (b.puntos || 0) - (a.puntos || 0);
+                if (difPuntos !== 0) return difPuntos;
+                return (b.efectividad || 0) - (a.efectividad || 0);
+            });
+
+            tbody.innerHTML = '';
+            lista.forEach((jugador, i) => {
+                const tr = document.createElement('tr');
+                const posicion = i + 1;
+                const pj = jugador.partidosJugados || 0;
+                const pg = jugador.partidosGanados || 0;
+                const pe = jugador.partidosEmpatados || 0;
+                const pp = jugador.partidosPerdidos || 0;
+                // Puntos según regla: ganado = +3, empate = +1, perdido = -5
+                const puntos = (pg * 3) + (pe * 1) - (pp * 5);
+                const efectividad = pj > 0 ? Math.round((pg / pj) * 1000) / 10 : 0;
+                const racha = jugador.rachaActual || 0;
+                const nick = jugador.nickname || 'Jugador';
+
+                tr.innerHTML =
+                    '<td class="posicion' + (posicion <= 3 ? ' top3' : '') + '">' + posicion + '</td>' +
+                    '<td class="td-nick">' + escaparHTML(nick) + '</td>' +
+                    '<td>' + pj + '</td>' +
+                    '<td>' + pg + '</td>' +
+                    '<td>' + pe + '</td>' +
+                    '<td>' + pp + '</td>' +
+                    '<td class="puntos-td">' + puntos + '</td>' +
+                    '<td>' + efectividad + '%</td>' +
+                    '<td>' + (racha > 0 ? '🔥 ' + racha : '—') + '</td>';
+                tbody.appendChild(tr);
+            });
+        }
+
+        function cargarRanking() {
+            const refUsuarios = ref(db, 'usuarios');
+            onValue(refUsuarios, (snap) => {
+                if (snap.exists()) {
+                    const datos = snap.val();
+                    const lista = Object.keys(datos).map(uid => datos[uid]);
+                    renderRanking(lista);
+                } else {
+                    renderRanking([]);
+                }
+            }, (error) => {
+                console.error('Error cargando ranking:', error);
+                document.getElementById('cuerpoRanking').innerHTML =
+                    '<tr><td colspan="9" class="vacio-ranking">No se pudo cargar el ranking</td></tr>';
+            });
+        }
+
+        cargarRanking();
     </script>
 </body>
 </html>
