@@ -1164,8 +1164,16 @@
                         ultimaActualizacion: Date.now()
                     };
                 });
+                console.log('Resultado guardado en Firebase:', resultado);
             } catch (error) {
                 console.error('Error guardando resultado del partido:', error);
+                // Mostrar el error en pantalla para diagnóstico
+                const mensaje = document.getElementById('mensajeFlotante');
+                if (mensaje) {
+                    mensaje.textContent = '⚠ No se pudo guardar el resultado: ' + (error.code || error.message || 'error desconocido') + '. Revisá las reglas de la base de datos.';
+                    mensaje.classList.add('mostrar');
+                    setTimeout(() => mensaje.classList.remove('mostrar'), 5000);
+                }
             }
         }
 
