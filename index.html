@@ -392,6 +392,126 @@
             font-size: 14px;
         }
 
+        /* ---------- Panel Nickname ---------- */
+        .overlay-nickname {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.92);
+            z-index: 1000;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .overlay-nickname.visible {
+            display: flex;
+        }
+
+        .nickname-contenedor {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            width: 100%;
+            max-width: 360px;
+            background: var(--gris-oscuro, #1a1a1a);
+            border-radius: var(--borde-redondo);
+            padding: 32px 24px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+        }
+
+        .nickname-titulo {
+            font-size: clamp(24px, 6vw, 32px);
+            font-weight: 900;
+            color: var(--dorado);
+            text-align: center;
+        }
+
+        .nickname-subtitulo {
+            font-size: clamp(13px, 3vmin, 15px);
+            color: rgba(255, 255, 255, 0.7);
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        .input-nickname {
+            width: 100%;
+            padding: 14px 16px;
+            border-radius: 12px;
+            border: 2px solid #333;
+            background: #333;
+            color: var(--blanco);
+            font-size: clamp(16px, 4vmin, 20px);
+            font-weight: 700;
+            text-align: center;
+            outline: none;
+            transition: var(--transicion);
+            font-family: inherit;
+        }
+
+        .input-nickname:focus {
+            border-color: var(--dorado);
+            background: #3a3a3a;
+        }
+
+        .input-nickname::placeholder {
+            color: rgba(255, 255, 255, 0.3);
+            font-weight: 400;
+        }
+
+        .contador-nickname {
+            font-size: clamp(11px, 2.5vmin, 13px);
+            color: rgba(255, 255, 255, 0.4);
+            letter-spacing: 0.05em;
+        }
+
+        .mensaje-nickname {
+            font-size: clamp(12px, 2.8vmin, 14px);
+            text-align: center;
+            line-height: 1.4;
+            min-height: 20px;
+            color: #e74c3c;
+        }
+
+        .mensaje-nickname.ok {
+            color: #2ecc71;
+        }
+
+        .btn-guardar-nickname {
+            width: 100%;
+            padding: 16px 24px;
+            border-radius: 50px;
+            font-size: clamp(16px, 4vmin, 20px);
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            cursor: pointer;
+            border: none;
+            background: var(--dorado);
+            color: #1a2a10;
+            transition: var(--transicion);
+            font-family: inherit;
+        }
+
+        .btn-guardar-nickname:hover {
+            background: #d4b356;
+            box-shadow: 0 4px 20px rgba(200, 168, 78, 0.4);
+        }
+
+        .btn-guardar-nickname:active {
+            transform: scale(0.97);
+        }
+
+        .btn-guardar-nickname:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         /* ---------- Toast ---------- */
         .toast {
             position: fixed;
@@ -657,6 +777,18 @@
 
     <div class="toast" id="toast"></div>
 
+    <!-- Overlay para crear/editar nickname -->
+    <div class="overlay-nickname" id="overlayNickname">
+        <div class="nickname-contenedor">
+            <div class="nickname-titulo">⚽ Tu Nickname</div>
+            <div class="nickname-subtitulo">Elegí un nombre único para el ranking global</div>
+            <input type="text" id="inputNickname" class="input-nickname" maxlength="12" placeholder="Tu nickname..." autocomplete="off">
+            <div class="contador-nickname" id="contadorNickname">0/12</div>
+            <div class="mensaje-nickname" id="mensajeNickname"></div>
+            <button class="btn-guardar-nickname" id="btnGuardarNickname" disabled>Guardar</button>
+        </div>
+    </div>
+
     <script>
         const ENLACE_DONACION = 'https://link.mercadopago.com.ar/dinaponki';
         document.getElementById('btnDonar').href = ENLACE_DONACION;
@@ -692,9 +824,21 @@
         const btnCerrarSesion = document.getElementById('btnCerrarSesion');
         const btnJugar = document.getElementById('btnJugar');
         const toast = document.getElementById('toast');
+        const overlayNickname = document.getElementById('overlayNickname');
+        const inputNickname = document.getElementById('inputNickname');
+        const contadorNickname = document.getElementById('contadorNickname');
+        const mensajeNickname = document.getElementById('mensajeNickname');
+        const btnGuardarNickname = document.getElementById('btnGuardarNickname');
+
+        const NICK_MIN = 3;
+        const NICK_MAX = 12;
 
         let usuarioActual = null;
         let timeoutToast = null;
+        let nicknameVerificado = false;
+        let nicknameDisponible = false;
+        let nicknameActual = '';
+        let timeoutVerificarNickname = null;
 
         function mostrarToast(texto) {
             toast.textContent = texto;
@@ -735,10 +879,9 @@
             try {
                 const userRef = ref(db, 'usuarios/' + user.uid);
                 const snap = await get(userRef);
-                const nickNuevo = user.displayName || 'Jugador';
                 if (!snap.exists()) {
                     await set(userRef, {
-                        nickname: nickNuevo,
+                        nickname: '',
                         email: user.email || '',
                         partidosJugados: 0,
                         partidosGanados: 0,
@@ -750,14 +893,99 @@
                         mejorRacha: 0,
                         ultimaActualizacion: Date.now()
                     });
-                } else {
-                    const datos = snap.val();
-                    if (datos.nickname !== nickNuevo) {
-                        await update(userRef, { nickname: nickNuevo });
-                    }
                 }
             } catch (error) {
                 console.error('Error registrando usuario:', error);
+            }
+        }
+
+        async function obtenerNicknameUsuario(uid) {
+            try {
+                const userRef = ref(db, 'usuarios/' + uid);
+                const snap = await get(userRef);
+                if (snap.exists()) {
+                    const datos = snap.val();
+                    return datos.nickname || '';
+                }
+            } catch (error) {
+                console.error('Error obteniendo nickname:', error);
+            }
+            return '';
+        }
+
+        async function verificarNicknameDisponible(nick) {
+            if (!nick || nick.length < NICK_MIN) return false;
+            try {
+                const refUsuarios = ref(db, 'usuarios');
+                const snap = await get(refUsuarios);
+                if (!snap.exists()) return true;
+                const datos = snap.val();
+                const nickLower = nick.toLowerCase();
+                return !Object.keys(datos).some(uid => {
+                    if (uid === usuarioActual.uid) return false;
+                    const nickExistente = (datos[uid].nickname || '').toLowerCase();
+                    return nickExistente === nickLower;
+                });
+            } catch (error) {
+                console.error('Error verificando nickname:', error);
+                return false;
+            }
+        }
+
+        function validarNickname(nick) {
+            if (!nick) return 'Ingresá un nickname';
+            if (nick.length < NICK_MIN) return 'Mínimo ' + NICK_MIN + ' caracteres';
+            if (nick.length > NICK_MAX) return 'Máximo ' + NICK_MAX + ' caracteres';
+            if (!/^[a-zA-Z0-9_áéíóúÁÉÍÓÚñÑ ]+$/.test(nick)) return 'Solo letras, números, espacios y _';
+            return '';
+        }
+
+        function mostrarOverlayNickname() {
+            overlayNickname.classList.add('visible');
+            inputNickname.value = nicknameActual;
+            contadorNickname.textContent = inputNickname.value.length + '/' + NICK_MAX;
+            mensajeNickname.textContent = '';
+            mensajeNickname.className = 'mensaje-nickname';
+            nicknameVerificado = false;
+            nicknameDisponible = false;
+            btnGuardarNickname.disabled = true;
+            setTimeout(() => inputNickname.focus(), 100);
+        }
+
+        function ocultarOverlayNickname() {
+            overlayNickname.classList.remove('visible');
+        }
+
+        async function guardarNickname() {
+            const nick = inputNickname.value.trim();
+            const error = validarNickname(nick);
+            if (error) {
+                mensajeNickname.textContent = error;
+                mensajeNickname.className = 'mensaje-nickname';
+                return;
+            }
+            if (!nicknameDisponible) {
+                mensajeNickname.textContent = 'Ese nickname ya está en uso';
+                mensajeNickname.className = 'mensaje-nickname';
+                return;
+            }
+            try {
+                btnGuardarNickname.disabled = true;
+                const userRef = ref(db, 'usuarios/' + usuarioActual.uid);
+                await update(userRef, {
+                    nickname: nick,
+                    ultimaActualizacion: Date.now()
+                });
+                nicknameActual = nick;
+                nombreUsuario.textContent = nick;
+                ocultarOverlayNickname();
+                mostrarToast('¡Nickname guardado: ' + nick + '!');
+            } catch (error) {
+                console.error('Error guardando nickname:', error);
+                mensajeNickname.textContent = 'Error al guardar. Revisá las reglas de la base de datos.';
+                mensajeNickname.className = 'mensaje-nickname';
+            } finally {
+                btnGuardarNickname.disabled = false;
             }
         }
 
@@ -767,11 +995,21 @@
                 btnGoogle.style.display = 'none';
                 panelUsuario.style.display = 'flex';
                 fotoUsuario.src = user.photoURL || '';
-                nombreUsuario.textContent = user.displayName || 'Jugador';
-                registrarUsuario(user);
+                registrarUsuario(user).then(async () => {
+                    const nick = await obtenerNicknameUsuario(user.uid);
+                    if (nick && nick.length >= NICK_MIN) {
+                        nicknameActual = nick;
+                        nombreUsuario.textContent = nick;
+                    } else {
+                        nicknameActual = '';
+                        nombreUsuario.textContent = user.displayName || 'Jugador';
+                        mostrarOverlayNickname();
+                    }
+                });
             } else {
                 btnGoogle.style.display = 'inline-flex';
                 panelUsuario.style.display = 'none';
+                ocultarOverlayNickname();
             }
         }
 
@@ -780,6 +1018,55 @@
         });
 
         btnGoogle.addEventListener('click', iniciarSesionGoogle);
+
+        // --- Lógica del nickname ---
+        inputNickname.addEventListener('input', () => {
+            const valor = inputNickname.value;
+            contadorNickname.textContent = valor.length + '/' + NICK_MAX;
+            const error = validarNickname(valor.trim());
+            if (error) {
+                mensajeNickname.textContent = error;
+                mensajeNickname.className = 'mensaje-nickname';
+                nicknameVerificado = false;
+                nicknameDisponible = false;
+                btnGuardarNickname.disabled = true;
+                return;
+            }
+            mensajeNickname.textContent = 'Verificando disponibilidad...';
+            mensajeNickname.className = 'mensaje-nickname';
+            btnGuardarNickname.disabled = true;
+            if (timeoutVerificarNickname) clearTimeout(timeoutVerificarNickname);
+            timeoutVerificarNickname = setTimeout(async () => {
+                const nick = inputNickname.value.trim();
+                if (nick === nicknameActual) {
+                    mensajeNickname.textContent = '✓ Tu nickname actual';
+                    mensajeNickname.className = 'mensaje-nickname ok';
+                    nicknameDisponible = true;
+                    btnGuardarNickname.disabled = false;
+                    return;
+                }
+                const disponible = await verificarNicknameDisponible(nick);
+                if (disponible) {
+                    mensajeNickname.textContent = '✓ Disponible';
+                    mensajeNickname.className = 'mensaje-nickname ok';
+                    nicknameDisponible = true;
+                    btnGuardarNickname.disabled = false;
+                } else {
+                    mensajeNickname.textContent = '✗ Ese nickname ya está en uso';
+                    mensajeNickname.className = 'mensaje-nickname';
+                    nicknameDisponible = false;
+                    btnGuardarNickname.disabled = true;
+                }
+            }, 400);
+        });
+
+        btnGuardarNickname.addEventListener('click', guardarNickname);
+
+        inputNickname.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !btnGuardarNickname.disabled) {
+                guardarNickname();
+            }
+        });
 
         btnCerrarSesion.addEventListener('click', async () => {
             try {

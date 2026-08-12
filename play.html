@@ -1099,6 +1099,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
         import { getDatabase, ref, get, set } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-database.js";
+        import { onValue } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDsgQ2dwokGq3umlptHtMCVgFISLe8ySM0",
@@ -1124,7 +1125,21 @@
         onAuthStateChanged(auth, (user) => {
             window.GolazoFirebase.usuario = user;
             window.GolazoFirebase.esperandoAuth = false;
-            window.dispatchEvent(new CustomEvent('golazo-auth-change', { detail: { user } }));
+            if (user) {
+                // Escuchar el nickname del usuario en tiempo real
+                const userRef = ref(db, 'usuarios/' + user.uid + '/nickname');
+                onValue(userRef, (snap) => {
+                    const nick = snap.val() || '';
+                    window.GolazoFirebase.nickname = nick;
+                    window.dispatchEvent(new CustomEvent('golazo-auth-change', { detail: { user, nickname: nick } }));
+                }, (error) => {
+                    console.error('Error escuchando nickname:', error);
+                    window.dispatchEvent(new CustomEvent('golazo-auth-change', { detail: { user, nickname: '' } }));
+                });
+            } else {
+                window.GolazoFirebase.nickname = '';
+                window.dispatchEvent(new CustomEvent('golazo-auth-change', { detail: { user, nickname: '' } }));
+            }
         });
 
         async function guardarResultadoPartido(resultado) {
@@ -2871,10 +2886,12 @@
                     }
                     const user = fb.usuario;
                     if (user) {
-                        estado.nombreJugador = user.displayName || 'Jugador';
+                        // Usar el nickname si existe, sino el nombre de Google
+                        const nick = (fb.nickname && fb.nickname.length >= 3) ? fb.nickname : (user.displayName || 'Jugador');
+                        estado.nombreJugador = nick;
                         aplicarNombreJugador();
-                        dom.bienvenidaSubtitulo.textContent = user.displayName || 'Jugador';
-                        dom.bienvenidaNombre.textContent = user.displayName || 'Jugador';
+                        dom.bienvenidaSubtitulo.textContent = nick;
+                        dom.bienvenidaNombre.textContent = nick;
                         if (user.photoURL) {
                             dom.bienvenidaFoto.src = user.photoURL;
                             dom.bienvenidaFoto.style.display = 'block';
