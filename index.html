@@ -6,11 +6,11 @@
     <title>Golazo | Dinaponki</title>
     <link rel="icon" href="favicon.ico" type="image/x-icon">
     <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
-<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-<link rel="shortcut icon" href="/favicon.ico" />
-<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-<meta name="apple-mobile-web-app-title" content="Golazo" />
-<link rel="manifest" href="/site.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="shortcut icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="Golazo" />
+    <link rel="manifest" href="/site.webmanifest" />
     <style>
         :root {
             --verde-oscuro: #1a3c2a;
@@ -392,6 +392,32 @@
             font-size: 14px;
         }
 
+        .filtros-ranking {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .filtros-ranking label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .filtros-ranking input[type="radio"] {
+            display: none;
+        }
+
+        .filtros-ranking input[type="radio"]:checked + span {
+            color: var(--dorado);
+            font-weight: 700;
+        }
+
         /* ---------- Panel Nickname ---------- */
         .overlay-nickname {
             position: fixed;
@@ -612,6 +638,20 @@
         <!-- Ranking global -->
         <section class="ranking-seccion">
             <h2>🏆 Ranking Global</h2>
+            <div class="filtros-ranking">
+                <label>
+                    <input type="radio" name="filtroRanking" value="global" checked>
+                    <span>Global</span>
+                </label>
+                <label>
+                    <input type="radio" name="filtroRanking" value="mes">
+                    <span>Mes actual</span>
+                </label>
+                <label>
+                    <input type="radio" name="filtroRanking" value="dia">
+                    <span>Día actual</span>
+                </label>
+            </div>
             <div class="tabla-ranking-wrap">
                 <table class="tabla-ranking">
                     <thead>
@@ -1092,21 +1132,43 @@
             return div.innerHTML;
         }
 
-        function renderRanking(lista) {
+        function renderRanking(lista, filtro) {
             const tbody = document.getElementById('cuerpoRanking');
             if (!lista || lista.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="9" class="vacio-ranking">Aún no hay jugadores registrados</td></tr>';
                 return;
             }
+            
+            // Filtrar según el tipo
+            let listaFiltrada = [...lista];
+            const hoy = new Date();
+            
+            if (filtro === 'mes') {
+                const mesActual = hoy.getMonth();
+                listaFiltrada = lista.filter(j => {
+                    const fecha = new Date(j.ultimaActualizacion);
+                    return fecha.getMonth() === mesActual;
+                });
+            } else if (filtro === 'dia') {
+                const diaActual = hoy.getDate();
+                listaFiltrada = lista.filter(j => {
+                    const fecha = new Date(j.ultimaActualizacion);
+                    return fecha.getDate() === diaActual;
+                });
+            }
+            
+            // Mostrar solo top 10
+            listaFiltrada = listaFiltrada.slice(0, 10);
+
             // Ordenar por puntos (mayor primero), luego por efectividad
-            lista.sort((a, b) => {
+            listaFiltrada.sort((a, b) => {
                 const difPuntos = (b.puntos || 0) - (a.puntos || 0);
                 if (difPuntos !== 0) return difPuntos;
                 return (b.efectividad || 0) - (a.efectividad || 0);
             });
 
             tbody.innerHTML = '';
-            lista.forEach((jugador, i) => {
+            listaFiltrada.forEach((jugador, i) => {
                 const tr = document.createElement('tr');
                 const posicion = i + 1;
                 const pj = jugador.partidosJugados || 0;
@@ -1139,7 +1201,10 @@
                 if (snap.exists()) {
                     const datos = snap.val();
                     const lista = Object.keys(datos).map(uid => datos[uid]);
-                    renderRanking(lista);
+                    // Guardar filtro seleccionado en localStorage
+                    const filtro = document.querySelector('input[name="filtroRanking"]:checked')?.value || 'global';
+                    localStorage.setItem('rankingFiltro', filtro);
+                    renderRanking(lista, filtro);
                 } else {
                     renderRanking([]);
                 }
@@ -1149,6 +1214,28 @@
                     '<tr><td colspan="9" class="vacio-ranking">No se pudo cargar el ranking</td></tr>';
             });
         }
+
+        // Aplicar filtro guardado al cargar
+        document.querySelectorAll('input[name="filtroRanking"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                const filtro = radio.value;
+                localStorage.setItem('rankingFiltro', filtro);
+                const refUsuarios = ref(db, 'usuarios');
+                onValue(refUsuarios, (snap) => {
+                    if (snap.exists()) {
+                        const datos = snap.val();
+                        const lista = Object.keys(datos).map(uid => datos[uid]);
+                        renderRanking(lista, filtro);
+                    }
+                });
+            });
+        });
+
+        // Cargar filtro guardado al iniciar
+        document.addEventListener('DOMContentLoaded', () => {
+            const filtroGuardado = localStorage.getItem('rankingFiltro') || 'global';
+            document.querySelector('input[value="' + filtroGuardado + '"]').checked = true;
+        });
 
         cargarRanking();
     </script>
