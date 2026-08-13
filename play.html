@@ -1861,8 +1861,10 @@
                     return;
                 }
 
-                estado.manoCpu = estado.manoCpu.filter(c => c.id !== carta.id);
+estado.manoCpu = estado.manoCpu.filter(c => c.id !== carta.id);
                 estado.cartasEnMesa.push({ carta, origen: 'cpu' });
+                // Actualizar inicioRonda para que la próxima ronda normal no considere estas cartas
+                estado.inicioRonda = estado.cartasEnMesa.length;
 
                 // Reproducir sonido de carta
                 reproducirSonidoCpu('carta');
