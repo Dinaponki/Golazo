@@ -2543,8 +2543,9 @@
                 // Actualizar inicioRonda para que la próxima ronda normal no las considere.
                 estado.inicioRonda = estado.cartasEnMesa.length;
 
-                // Continuar con el flujo normal: el mano (turnoInicial) empieza la próxima ronda
-                estado.turnoActual = estado.turnoInicial;
+// Continuar con el flujo normal: el otro jugador (que no canto) empieza la próxima ronda
+                // Cambiar al otro jugador: si es 'jugador' pasa a 'cpu', si es 'cpu' pasa a 'jugador'
+                estado.turnoActual = estado.turnoActual === 'jugador' ? 'cpu' : 'jugador';
                 estado.fase = 'esperando_seleccion';
                 estado.cartaSeleccionada = null;
                 continuarFlujo();
