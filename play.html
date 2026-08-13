@@ -2766,9 +2766,9 @@
                 estado.partidoActivo = false;
                 // Marcar en Firebase que la partida terminó correctamente
                 const fbTermino = window.GolazoFirebase;
-                if (fbTermino && fbTermino.usuario && fbTermino.update) {
+                if (fbTermino && fbTermino.usuario && fbTermino.update && fbTermino.ref && fbTermino.db) {
                     try {
-                        fbTermino.update(ref(db, 'usuarios/' + fbTermino.usuario.uid), { enPartida: false });
+                        fbTermino.update(fbTermino.ref(fbTermino.db, 'usuarios/' + fbTermino.usuario.uid), { enPartida: false });
                     } catch (e) { console.error('Error marcando partida terminada:', e); }
                 }
                 // Guardar estadísticas del partido en Firebase Realtime Database
@@ -2942,7 +2942,10 @@
                         estado.partidoActivo = true;
                         // Marcar en Firebase que la partida está en curso (para detectar abandono)
                         try {
-                            update(ref(db, 'usuarios/' + user.uid), { enPartida: true });
+                            const fbMarca = window.GolazoFirebase;
+                            if (fbMarca && fbMarca.update && fbMarca.ref && fbMarca.db) {
+                                fbMarca.update(fbMarca.ref(fbMarca.db, 'usuarios/' + user.uid), { enPartida: true });
+                            }
                         } catch (e) { console.error('Error marcando partida activa:', e); }
                         // Usar el nickname si existe, sino el nombre de Google
                         const nick = (fb.nickname && fb.nickname.length >= 3) ? fb.nickname : (user.displayName || 'Jugador');
