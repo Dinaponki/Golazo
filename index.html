@@ -1122,6 +1122,9 @@
             if (!usuarioActual) {
                 e.preventDefault();
                 iniciarSesionGoogle();
+            } else {
+                // Ya hay sesión, ir a play.html
+                window.location.href = 'play.html';
             }
         });
 
