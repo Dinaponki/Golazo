@@ -1261,6 +1261,7 @@
                 ganadorManoAnterior: null,
                 sonidosActivados: true,
                 musicaActivada: true,
+                partidoActivo: false,
             };
 
             // Referencias DOM cacheadas
@@ -2760,6 +2761,8 @@
                 }
                 dom.resultadoMarcador.textContent = `${estado.nombreJugador} ${gJ} - ${gC} CPU`;
                 reproducirSonidoFinPartido(resultado);
+                // Al terminar el partido, ya no se considera en juego
+                estado.partidoActivo = false;
                 // Guardar estadísticas del partido en Firebase Realtime Database
                 if (window.GolazoFirebase && window.GolazoFirebase.guardarResultadoPartido) {
                     window.GolazoFirebase.guardarResultadoPartido(resultado);
@@ -2777,7 +2780,7 @@
 
             // --- Inicialización ---
             function partidoEnCurso() {
-                return !estado.pausado && estado.fase !== 'fin_partido' && estado.manoActual < TOTAL_MANOS;
+                return estado.partidoActivo && estado.fase !== 'fin_partido';
             }
 
             function registrarAbandono() {
@@ -2927,6 +2930,8 @@
                     }
                     const user = fb.usuario;
                     if (user) {
+                        // Al entrar con sesión, se considera que la partida está activa
+                        estado.partidoActivo = true;
                         // Usar el nickname si existe, sino el nombre de Google
                         const nick = (fb.nickname && fb.nickname.length >= 3) ? fb.nickname : (user.displayName || 'Jugador');
                         estado.nombreJugador = nick;
