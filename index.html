@@ -1028,6 +1028,29 @@
             }
         }
 
+        async function verificarAbandono(uid) {
+            try {
+                const userRef = ref(db, 'usuarios/' + uid);
+                const snap = await get(userRef);
+                if (snap.exists()) {
+                    const datos = snap.val();
+                    // Si quedó la marca enPartida=true, significa que el jugador cerró play.html sin terminar
+                    if (datos.enPartida === true) {
+                        const puntos = (datos.puntos || 0) - 3;
+                        await update(userRef, {
+                            puntos,
+                            enPartida: false,
+                            ultimaActualizacion: Date.now()
+                        });
+                        console.log('Abandono detectado: -3 puntos');
+                        mostrarToast('⚠ Abandonaste una partida: -3 puntos');
+                    }
+                }
+            } catch (error) {
+                console.error('Error verificando abandono:', error);
+            }
+        }
+
         function actualizarUIUsuario(user) {
             usuarioActual = user;
             if (user) {
@@ -1044,6 +1067,8 @@
                         nombreUsuario.textContent = user.displayName || 'Jugador';
                         mostrarOverlayNickname();
                     }
+                    // Detectar si el jugador abandonó una partida sin terminar
+                    await verificarAbandono(user.uid);
                 });
             } else {
                 btnGoogle.style.display = 'inline-flex';

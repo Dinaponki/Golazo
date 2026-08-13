@@ -1098,7 +1098,7 @@
         // ============================================================
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
-        import { getDatabase, ref, get, set } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-database.js";
+        import { getDatabase, ref, get, set, update } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-database.js";
         import { onValue } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-database.js";
 
         const firebaseConfig = {
@@ -1121,6 +1121,7 @@
             ref,
             get,
             set,
+            update,
             usuario: null,
             esperandoAuth: true
         };
@@ -2763,6 +2764,13 @@
                 reproducirSonidoFinPartido(resultado);
                 // Al terminar el partido, ya no se considera en juego
                 estado.partidoActivo = false;
+                // Marcar en Firebase que la partida terminó correctamente
+                const fbTermino = window.GolazoFirebase;
+                if (fbTermino && fbTermino.usuario && fbTermino.update) {
+                    try {
+                        fbTermino.update(ref(db, 'usuarios/' + fbTermino.usuario.uid), { enPartida: false });
+                    } catch (e) { console.error('Error marcando partida terminada:', e); }
+                }
                 // Guardar estadísticas del partido en Firebase Realtime Database
                 if (window.GolazoFirebase && window.GolazoFirebase.guardarResultadoPartido) {
                     window.GolazoFirebase.guardarResultadoPartido(resultado);
@@ -2932,6 +2940,10 @@
                     if (user) {
                         // Al entrar con sesión, se considera que la partida está activa
                         estado.partidoActivo = true;
+                        // Marcar en Firebase que la partida está en curso (para detectar abandono)
+                        try {
+                            update(ref(db, 'usuarios/' + user.uid), { enPartida: true });
+                        } catch (e) { console.error('Error marcando partida activa:', e); }
                         // Usar el nickname si existe, sino el nombre de Google
                         const nick = (fb.nickname && fb.nickname.length >= 3) ? fb.nickname : (user.displayName || 'Jugador');
                         estado.nombreJugador = nick;
