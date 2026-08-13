@@ -2799,13 +2799,13 @@
                     const userRef = ref(db, 'usuarios/' + user.uid);
                     get(userRef).then((snap) => {
                         const datos = snap.exists() ? snap.val() : {};
-                        const partidosPerdidos = (datos.partidosPerdidos || 0) - 1;
+                        const puntos = (datos.puntos || 0) - 3;
                         set(userRef, {
                             ...datos,
-                            partidosPerdidos,
+                            puntos,
                             ultimaActualizacion: Date.now()
                         });
-                        console.log('Abandono registrado: -1 partidosPerdidos');
+                        console.log('Abandono registrado: -3 puntos');
                     });
                 } catch (error) {
                     console.error('Error registrando abandono:', error);

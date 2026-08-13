@@ -1028,28 +1028,28 @@
             }
         }
 
-        async function verificarAbandono(uid) {
-            try {
-                const userRef = ref(db, 'usuarios/' + uid);
-                const snap = await get(userRef);
-                if (snap.exists()) {
-                    const datos = snap.val();
-                    // Si quedó la marca enPartida=true, significa que el jugador cerró play.html sin terminar
-                    if (datos.enPartida === true) {
-                        const puntos = (datos.puntos || 0) - 3;
-                        await update(userRef, {
-                            puntos,
-                            enPartida: false,
-                            ultimaActualizacion: Date.now()
-                        });
-                        console.log('Abandono detectado: -3 puntos');
-                        mostrarToast('⚠ Abandonaste una partida: -3 puntos');
+            async function verificarAbandono(uid) {
+                try {
+                    const userRef = ref(db, 'usuarios/' + uid);
+                    const snap = await get(userRef);
+                    if (snap.exists()) {
+                        const datos = snap.val();
+                        // Si quedó la marca enPartida=true, significa que el jugador cerró play.html sin terminar
+                        if (datos.enPartida === true) {
+                            const partidosPerdidos = (datos.partidosPerdidos || 0) + 1;
+                            await update(userRef, {
+                                partidosPerdidos,
+                                enPartida: false,
+                                ultimaActualizacion: Date.now()
+                            });
+                            console.log('Abandono detectado: +1 partidosPerdidos');
+                            mostrarToast('⚠ Abandonaste una partida: +1 partido perdido');
+                        }
                     }
+                } catch (error) {
+                    console.error('Error verificando abandono:', error);
                 }
-            } catch (error) {
-                console.error('Error verificando abandono:', error);
             }
-        }
 
         function actualizarUIUsuario(user) {
             usuarioActual = user;
