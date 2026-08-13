@@ -2196,7 +2196,10 @@
                     return;
                 }
 
-                estado.turnoActual = estado.turnoInicial;
+// Después de resolver un canto (especialmente después de "no_quiero"),
+// el turno ya fue cambiado en finalizarCanto(). 
+// Mantener el cambio de turno para que corresponda al otro jugador.
+estado.turnoActual = estado.turnoActual === 'jugador' ? 'cpu' : 'jugador';
                 estado.fase = 'esperando_seleccion';
                 estado.cartaSeleccionada = null;
                 estado.inicioRonda = estado.cartasEnMesa.length;
