@@ -1861,10 +1861,8 @@
                     return;
                 }
 
-estado.manoCpu = estado.manoCpu.filter(c => c.id !== carta.id);
+                estado.manoCpu = estado.manoCpu.filter(c => c.id !== carta.id);
                 estado.cartasEnMesa.push({ carta, origen: 'cpu' });
-                // Actualizar inicioRonda para que la próxima ronda normal no considere estas cartas
-                estado.inicioRonda = estado.cartasEnMesa.length;
 
                 // Reproducir sonido de carta
                 reproducirSonidoCpu('carta');
@@ -2198,10 +2196,7 @@ estado.manoCpu = estado.manoCpu.filter(c => c.id !== carta.id);
                     return;
                 }
 
-// Después de resolver un canto (especialmente después de "no_quiero"),
-// el turno ya fue cambiado en finalizarCanto(). 
-// Mantener el cambio de turno para que corresponda al otro jugador.
-estado.turnoActual = estado.turnoActual === 'jugador' ? 'cpu' : 'jugador';
+                estado.turnoActual = estado.turnoInicial;
                 estado.fase = 'esperando_seleccion';
                 estado.cartaSeleccionada = null;
                 estado.inicioRonda = estado.cartasEnMesa.length;
@@ -2548,9 +2543,8 @@ estado.turnoActual = estado.turnoActual === 'jugador' ? 'cpu' : 'jugador';
                 // Actualizar inicioRonda para que la próxima ronda normal no las considere.
                 estado.inicioRonda = estado.cartasEnMesa.length;
 
-// Continuar con el flujo normal: el otro jugador (que no canto) empieza la próxima ronda
-                // Cambiar al otro jugador: si es 'jugador' pasa a 'cpu', si es 'cpu' pasa a 'jugador'
-                estado.turnoActual = estado.turnoActual === 'jugador' ? 'cpu' : 'jugador';
+                // Continuar con el flujo normal: el mano (turnoInicial) empieza la próxima ronda
+                estado.turnoActual = estado.turnoInicial;
                 estado.fase = 'esperando_seleccion';
                 estado.cartaSeleccionada = null;
                 continuarFlujo();
