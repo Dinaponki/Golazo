@@ -1118,6 +1118,9 @@
 
         window.GolazoFirebase = {
             db,
+            ref,
+            get,
+            set,
             usuario: null,
             esperandoAuth: true
         };
@@ -2773,6 +2776,31 @@
             }
 
             // --- Inicialización ---
+            function partidoEnCurso() {
+                return !estado.pausado && estado.fase !== 'fin_partido' && estado.manoActual < TOTAL_MANOS;
+            }
+
+            function registrarAbandono() {
+                const fb = window.GolazoFirebase;
+                const user = fb && fb.usuario;
+                if (!user || !partidoEnCurso()) return;
+                try {
+                    const userRef = ref(db, 'usuarios/' + user.uid);
+                    get(userRef).then((snap) => {
+                        const datos = snap.exists() ? snap.val() : {};
+                        const puntos = (datos.puntos || 0) - 3;
+                        set(userRef, {
+                            ...datos,
+                            puntos,
+                            ultimaActualizacion: Date.now()
+                        });
+                        console.log('Abandono registrado: -3 puntos');
+                    });
+                } catch (error) {
+                    console.error('Error registrando abandono:', error);
+                }
+            }
+
             function iniciarPartido() {
                 dom.overlayBienvenida.classList.add('oculto');
                 estado.pausado = false;
@@ -2784,6 +2812,19 @@
                     dom.audioFondo.play().catch(() => {});
                 }
             }
+
+            // Registrar abandono si el jugador sale antes de terminar la partida
+            window.addEventListener('beforeunload', () => {
+                if (partidoEnCurso()) {
+                    registrarAbandono();
+                }
+            });
+            // Tambien al volver al inicio
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden && partidoEnCurso()) {
+                    registrarAbandono();
+                }
+            });
 
             function reiniciarPartido() {
                 detenerAudioFondo();

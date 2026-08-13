@@ -615,7 +615,7 @@
             </div>
         </div>
 
-        <a href="play.html" class="boton boton-jugar" id="btnJugar">⚽ JUGAR</a>
+        <a href="play.html" class="boton boton-jugar" id="btnJugar">⚽ JUGAR VS. CPU</a>
 
         <a href="rules.html" class="boton boton-donar">📖 REGLAS</a>
 
@@ -1159,15 +1159,24 @@
                 });
             }
             
-            // Mostrar solo top 10
-            listaFiltrada = listaFiltrada.slice(0, 10);
+            // Calcular puntos efectivos para ordenar (considerar datos almacenados)
+            listaFiltrada.forEach(j => {
+                const pj = j.partidosJugados || 0;
+                const pg = j.partidosGanados || 0;
+                const pe = j.partidosEmpatados || 0;
+                const pp = j.partidosPerdidos || 0;
+                j._puntosCalc = (pg * 3) + (pe * 1) - (pp * 5);
+            });
 
             // Ordenar por puntos (mayor primero), luego por efectividad
             listaFiltrada.sort((a, b) => {
-                const difPuntos = (b.puntos || 0) - (a.puntos || 0);
+                const difPuntos = (b._puntosCalc || 0) - (a._puntosCalc || 0);
                 if (difPuntos !== 0) return difPuntos;
                 return (b.efectividad || 0) - (a.efectividad || 0);
             });
+
+            // Mostrar solo top 10 DESPUÉS de ordenar
+            listaFiltrada = listaFiltrada.slice(0, 10);
 
             tbody.innerHTML = '';
             listaFiltrada.forEach((jugador, i) => {
