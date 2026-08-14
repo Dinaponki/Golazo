@@ -2539,6 +2539,29 @@
                     return;
                 }
 
+                // Si el canto fue rechazado y ya hay una carta jugada en la ronda,
+                // el otro jugador debe tirar su carta para completar la ronda.
+                const jugadorJugo = jugadorJugoEstaRonda();
+                const cpuJugo = cpuJugoEstaRonda();
+
+                if (jugadorJugo && !cpuJugo) {
+                    // El jugador ya tiró → la CPU debe tirar para completar la ronda
+                    estado.fase = 'esperando_cpu';
+                    estado.turnoActual = 'cpu';
+                    renderizarTodo();
+                    setTimeout(turnoCpu, 500 + Math.random() * 400);
+                    return;
+                }
+                if (cpuJugo && !jugadorJugo) {
+                    // La CPU ya tiró → el jugador debe tirar para completar la ronda
+                    estado.turnoActual = 'jugador';
+                    estado.fase = 'esperando_seleccion';
+                    estado.cartaSeleccionada = null;
+                    renderizarTodo();
+                    return;
+                }
+
+                // Nadie tiró todavía en esta ronda → continuar con el flujo normal.
                 // Las cartas del canto ya se jugaron en la mesa.
                 // Actualizar inicioRonda para que la próxima ronda normal no las considere.
                 estado.inicioRonda = estado.cartasEnMesa.length;
