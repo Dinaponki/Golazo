@@ -657,11 +657,11 @@
                         <tr>
                             <th>#</th>
                             <th>Nick</th>
+                            <th>PTS</th>
                             <th>PJ</th>
                             <th>PG</th>
                             <th>PE</th>
                             <th>PP</th>
-                            <th>PTS</th>
                             <th>EFEC</th>
                             <th>Racha</th>
                         </tr>
@@ -1222,11 +1222,11 @@
                 tr.innerHTML =
                     '<td class="posicion' + (posicion <= 3 ? ' top3' : '') + '">' + posicion + '</td>' +
                     '<td class="td-nick">' + escaparHTML(nick) + '</td>' +
+                    '<td class="puntos-td">' + puntos + '</td>' +
                     '<td>' + pj + '</td>' +
                     '<td>' + pg + '</td>' +
                     '<td>' + pe + '</td>' +
                     '<td>' + pp + '</td>' +
-                    '<td class="puntos-td">' + puntos + '</td>' +
                     '<td>' + efectividad + '%</td>' +
                     '<td>' + (racha > 0 ? '🔥 ' + racha : '—') + '</td>';
                 tbody.appendChild(tr);
