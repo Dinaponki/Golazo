@@ -2823,12 +2823,16 @@
                     get(userRef).then((snap) => {
                         const datos = snap.exists() ? snap.val() : {};
                         const puntos = (datos.puntos || 0) - 3;
+                        const partidosJugados = (datos.partidosJugados || 0) + 1;
+                        const partidosPerdidos = (datos.partidosPerdidos || 0) + 1;
                         set(userRef, {
                             ...datos,
                             puntos,
+                            partidosJugados,
+                            partidosPerdidos,
                             ultimaActualizacion: Date.now()
                         });
-                        console.log('Abandono registrado: -3 puntos');
+                        console.log('Abandono registrado: -3 puntos, +1 partido jugado, +1 partido perdido');
                     });
                 } catch (error) {
                     console.error('Error registrando abandono:', error);
