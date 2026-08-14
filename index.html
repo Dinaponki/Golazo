@@ -301,6 +301,117 @@
             background: rgba(200, 168, 78, 0.08);
         }
 
+        /* ---------- Panel estadísticas usuario ---------- */
+        .panel-estadisticas-usuario {
+            display: none;
+            width: 100%;
+            background: rgba(0, 0, 0, 0.35);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: var(--borde-redondo);
+            padding: 16px 20px;
+            box-shadow: var(--sombra);
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .panel-estadisticas-usuario.visible {
+            display: flex;
+        }
+
+        .estadisticas-titulo {
+            font-size: 14px;
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--dorado);
+            text-align: center;
+        }
+
+        .estadisticas-posicion {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--blanco);
+        }
+
+        .estadisticas-posicion .posicion-numero {
+            font-size: 22px;
+            font-weight: 900;
+            color: var(--dorado);
+        }
+
+        .estadisticas-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            width: 100%;
+        }
+
+        .estadistica-item {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            padding: 8px 6px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .estadistica-item .valor {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--blanco);
+            line-height: 1.2;
+        }
+
+        .estadistica-item .valor.puntos-valor {
+            color: var(--dorado);
+            font-size: 20px;
+        }
+
+        .estadistica-item .etiqueta {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        @media (min-width: 768px) {
+            .panel-estadisticas-usuario {
+                padding: 18px 24px;
+            }
+
+            .estadisticas-grid {
+                grid-template-columns: repeat(6, 1fr);
+                gap: 10px;
+            }
+
+            .estadistica-item {
+                padding: 10px 8px;
+            }
+
+            .estadistica-item .valor {
+                font-size: 20px;
+            }
+
+            .estadistica-item .valor.puntos-valor {
+                font-size: 22px;
+            }
+
+            .estadistica-item .etiqueta {
+                font-size: 11px;
+            }
+        }
+
         /* ---------- Ranking ---------- */
         .ranking-seccion {
             width: 100%;
@@ -615,6 +726,42 @@
             </div>
         </div>
 
+        <!-- Panel de estadísticas del usuario -->
+        <div class="panel-estadisticas-usuario" id="panelEstadisticas">
+            <div class="estadisticas-titulo">📊 Tu rendimiento</div>
+            <div class="estadisticas-posicion">
+                <span>Posición</span>
+                <span class="posicion-numero" id="miPosicionRanking">-</span>
+                <span>del ranking</span>
+            </div>
+            <div class="estadisticas-grid">
+                <div class="estadistica-item">
+                    <span class="valor puntos-valor" id="miPuntos">0</span>
+                    <span class="etiqueta">PTS</span>
+                </div>
+                <div class="estadistica-item">
+                    <span class="valor" id="miPJ">0</span>
+                    <span class="etiqueta">PJ</span>
+                </div>
+                <div class="estadistica-item">
+                    <span class="valor" id="miPG">0</span>
+                    <span class="etiqueta">PG</span>
+                </div>
+                <div class="estadistica-item">
+                    <span class="valor" id="miPE">0</span>
+                    <span class="etiqueta">PE</span>
+                </div>
+                <div class="estadistica-item">
+                    <span class="valor" id="miPP">0</span>
+                    <span class="etiqueta">PP</span>
+                </div>
+                <div class="estadistica-item">
+                    <span class="valor" id="miEfec">0%</span>
+                    <span class="etiqueta">EFEC</span>
+                </div>
+            </div>
+        </div>
+
         <a href="play.html" class="boton boton-jugar" id="btnJugar">⚽ JUGAR VS. CPU</a>
 
         <a href="rules.html" class="boton boton-donar">📖 REGLAS</a>
@@ -868,6 +1015,14 @@
         const contadorNickname = document.getElementById('contadorNickname');
         const mensajeNickname = document.getElementById('mensajeNickname');
         const btnGuardarNickname = document.getElementById('btnGuardarNickname');
+        const panelEstadisticas = document.getElementById('panelEstadisticas');
+        const miPosicionRanking = document.getElementById('miPosicionRanking');
+        const miPuntos = document.getElementById('miPuntos');
+        const miPJ = document.getElementById('miPJ');
+        const miPG = document.getElementById('miPG');
+        const miPE = document.getElementById('miPE');
+        const miPP = document.getElementById('miPP');
+        const miEfec = document.getElementById('miEfec');
 
         const NICK_MIN = 3;
         const NICK_MAX = 12;
@@ -878,6 +1033,7 @@
         let nicknameDisponible = false;
         let nicknameActual = '';
         let timeoutVerificarNickname = null;
+        let ultimaListaRanking = [];
 
         function mostrarToast(texto) {
             toast.textContent = texto;
@@ -1053,6 +1209,59 @@
                 }
             }
 
+        function actualizarEstadisticasUsuario(lista) {
+            if (!usuarioActual || !lista || lista.length === 0) {
+                panelEstadisticas.classList.remove('visible');
+                return;
+            }
+
+            // Calcular puntos de todos los jugadores para ordenar
+            const listaConPuntos = lista.map(j => {
+                const pj = j.partidosJugados || 0;
+                const pg = j.partidosGanados || 0;
+                const pe = j.partidosEmpatados || 0;
+                const pp = j.partidosPerdidos || 0;
+                return {
+                    ...j,
+                    _puntos: (pg * 3) + (pe * 1) - (pp * 5),
+                    _efectividad: pj > 0 ? Math.round((pg / pj) * 1000) / 10 : 0
+                };
+            });
+
+            // Ordenar igual que el ranking
+            listaConPuntos.sort((a, b) => {
+                const difPuntos = b._puntos - a._puntos;
+                if (difPuntos !== 0) return difPuntos;
+                return b._efectividad - a._efectividad;
+            });
+
+            // Buscar la posición del usuario actual
+            const posicion = listaConPuntos.findIndex(j => j.uid === usuarioActual.uid);
+            if (posicion === -1) {
+                panelEstadisticas.classList.remove('visible');
+                return;
+            }
+
+            const misDatos = listaConPuntos[posicion];
+            const pj = misDatos.partidosJugados || 0;
+            const pg = misDatos.partidosGanados || 0;
+            const pe = misDatos.partidosEmpatados || 0;
+            const pp = misDatos.partidosPerdidos || 0;
+            const puntos = (pg * 3) + (pe * 1) - (pp * 5);
+            const efectividad = pj > 0 ? Math.round((pg / pj) * 1000) / 10 : 0;
+            const racha = misDatos.rachaActual || 0;
+
+            miPosicionRanking.textContent = '#' + (posicion + 1);
+            miPuntos.textContent = puntos;
+            miPJ.textContent = pj;
+            miPG.textContent = pg;
+            miPE.textContent = pe;
+            miPP.textContent = pp;
+            miEfec.textContent = efectividad + '%';
+
+            panelEstadisticas.classList.add('visible');
+        }
+
         function actualizarUIUsuario(user) {
             usuarioActual = user;
             if (user) {
@@ -1071,11 +1280,14 @@
                     }
                     // Detectar si el jugador abandonó una partida sin terminar
                     await verificarAbandono(user.uid);
+                    // Actualizar panel de estadísticas con los datos ya cargados
+                    actualizarEstadisticasUsuario(ultimaListaRanking);
                 });
             } else {
                 btnGoogle.style.display = 'inline-flex';
                 panelUsuario.style.display = 'none';
                 ocultarOverlayNickname();
+                panelEstadisticas.classList.remove('visible');
             }
         }
 
@@ -1238,7 +1450,10 @@
             onValue(refUsuarios, (snap) => {
                 if (snap.exists()) {
                     const datos = snap.val();
-                    const lista = Object.keys(datos).map(uid => datos[uid]);
+                    const lista = Object.keys(datos).map(uid => ({ ...datos[uid], uid }));
+                    ultimaListaRanking = lista;
+                    // Actualizar panel de estadísticas del usuario
+                    actualizarEstadisticasUsuario(lista);
                     // Guardar filtro seleccionado en localStorage
                     const filtro = document.querySelector('input[name="filtroRanking"]:checked')?.value || 'global';
                     localStorage.setItem('rankingFiltro', filtro);
@@ -1262,7 +1477,7 @@
                 onValue(refUsuarios, (snap) => {
                     if (snap.exists()) {
                         const datos = snap.val();
-                        const lista = Object.keys(datos).map(uid => datos[uid]);
+                        const lista = Object.keys(datos).map(uid => ({ ...datos[uid], uid }));
                         renderRanking(lista, filtro);
                     }
                 });
