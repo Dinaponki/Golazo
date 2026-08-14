@@ -848,22 +848,38 @@
 
         /* Responsive - móviles */
         @media (max-width: 767px) {
-            /* 1. Cartas jugadas: bajar el punto central de la mesa */
+            /* 1. Cartas jugadas: al fondo de la mesa, dejando espacio arriba para indicador */
             .mesa-fila {
                 height: 100%;
                 width: 100%;
+                display: flex;
+                align-items: flex-end;
+                justify-content: center;
+            }
+
+            .indicador-canto {
+                margin-bottom: 4px;
+            }
+
+            .mesa-cartas {
+                align-items: flex-end;
+                padding: 4px 12px 8px;
             }
 
             .mesa-cartas .carta-contenedor {
-                top: 92%;
+                position: relative;
+                top: auto;
+                left: auto;
+                transform: none;
+                margin: 0 -8px;
             }
 
             .mesa-cartas .carta-contenedor.ganadora {
-                transform: translate(-50%, -50%) translateY(-10px) scale(1.02);
+                transform: translateY(-6px) scale(1.02);
             }
 
             .mesa-cartas .carta-contenedor.perdedora {
-                transform: translate(-50%, -50%) translateY(6px);
+                transform: translateY(3px);
             }
 
             /* 2. Botones: columnas verticales a los lados con espacio central */
@@ -1605,14 +1621,25 @@
                 const filaMesa = document.createElement('div');
                 filaMesa.className = 'mesa-fila';
 
+                const esMovil = window.innerWidth < 768;
                 estado.cartasEnMesa.forEach((item, index) => {
                     const cont = crearContenedorMesa(item);
                     cont.style.zIndex = index + 1;
-                    cont.style.transform = `translate(-50%, -42%) translateX(${(index % 2) * 12}px) translateY(${Math.floor(index / 2) * 8}px)`;
-                    if (cont.classList.contains('ganadora')) {
-                        cont.style.transform = `translate(-50%, -42%) translateX(${(index % 2) * 12}px) translateY(${Math.floor(index / 2) * 8}px) translateY(-12px) scale(1.02)`;
-                    } else if (cont.classList.contains('perdedora')) {
-                        cont.style.transform = `translate(-50%, -42%) translateX(${(index % 2) * 12}px) translateY(${Math.floor(index / 2) * 8}px) translateY(8px)`;
+                    if (esMovil) {
+                        // En móviles, las cartas usan flexbox (position: relative) sin el translate base
+                        cont.style.transform = `translateX(${(index % 2) * 12}px) translateY(${Math.floor(index / 2) * 8}px)`;
+                        if (cont.classList.contains('ganadora')) {
+                            cont.style.transform = `translateX(${(index % 2) * 12}px) translateY(${Math.floor(index / 2) * 8}px) translateY(-6px) scale(1.02)`;
+                        } else if (cont.classList.contains('perdedora')) {
+                            cont.style.transform = `translateX(${(index % 2) * 12}px) translateY(${Math.floor(index / 2) * 8}px) translateY(3px)`;
+                        }
+                    } else {
+                        cont.style.transform = `translate(-50%, -42%) translateX(${(index % 2) * 12}px) translateY(${Math.floor(index / 2) * 8}px)`;
+                        if (cont.classList.contains('ganadora')) {
+                            cont.style.transform = `translate(-50%, -42%) translateX(${(index % 2) * 12}px) translateY(${Math.floor(index / 2) * 8}px) translateY(-12px) scale(1.02)`;
+                        } else if (cont.classList.contains('perdedora')) {
+                            cont.style.transform = `translate(-50%, -42%) translateX(${(index % 2) * 12}px) translateY(${Math.floor(index / 2) * 8}px) translateY(8px)`;
+                        }
                     }
                     filaMesa.appendChild(cont);
                 });
