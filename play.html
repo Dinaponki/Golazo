@@ -2027,6 +2027,13 @@
                 renderizarMarcador();
                 renderizarTodo();
 
+                // Si alguien llegó a 3 puntos en esta ronda, se convierte el gol
+                // y termina la mano, sin importar si hay un canto pendiente.
+                if (verificarGolPorPuntos()) {
+                    setTimeout(() => finalizarMano(), 2200);
+                    return;
+                }
+
                 // Si hay un canto pendiente (se aceptó un canto con una carta ya jugada),
                 // ahora se ejecuta el canto: el mano (turnoInicial) tira la carta de ejecución
                 if (estado.cantoPendiente) {
@@ -2065,9 +2072,13 @@
                 estado.penalCartas = [];
 
                 if (!atacanteJugoDel) {
-                    sumarPuntos(atacanteEsJugador ? 'cpu' : 'jugador', 2);
+                    const golPorPuntos = sumarPuntos(atacanteEsJugador ? 'cpu' : 'jugador', 2);
                     mostrarMensaje('Atacante sin delantero - +2 defensor');
-                    finalizarCanto();
+                    if (golPorPuntos) {
+                        setTimeout(finalizarMano, 2200);
+                    } else {
+                        finalizarCanto();
+                    }
                 } else if (!defensorJugoArq) {
                     convertirGol(quienAtaca);
                     mostrarMensaje('⚽ ¡GOL! Defensor sin arquero');
@@ -2155,10 +2166,10 @@
                 return cartasDeRondaActual().some(c => c.origen === 'cpu');
             }
 
-            function continuarFlujo() {
+            function verificarGolPorPuntos() {
+                if (estado.golEnMano) return false;
                 let gol = false;
-                let golPorPuntos = false;
-                if (estado.puntosJugador >= PUNTOS_PARA_GOL && !estado.golEnMano) {
+                if (estado.puntosJugador >= PUNTOS_PARA_GOL) {
                     estado.golesJugador++;
                     estado.puntosManoJugador += estado.puntosJugador;
                     estado.puntosManoCpu += estado.puntosCpu;
@@ -2166,12 +2177,11 @@
                     estado.puntosCpu = 0;
                     estado.golEnMano = true;
                     estado.ganadorManoAnterior = 'jugador';
-                    gol = true;
-                    golPorPuntos = true;
                     mostrarMensaje('⚽ ¡GOL DE ' + estado.nombreJugador.toUpperCase() + '!');
                     reproducirSonidoGol('jugador');
+                    gol = true;
                 }
-                if (estado.puntosCpu >= PUNTOS_PARA_GOL && !estado.golEnMano) {
+                if (estado.puntosCpu >= PUNTOS_PARA_GOL) {
                     estado.golesCpu++;
                     estado.puntosManoJugador += estado.puntosJugador;
                     estado.puntosManoCpu += estado.puntosCpu;
@@ -2179,14 +2189,20 @@
                     estado.puntosJugador = 0;
                     estado.golEnMano = true;
                     estado.ganadorManoAnterior = 'cpu';
-                    gol = true;
-                    golPorPuntos = true;
                     mostrarMensaje('⚽ Gol de la CPU');
                     reproducirSonidoGol('cpu');
+                    gol = true;
                 }
-                renderizarMarcador(golPorPuntos);
-                renderizarTodo(golPorPuntos);
                 if (gol) {
+                    renderizarMarcador(true);
+                    renderizarTodo(true);
+                }
+                return gol;
+            }
+
+            function continuarFlujo() {
+                // Si alguien llegó a 3 puntos, se convierte el gol y termina la mano
+                if (verificarGolPorPuntos()) {
                     setTimeout(() => finalizarMano(), 2200);
                     return;
                 }
@@ -2424,12 +2440,16 @@
             sumarPuntos('jugador', 2);
             mostrarMensaje(`📺 VAR: ${estado.nombreJugador} ${dj} vs CPU ${dc} - Ganaste. Penal cancelado`);
             finalizarCanto();
+    } else {
+        // CPU (defensor) pidió VAR, jugador (atacante) gana → +2 puntos, penal se ejecuta
+        sumarPuntos('jugador', 2);
+        mostrarMensaje(`📺 VAR: ${estado.nombreJugador} ${dj} vs CPU ${dc} - Ganaste. Se ejecuta el penal`);
+        if (estado.golEnMano) {
+            setTimeout(finalizarMano, 2200);
         } else {
-            // CPU (defensor) pidió VAR, jugador (atacante) gana → +2 puntos, penal se ejecuta
-            sumarPuntos('jugador', 2);
-            mostrarMensaje(`📺 VAR: ${estado.nombreJugador} ${dj} vs CPU ${dc} - Ganaste. Se ejecuta el penal`);
             ejecutarCanto('penal', cantoPedidoPor);
         }
+    }
     } else if (dc > dj) {
         // CPU gana el VAR
         if (varPedidoPor === 'cpu') {
@@ -2437,12 +2457,16 @@
             sumarPuntos('cpu', 2);
             mostrarMensaje(`📺 VAR: CPU ${dc} vs ${estado.nombreJugador} ${dj} - CPU gana. Penal cancelado`);
             finalizarCanto();
+    } else {
+        // Jugador (defensor) pidió VAR, CPU (atacante) gana → +2 puntos, penal se ejecuta
+        sumarPuntos('cpu', 2);
+        mostrarMensaje(`📺 VAR: CPU ${dc} vs ${estado.nombreJugador} ${dj} - CPU gana. Se ejecuta el penal`);
+        if (estado.golEnMano) {
+            setTimeout(finalizarMano, 2200);
         } else {
-            // Jugador (defensor) pidió VAR, CPU (atacante) gana → +2 puntos, penal se ejecuta
-            sumarPuntos('cpu', 2);
-            mostrarMensaje(`📺 VAR: CPU ${dc} vs ${estado.nombreJugador} ${dj} - CPU gana. Se ejecuta el penal`);
             ejecutarCanto('penal', cantoPedidoPor);
         }
+    }
     } else {
         // Empate → penal se ejecuta sin puntos
         mostrarMensaje(`📺 VAR: ${estado.nombreJugador} ${dj} vs CPU ${dc} - Empate. Se ejecuta el penal`);
