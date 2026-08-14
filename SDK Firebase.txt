@@ -1,30 +1,32 @@
-<script type="module">
-  // Import the functions you need from the SDKs you need
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
-  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-analytics.js";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
+CONFIGURACIÓN FIREBASE - GOLAZO
+===============================
 
-  // Your web app's Firebase configuration
-  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-  const firebaseConfig = {
-    apiKey: "AIzaSyDsgQ2dwokGq3umlptHtMCVgFISLe8ySM0",
-    authDomain: "golazo-juego.firebaseapp.com",
-    projectId: "golazo-juego",
-    storageBucket: "golazo-juego.firebasestorage.app",
-    messagingSenderId: "642135658463",
-    appId: "1:642135658463:web:4177f755fa612370dcfe6a",
-    measurementId: "G-58N0YWBXYM"
-  };
+Este archivo documenta la configuración de Firebase del proyecto.
+La API key de Firebase Web NO es un secreto: está diseñada para ser
+pública en apps web (se incrusta en el código del navegador).
 
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
-</script>
+La seguridad real se logra con:
+1. Firebase Realtime Database Security Rules (reglas de la base de datos)
+2. Firebase App Check (verificación de la app)
+3. Restricciones de la API key en Google Cloud Console (por dominio)
 
+------------------------------------------------------------
+REGLAS RECOMENDADAS - REALTIME DATABASE (database.rules.json)
+------------------------------------------------------------
+{
+  "rules": {
+    "usuarios": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    }
+  }
+}
 
-Reglas:
-
+------------------------------------------------------------
+REGLAS RECOMENDADAS - FIRESTORE (firestore.rules)
+------------------------------------------------------------
 rules_version = '2';
 
 service cloud.firestore {
