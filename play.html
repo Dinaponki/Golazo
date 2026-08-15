@@ -860,7 +860,7 @@
  
             .mesa-cartas .carta-contenedor {
                 top: 95%;
-                left: 44%;
+                left: 50%;
             }
 
             /* 2. Botones: columnas verticales a los lados con espacio central */
@@ -1607,12 +1607,12 @@
                     const cont = crearContenedorMesa(item);
                     cont.style.zIndex = index + 1;
                     if (esMovil) {
-                        // En móviles, las cartas usan flexbox (position: relative) sin el translate base
-                        cont.style.transform = `translateX(${(index % 2) * 12}px) translateY(${Math.floor(index / 2) * 8}px)`;
+                        // En móviles, centrar con translate(-50%, -50%) y luego aplicar desplazamientos
+                        cont.style.transform = `translate(-50%, -50%) translateX(${(index % 2) * 12}px) translateY(${Math.floor(index / 2) * 8}px)`;
                         if (cont.classList.contains('ganadora')) {
-                            cont.style.transform = `translateX(${(index % 2) * 12}px) translateY(${Math.floor(index / 2) * 8}px) translateY(-6px) scale(1.02)`;
+                            cont.style.transform = `translate(-50%, -50%) translateX(${(index % 2) * 12}px) translateY(${Math.floor(index / 2) * 8}px) translateY(-10px) scale(1.02)`;
                         } else if (cont.classList.contains('perdedora')) {
-                            cont.style.transform = `translateX(${(index % 2) * 12}px) translateY(${Math.floor(index / 2) * 8}px) translateY(3px)`;
+                            cont.style.transform = `translate(-50%, -50%) translateX(${(index % 2) * 12}px) translateY(${Math.floor(index / 2) * 8}px) translateY(6px)`;
                         }
                     } else {
                         cont.style.transform = `translate(-50%, -42%) translateX(${(index % 2) * 12}px) translateY(${Math.floor(index / 2) * 8}px)`;
