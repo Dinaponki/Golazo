@@ -1148,7 +1148,7 @@
             }
         });
 
-        async function guardarResultadoPartido(resultado) {
+        async function guardarResultadoPartido(resultado, golesFavor, golesContra) {
             const user = window.GolazoFirebase.usuario;
             if (!user) return;
             try {
@@ -1169,6 +1169,8 @@
                 const mejorRacha = Math.max(datos.mejorRacha || 0, rachaActual);
                 const efectividad = partidosJugados > 0 ? Math.round((partidosGanados / partidosJugados) * 1000) / 10 : 0;
                 const puntos = (partidosGanados * 3) + (partidosEmpatados * 1) - (partidosPerdidos * 5);
+                const golesFavorTotales = (datos.golesFavor || 0) + (golesFavor || 0);
+                const golesContraTotales = (datos.golesContra || 0) + (golesContra || 0);
 
                 const nuevosDatos = {
                     ...datos,
@@ -1182,6 +1184,8 @@
                     efectividad,
                     rachaActual,
                     mejorRacha,
+                    golesFavor: golesFavorTotales,
+                    golesContra: golesContraTotales,
                     ultimaActualizacion: Date.now()
                 };
 
@@ -2833,7 +2837,7 @@
                 }
                 // Guardar estadísticas del partido en Firebase Realtime Database
                 if (window.GolazoFirebase && window.GolazoFirebase.guardarResultadoPartido) {
-                    window.GolazoFirebase.guardarResultadoPartido(resultado);
+                    window.GolazoFirebase.guardarResultadoPartido(resultado, estado.golesJugador, estado.golesCpu);
                 }
             }
 
@@ -2856,20 +2860,24 @@
                 const user = fb && fb.usuario;
                 if (!user || !partidoEnCurso()) return;
                 try {
-                    const userRef = ref(db, 'usuarios/' + user.uid);
-                    get(userRef).then((snap) => {
+                    const userRef = fb.ref(fb.db, 'usuarios/' + user.uid);
+                    fb.get(userRef).then((snap) => {
                         const datos = snap.exists() ? snap.val() : {};
                         const puntos = (datos.puntos || 0) - 3;
                         const partidosJugados = (datos.partidosJugados || 0) + 1;
                         const partidosPerdidos = (datos.partidosPerdidos || 0) + 1;
-                        set(userRef, {
-                            ...datos,
+                        const golesFavorAbandono = (datos.golesFavor || 0) + (estado.golesJugador || 0);
+                        const golesContraAbandono = (datos.golesContra || 0) + (estado.golesCpu || 0);
+                        fb.update(userRef, {
                             puntos,
                             partidosJugados,
                             partidosPerdidos,
+                            golesFavor: golesFavorAbandono,
+                            golesContra: golesContraAbandono,
+                            rachaActual: 0,
                             ultimaActualizacion: Date.now()
                         });
-                        console.log('Abandono registrado: -3 puntos, +1 partido jugado, +1 partido perdido');
+                        console.log('Abandono registrado: -3 pts, +1 PJ, +1 PP, goles actualizados, racha reiniciada');
                     });
                 } catch (error) {
                     console.error('Error registrando abandono:', error);
