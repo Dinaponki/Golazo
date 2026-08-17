@@ -1490,14 +1490,29 @@
                         if (datos.enPartida === true) {
                             const partidosJugados = (datos.partidosJugados || 0) + 1;
                             const partidosPerdidos = (datos.partidosPerdidos || 0) + 1;
+                            const puntos = (datos.puntos || 0) - 3;
+                            const efectividad = partidosJugados > 0 ? Math.round(((datos.partidosGanados || 0) / partidosJugados) * 1000) / 10 : 0;
+                            const historialPartidos = datos.historialPartidos || [];
+                            historialPartidos.push({
+                                fecha: Date.now(),
+                                resultado: 'perder',
+                                golesFavor: 0,
+                                golesContra: 0,
+                                abandono: true
+                            });
+                            const historialLimitado = historialPartidos.slice(-200);
                             await update(userRef, {
+                                puntos,
                                 partidosJugados,
                                 partidosPerdidos,
+                                efectividad,
+                                rachaActual: 0,
+                                historialPartidos: historialLimitado,
                                 enPartida: false,
                                 ultimaActualizacion: Date.now()
                             });
-                            console.log('Abandono detectado: +1 partidosJugados, +1 partidosPerdidos');
-                            mostrarToast('⚠ Abandonaste una partida: +1 partido jugado, +1 partido perdido');
+                            console.log('Abandono detectado: +1 partidosJugados, +1 partidosPerdidos, -3 puntos');
+                            mostrarToast('⚠ Abandonaste una partida: +1 partido jugado, +1 partido perdido, -3 puntos');
                         }
                     }
                 } catch (error) {

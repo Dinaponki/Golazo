@@ -1185,8 +1185,9 @@
                 // Limitar a los últimos 200 partidos para no saturar la base
                 const historialLimitado = historialPartidos.slice(-200);
 
-                const nuevosDatos = {
-                    ...datos,
+                // Usar update() para no sobrescribir campos con datos desactualizados
+                // (evita race conditions con registrarAbandono)
+                const camposActualizar = {
                     nickname: (datos.nickname && datos.nickname.length > 0) ? datos.nickname : (user.displayName || 'Jugador'),
                     email: datos.email || (user.email || ''),
                     fotoURL: user.photoURL || (datos.fotoURL || ''),
@@ -1204,8 +1205,8 @@
                     ultimaActualizacion: Date.now()
                 };
 
-                await set(userRef, nuevosDatos);
-                console.log('Resultado guardado en Firebase:', resultado, nuevosDatos);
+                await update(userRef, camposActualizar);
+                console.log('Resultado guardado en Firebase:', resultado, camposActualizar);
             } catch (error) {
                 console.error('Error guardando resultado del partido:', error);
                 // Mostrar el error en pantalla para diagnóstico
@@ -2878,14 +2879,28 @@
                     const userRef = ref(db, 'usuarios/' + user.uid);
                     get(userRef).then((snap) => {
                         const datos = snap.exists() ? snap.val() : {};
-                        const puntos = (datos.puntos || 0) - 3;
                         const partidosJugados = (datos.partidosJugados || 0) + 1;
                         const partidosPerdidos = (datos.partidosPerdidos || 0) + 1;
-                        set(userRef, {
-                            ...datos,
+                        const puntos = (datos.puntos || 0) - 3;
+                        const efectividad = partidosJugados > 0 ? Math.round(((datos.partidosGanados || 0) / partidosJugados) * 1000) / 10 : 0;
+                        const historialPartidos = datos.historialPartidos || [];
+                        historialPartidos.push({
+                            fecha: Date.now(),
+                            resultado: 'perder',
+                            golesFavor: 0,
+                            golesContra: 0,
+                            abandono: true
+                        });
+                        const historialLimitado = historialPartidos.slice(-200);
+                        // Usar update() para NO sobrescribir campos con datos desactualizados
+                        // (evita que un abandono revierta victorias/derrotas recién guardadas)
+                        update(userRef, {
                             puntos,
                             partidosJugados,
                             partidosPerdidos,
+                            efectividad,
+                            rachaActual: 0,
+                            historialPartidos: historialLimitado,
                             ultimaActualizacion: Date.now()
                         });
                         console.log('Abandono registrado: -3 puntos, +1 partido jugado, +1 partido perdido');
@@ -2913,10 +2928,18 @@
                     registrarAbandono();
                 }
             });
-            // Tambien al volver al inicio
+            // Al ocultar la pestaña, esperar 30 segundos antes de considerar abandono
+            // (evita registrar abandono por cambiar de app o minimizar brevemente)
+            let tiempoOcultoInicio = 0;
             document.addEventListener('visibilitychange', () => {
                 if (document.hidden && partidoEnCurso()) {
-                    registrarAbandono();
+                    tiempoOcultoInicio = Date.now();
+                } else if (!document.hidden && tiempoOcultoInicio > 0) {
+                    const tiempoOcultoMs = Date.now() - tiempoOcultoInicio;
+                    if (tiempoOcultoMs > 30000) {
+                        registrarAbandono();
+                    }
+                    tiempoOcultoInicio = 0;
                 }
             });
 
