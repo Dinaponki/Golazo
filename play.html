@@ -823,6 +823,104 @@
             margin-bottom: 3px;
         }
 
+        /* Overlay de advertencia de salida */
+        .overlay-advertencia {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.92);
+            z-index: 400;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .overlay-advertencia.visible {
+            display: flex;
+        }
+
+        .advertencia-contenedor {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            width: 100%;
+            max-width: 360px;
+            background: var(--gris-oscuro);
+            border-radius: var(--borde-redondo);
+            padding: 32px 24px;
+            box-shadow: var(--sombra-carta);
+            text-align: center;
+        }
+
+        .advertencia-icono {
+            font-size: 48px;
+        }
+
+        .advertencia-titulo {
+            font-size: clamp(20px, 5vw, 26px);
+            font-weight: 900;
+            color: var(--rojo);
+            text-align: center;
+        }
+
+        .advertencia-texto {
+            font-size: clamp(13px, 3vmin, 15px);
+            color: rgba(255, 255, 255, 0.8);
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        .advertencia-texto .destacado {
+            color: var(--rojo);
+            font-weight: 800;
+        }
+
+        .advertencia-botones {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .btn-advertencia {
+            width: 100%;
+            padding: 14px 24px;
+            border-radius: 50px;
+            font-size: clamp(14px, 3.5vmin, 16px);
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            cursor: pointer;
+            border: none;
+            transition: var(--transicion);
+            font-family: inherit;
+        }
+
+        .btn-advertencia-quedarse {
+            background: var(--dorado);
+            color: #1a2a10;
+        }
+
+        .btn-advertencia-quedarse:hover {
+            background: var(--dorado-claro);
+            box-shadow: 0 4px 20px rgba(200, 168, 78, 0.4);
+        }
+
+        .btn-advertencia-salir {
+            background: transparent;
+            color: var(--rojo);
+            border: 2px solid var(--rojo);
+        }
+
+        .btn-advertencia-salir:hover {
+            background: rgba(231, 76, 60, 0.1);
+        }
+
         /* Mensaje flotante */
         .mensaje-flotante {
             position: fixed;
@@ -1003,6 +1101,22 @@
 
     <!-- Mensaje flotante -->
     <div class="mensaje-flotante" id="mensajeFlotante"></div>
+
+    <!-- Overlay de advertencia de salida -->
+    <div class="overlay-advertencia" id="overlayAdvertencia">
+        <div class="advertencia-contenedor">
+            <div class="advertencia-icono">⚠️</div>
+            <div class="advertencia-titulo">¡Cuidado!</div>
+            <div class="advertencia-texto">
+                Si salís ahora, la partida se contará como <span class="destacado">abandono</span>.<br><br>
+                Perderás <span class="destacado">-3 puntos</span>, se sumará <span class="destacado">+1 derrota</span> y tu racha se reiniciará.
+            </div>
+            <div class="advertencia-botones">
+                <button class="btn-advertencia btn-advertencia-quedarse" id="btnSeguirJugando">⚽ Seguir jugando</button>
+                <button class="btn-advertencia btn-advertencia-salir" id="btnConfirmarSalida">🚪 Salir y perder puntos</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Audio de fondo -->
     <audio id="audioFondo" loop preload="auto">
@@ -1335,6 +1449,9 @@
                 dom.nombreEnTurno = document.getElementById('nombreEnTurno');
                 dom.nombreJugadorEtiqueta = document.getElementById('nombreJugadorEtiqueta');
                 dom.audioFondo = document.getElementById('audioFondo');
+                dom.overlayAdvertencia = document.getElementById('overlayAdvertencia');
+                dom.btnSeguirJugando = document.getElementById('btnSeguirJugando');
+                dom.btnConfirmarSalida = document.getElementById('btnConfirmarSalida');
                 
                 // Cachear elementos de audio estáticos para móviles
                 dom.audioCarta = document.getElementById('sndCarta');
@@ -2922,10 +3039,68 @@
                 }
             }
 
-            // Registrar abandono si el jugador sale antes de terminar la partida
-            window.addEventListener('beforeunload', () => {
-                if (partidoEnCurso()) {
-                    registrarAbandono();
+            // ========== ADVERTENCIA DE SALIDA ==========
+            let salidaConfirmada = false;
+            let accionPendienteSalida = null;
+
+            function mostrarAdvertenciaSalida(accion) {
+                if (!partidoEnCurso()) {
+                    if (accion) accion();
+                    return;
+                }
+                accionPendienteSalida = accion;
+                dom.overlayAdvertencia.classList.add('visible');
+            }
+
+            function ocultarAdvertenciaSalida() {
+                dom.overlayAdvertencia.classList.remove('visible');
+                accionPendienteSalida = null;
+            }
+
+            dom.btnSeguirJugando.addEventListener('click', () => {
+                ocultarAdvertenciaSalida();
+            });
+
+            dom.btnConfirmarSalida.addEventListener('click', () => {
+                salidaConfirmada = true;
+                dom.overlayAdvertencia.classList.remove('visible');
+                registrarAbandono();
+                const accion = accionPendienteSalida;
+                accionPendienteSalida = null;
+                estado.partidoActivo = false;
+                if (accion) {
+                    accion();
+                } else {
+                    window.location.href = 'index.html';
+                }
+            });
+
+            // Interceptar botones de salida para mostrar advertencia si hay partida activa
+            function envolverNavegacion(btn, destino) {
+                btn.addEventListener('click', (e) => {
+                    if (partidoEnCurso() && !salidaConfirmada) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        mostrarAdvertenciaSalida(() => {
+                            if (destino === 'index') {
+                                window.location.href = 'index.html';
+                            }
+                        });
+                    } else if (destino === 'index') {
+                        detenerAudioFondo();
+                        window.location.href = 'index.html';
+                    }
+                });
+            }
+
+            envolverNavegacion(dom.btnIrAlInicio, 'index');
+            envolverNavegacion(dom.btnInicio, 'index');
+
+            // Registrar abandono si el jugador cierra la pestaña
+            window.addEventListener('beforeunload', (e) => {
+                if (partidoEnCurso() && !salidaConfirmada) {
+                    e.preventDefault();
+                    e.returnValue = '';
                 }
             });
             // Al ocultar la pestaña, esperar 30 segundos antes de considerar abandono
