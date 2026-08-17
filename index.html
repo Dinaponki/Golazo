@@ -261,15 +261,32 @@
             padding: 8px 10px 8px 8px;
             border-radius: 50px;
             max-width: 100%;
+            transition: var(--transicion);
         }
 
         .usuario-logueado .foto {
-            width: 38px;
-            height: 38px;
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
             object-fit: cover;
             border: 2px solid var(--dorado);
             flex-shrink: 0;
+        }
+
+        .usuario-logueado .info-usuario {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: center;
+            min-width: 0;
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 8px;
+            transition: var(--transicion);
+        }
+
+        .usuario-logueado .info-usuario:hover {
+            background: rgba(200, 168, 78, 0.08);
         }
 
         .usuario-logueado .nombre {
@@ -279,6 +296,25 @@
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            line-height: 1.3;
+        }
+
+        .usuario-logueado .editar-nick {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: var(--dorado);
+            opacity: 0.75;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            line-height: 1.2;
+            transition: var(--transicion);
+        }
+
+        .usuario-logueado .info-usuario:hover .editar-nick {
+            opacity: 1;
         }
 
         .btn-cerrar {
@@ -310,7 +346,7 @@
             -webkit-backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.12);
             border-radius: var(--borde-redondo);
-            padding: 16px 20px;
+            padding: 16px 16px;
             box-shadow: var(--sombra);
             flex-direction: column;
             align-items: center;
@@ -331,19 +367,25 @@
         }
 
         .estadisticas-posicion {
-            display: flex;
+            display: inline-flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
-            font-size: 15px;
+            font-size: 14px;
             font-weight: 700;
             color: var(--blanco);
+            background: rgba(200, 168, 78, 0.08);
+            border: 1px solid rgba(200, 168, 78, 0.2);
+            border-radius: 50px;
+            padding: 6px 16px;
+            flex-wrap: wrap;
         }
 
         .estadisticas-posicion .posicion-numero {
-            font-size: 22px;
+            font-size: 20px;
             font-weight: 900;
             color: var(--dorado);
+            font-variant-numeric: tabular-nums;
         }
 
         .estadisticas-grid {
@@ -357,37 +399,46 @@
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.08);
             border-radius: 10px;
-            padding: 8px 6px;
+            padding: 8px 4px;
             text-align: center;
             display: flex;
             flex-direction: column;
             align-items: center;
+            justify-content: center;
             gap: 2px;
+            min-width: 0;
+            overflow: hidden;
         }
 
         .estadistica-item .valor {
-            font-size: 18px;
+            font-size: 17px;
             font-weight: 800;
             color: var(--blanco);
             line-height: 1.2;
+            white-space: nowrap;
+            font-variant-numeric: tabular-nums;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .estadistica-item .valor.puntos-valor {
             color: var(--dorado);
-            font-size: 20px;
+            font-size: 19px;
         }
 
         .estadistica-item .etiqueta {
-            font-size: 10px;
+            font-size: 9px;
             font-weight: 700;
-            letter-spacing: 0.05em;
+            letter-spacing: 0.06em;
             text-transform: uppercase;
             color: rgba(255, 255, 255, 0.5);
+            white-space: nowrap;
         }
 
         @media (min-width: 768px) {
             .panel-estadisticas-usuario {
-                padding: 18px 24px;
+                padding: 18px 20px;
             }
 
             .estadisticas-grid {
@@ -396,19 +447,19 @@
             }
 
             .estadistica-item {
-                padding: 10px 8px;
+                padding: 10px 6px;
             }
 
             .estadistica-item .valor {
-                font-size: 20px;
+                font-size: 19px;
             }
 
             .estadistica-item .valor.puntos-valor {
-                font-size: 22px;
+                font-size: 21px;
             }
 
             .estadistica-item .etiqueta {
-                font-size: 11px;
+                font-size: 10px;
             }
         }
 
@@ -431,36 +482,6 @@
             text-align: center;
             margin-bottom: 16px;
             letter-spacing: 0.04em;
-        }
-
-        .buscador-ranking {
-            margin-bottom: 16px;
-            display: flex;
-            justify-content: center;
-        }
-
-        .buscador-ranking input {
-            width: 100%;
-            max-width: 260px;
-            padding: 10px 16px;
-            border-radius: 50px;
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            background: rgba(0, 0, 0, 0.35);
-            color: var(--blanco);
-            font-size: 14px;
-            font-family: inherit;
-            outline: none;
-            transition: var(--transicion);
-            box-sizing: border-box;
-        }
-
-        .buscador-ranking input:focus {
-            border-color: var(--dorado);
-            background: rgba(0, 0, 0, 0.5);
-        }
-
-        .buscador-ranking input::placeholder {
-            color: rgba(255, 255, 255, 0.4);
         }
 
         .tabla-ranking-wrap {
@@ -495,7 +516,6 @@
 
         .tabla-ranking tr:hover td {
             background: rgba(200, 168, 78, 0.06);
-            cursor: pointer;
         }
 
         .tabla-ranking .posicion {
@@ -559,233 +579,6 @@
             font-weight: 700;
         }
 
-        /* ---------- Overlay perfil jugador ---------- */
-        .overlay-perfil {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.92);
-            z-index: 2000;
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            animation: fadeIn 0.3s ease;
-            overflow-y: auto;
-        }
-
-        .overlay-perfil.visible { display: flex; }
-
-        .perfil-contenedor {
-            width: 100%;
-            max-width: 420px;
-            background: var(--gris-oscuro, #1a1a1a);
-            border-radius: var(--borde-redondo);
-            padding: 28px 24px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-
-        .perfil-header {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            justify-content: center;
-        }
-
-        .perfil-foto {
-            width: 70px;
-            height: 70px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 3px solid var(--dorado);
-        }
-
-        .perfil-nombre {
-            font-size: clamp(22px, 5vw, 28px);
-            font-weight: 800;
-            color: var(--blanco);
-        }
-
-        .perfil-posicion {
-            text-align: center;
-            color: var(--dorado);
-            font-size: 16px;
-            font-weight: 700;
-        }
-
-        .perfil-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
-            width: 100%;
-        }
-
-        .perfil-item {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 10px;
-            padding: 10px 6px;
-            text-align: center;
-        }
-
-        .perfil-item .valor {
-            font-size: 18px;
-            font-weight: 800;
-            color: var(--blanco);
-        }
-
-        .perfil-item .valor.positivo { color: #2ecc71; }
-        .perfil-item .valor.negativo { color: #e74c3c; }
-
-        .perfil-item .etiqueta {
-            font-size: 9px;
-            font-weight: 700;
-            text-transform: uppercase;
-            color: rgba(255, 255, 255, 0.45);
-            margin-top: 2px;
-        }
-
-        .perfil-descripcion {
-            color: rgba(255, 255, 255, 0.85);
-            font-size: 14px;
-            line-height: 1.5;
-            min-height: 40px;
-            text-align: center;
-        }
-
-        .perfil-red a {
-            color: var(--dorado);
-            font-size: 14px;
-            text-decoration: none;
-            word-break: break-all;
-            transition: var(--transicion);
-        }
-
-        .perfil-red a:hover { text-decoration: underline; }
-
-        .perfil-vacio {
-            color: rgba(255, 255, 255, 0.4);
-            font-size: 13px;
-            text-align: center;
-            font-style: italic;
-        }
-
-        .btn-cerrar-perfil {
-            width: 100%;
-            padding: 12px 24px;
-            border-radius: 50px;
-            font-size: 15px;
-            font-weight: 700;
-            cursor: pointer;
-            background: transparent;
-            color: var(--blanco);
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            transition: var(--transicion);
-            font-family: inherit;
-        }
-
-        .btn-cerrar-perfil:hover {
-            border-color: var(--blanco);
-            transform: scale(1.02);
-        }
-
-        @media (min-width: 768px) {
-            .perfil-grid { grid-template-columns: repeat(6, 1fr); }
-            .perfil-item .valor { font-size: 20px; }
-        }
-
-        /* ---------- Edición perfil usuario ---------- */
-        .panel-edicion-perfil {
-            width: 100%;
-            background: rgba(0, 0, 0, 0.35);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: var(--borde-redondo);
-            padding: 20px;
-            box-shadow: var(--sombra);
-        }
-
-        .panel-edicion-titulo {
-            font-size: 14px;
-            font-weight: 800;
-            color: var(--dorado);
-            text-align: center;
-            margin-bottom: 12px;
-        }
-
-        .form-edicion { display: flex; flex-direction: column; gap: 10px; }
-
-        .form-edicion label {
-            font-size: 12px;
-            color: rgba(255, 255, 255, 0.6);
-            text-align: left;
-        }
-
-        .form-edicion input,
-        .form-edicion textarea {
-            width: 100%;
-            padding: 10px 14px;
-            border-radius: 12px;
-            border: 2px solid rgba(255, 255, 255, 0.15);
-            background: rgba(255, 255, 255, 0.05);
-            color: var(--blanco);
-            font-size: 14px;
-            font-family: inherit;
-            outline: none;
-            transition: var(--transicion);
-            box-sizing: border-box;
-        }
-
-        .form-edicion input:focus,
-        .form-edicion textarea:focus {
-            border-color: var(--dorado);
-            background: rgba(255, 255, 255, 0.08);
-        }
-
-        .form-edicion textarea {
-            min-height: 60px;
-            resize: vertical;
-        }
-
-        .form-edicion textarea::placeholder { color: rgba(255, 255, 255, 0.3); }
-
-        .btn-editar-perfil {
-            width: 100%;
-            padding: 10px 24px;
-            border-radius: 50px;
-            font-size: 14px;
-            font-weight: 800;
-            cursor: pointer;
-            border: none;
-            background: var(--dorado);
-            color: #1a2a10;
-            transition: var(--transicion);
-            font-family: inherit;
-        }
-
-        .btn-editar-perfil:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(200, 168, 78, 0.4);
-        }
-
-        .btn-editar-perfil:disabled { opacity: 0.5; cursor: not-allowed; }
-
-        .mensaje-editar {
-            font-size: 12px;
-            text-align: center;
-            min-height: 16px;
-            font-weight: 600;
-        }
-        .mensaje-editar.ok { color: #2ecc71; }
-        .mensaje-editar.error { color: #e74c3c; }
-
         /* ---------- Panel Nickname ---------- */
         .overlay-nickname {
             position: fixed;
@@ -802,9 +595,12 @@
             padding: 20px;
         }
 
-        .overlay-nickname.visible { display: flex; }
+        .overlay-nickname.visible {
+            display: flex;
+        }
 
         .nickname-contenedor {
+            position: relative;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -817,7 +613,33 @@
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
         }
 
-        .nickanme-titulo {
+        .btn-cerrar-nickname {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.6);
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            font-size: 14px;
+            cursor: pointer;
+            transition: var(--transicion);
+            font-family: inherit;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-cerrar-nickname:hover {
+            border-color: var(--dorado);
+            color: var(--dorado);
+            background: rgba(200, 168, 78, 0.08);
+        }
+
+        .nickname-titulo {
             font-size: clamp(24px, 6vw, 32px);
             font-weight: 900;
             color: var(--dorado);
@@ -870,7 +692,9 @@
             color: #e74c3c;
         }
 
-        .mensaje-nickname.ok { color: #2ecc71; }
+        .mensaje-nickname.ok {
+            color: #2ecc71;
+        }
 
         .btn-guardar-nickname {
             width: 100%;
@@ -893,8 +717,14 @@
             box-shadow: 0 4px 20px rgba(200, 168, 78, 0.4);
         }
 
-        .btn-guardar-nickname:active { transform: scale(0.97); }
-        .btn-guardar-nickname:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-guardar-nickname:active {
+            transform: scale(0.97);
+        }
+
+        .btn-guardar-nickname:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
 
         /* ---------- Toast ---------- */
         .toast {
@@ -916,20 +746,38 @@
             max-width: 90vw;
         }
 
-        .toast.mostrar { transform: translateX(-50%) translateY(0); }
-
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .toast.mostrar {
+            transform: translateX(-50%) translateY(0);
+        }
 
         @media (max-width: 480px) {
-            .contenedor { gap: 24px; padding: 0 8px; }
-            .reglamento { padding: 20px 16px; }
-            .boton { max-width: 100%; }
-            .boton-jugar { font-size: 20px; padding: 18px 36px; }
+            .contenedor {
+                gap: 24px;
+                padding: 0 8px;
+            }
+
+            .reglamento {
+                padding: 20px 16px;
+            }
+
+            .boton {
+                max-width: 100%;
+            }
+
+            .boton-jugar {
+                font-size: 20px;
+                padding: 18px 36px;
+            }
         }
 
         @media (min-width: 1200px) {
-            .contenedor { max-width: 600px; }
-            .titulo { font-size: 88px; }
+            .contenedor {
+                max-width: 600px;
+            }
+
+            .titulo {
+                font-size: 88px;
+            }
         }
     </style>
 </head>
@@ -951,7 +799,10 @@
             </button>
             <div class="usuario-logueado" id="panelUsuario">
                 <img id="fotoUsuario" class="foto" alt="Foto de perfil">
-                <span class="nombre" id="nombreUsuario"></span>
+                <div class="info-usuario" id="infoUsuarioEditable" title="Editar tu nickname">
+                    <span class="nombre" id="nombreUsuario"></span>
+                    <span class="editar-nick">✏️ Editar nickname</span>
+                </div>
                 <button class="btn-cerrar" id="btnCerrarSesion">Salir</button>
             </div>
         </div>
@@ -988,18 +839,6 @@
                 <div class="estadistica-item">
                     <span class="valor" id="miEfec">0%</span>
                     <span class="etiqueta">EFEC</span>
-                </div>
-                <div class="estadistica-item">
-                    <span class="valor positivo" id="miGF">0</span>
-                    <span class="etiqueta">GF</span>
-                </div>
-                <div class="estadistica-item">
-                    <span class="valor negativo" id="miGC">0</span>
-                    <span class="etiqueta">GC</span>
-                </div>
-                <div class="estadistica-item">
-                    <span class="valor" id="miDG">0</span>
-                    <span class="etiqueta">DG</span>
                 </div>
             </div>
         </div>
@@ -1039,9 +878,6 @@
                     <input type="radio" name="filtroRanking" value="dia">
                     <span>Día actual</span>
                 </label>
-            </div>
-            <div class="buscador-ranking">
-                <input type="text" id="buscadorRanking" placeholder="🔍 Buscar nickname..." autocomplete="off">
             </div>
             <div class="tabla-ranking-wrap">
                 <table class="tabla-ranking">
@@ -1143,7 +979,7 @@
 
         <p>✔ ⚽ Gol rechazado: <span class="destacado">+1 punto</span>.</p>
 
-        <p>✔ 📺 Ganar un VAR: <span class="destacado">+2 puntos</span>.</p>
+        <p>✔ 📺 Ganar un VAR: <span class="destacado">+2 punto</span>.</p>
 
         <p>✔ 🥅 Penal atajado: <span class="destacado">+2 puntos</span>.</p>
 
@@ -1211,58 +1047,13 @@
     <!-- Overlay para crear/editar nickname -->
     <div class="overlay-nickname" id="overlayNickname">
         <div class="nickname-contenedor">
+            <button class="btn-cerrar-nickname" id="btnCerrarNickname" aria-label="Cerrar">✕</button>
             <div class="nickname-titulo">⚽ Tu Nickname</div>
             <div class="nickname-subtitulo">Elegí un nombre único para el ranking global</div>
             <input type="text" id="inputNickname" class="input-nickname" maxlength="12" placeholder="Tu nickname..." autocomplete="off">
             <div class="contador-nickname" id="contadorNickname">0/12</div>
             <div class="mensaje-nickname" id="mensajeNickname"></div>
             <button class="btn-guardar-nickname" id="btnGuardarNickname" disabled>Guardar</button>
-        </div>
-    </div>
-
-    <!-- Overlay perfil jugador -->
-    <div class="overlay-perfil" id="overlayPerfil">
-        <div class="perfil-contenedor">
-            <div class="perfil-header">
-                <img id="perfilFoto" class="perfil-foto" alt="Foto de perfil" style="display:none;">
-                <div>
-                    <div class="perfil-nombre" id="perfilNombre">Jugador</div>
-                    <div class="perfil-posicion" id="perfilPosicion">— del ranking</div>
-                </div>
-            </div>
-
-            <div class="perfil-grid" id="perfilGrid">
-                <!-- stats filled by JS -->
-            </div>
-
-            <div class="perfil-descripcion" id="perfilDescripcion">
-                <span class="perfil-vacio">Sin descripción</span>
-            </div>
-
-            <div class="perfil-red" id="perfilRedSocial"></div>
-
-            <!-- Edición (solo visible para el propio usuario) -->
-            <div class="panel-edicion-perfil" id="panelEdicionPerfil">
-                <div class="panel-edicion-titulo">✏ Editar perfil</div>
-                <div class="form-edicion">
-                    <div>
-                        <label for="editNombre">Nickname (3-12)</label>
-                        <input type="text" id="editNombre" maxlength="12" placeholder="Tu nickname...">
-                    </div>
-                    <div>
-                        <label for="editDescripcion">Descripción</label>
-                        <textarea id="editDescripcion" placeholder="Contanos un poco sobre vos..."></textarea>
-                    </div>
-                    <div>
-                        <label for="editRedSocial">Red social (URL)</label>
-                        <input type="url" id="editRedSocial" placeholder="https://instagram.com/tu_usuario">
-                    </div>
-                    <div class="mensaje-editar" id="mensajeEditar"></div>
-                    <button class="btn-editar-perfil" id="btnEditarPerfil" disabled>Guardar cambios</button>
-                </div>
-            </div>
-
-            <button class="btn-cerrar-perfil" id="btnCerrarPerfil">✕ CERRAR</button>
         </div>
     </div>
 
@@ -1298,6 +1089,7 @@
         const panelUsuario = document.getElementById('panelUsuario');
         const fotoUsuario = document.getElementById('fotoUsuario');
         const nombreUsuario = document.getElementById('nombreUsuario');
+        const infoUsuarioEditable = document.getElementById('infoUsuarioEditable');
         const btnCerrarSesion = document.getElementById('btnCerrarSesion');
         const btnJugar = document.getElementById('btnJugar');
         const toast = document.getElementById('toast');
@@ -1306,6 +1098,7 @@
         const contadorNickname = document.getElementById('contadorNickname');
         const mensajeNickname = document.getElementById('mensajeNickname');
         const btnGuardarNickname = document.getElementById('btnGuardarNickname');
+        const btnCerrarNickname = document.getElementById('btnCerrarNickname');
         const panelEstadisticas = document.getElementById('panelEstadisticas');
         const miPosicionRanking = document.getElementById('miPosicionRanking');
         const miPuntos = document.getElementById('miPuntos');
@@ -1314,26 +1107,6 @@
         const miPE = document.getElementById('miPE');
         const miPP = document.getElementById('miPP');
         const miEfec = document.getElementById('miEfec');
-        const miGF = document.getElementById('miGF');
-        const miGC = document.getElementById('miGC');
-        const miDG = document.getElementById('miDG');
-
-        // Nuevos elementos
-        const buscadorRanking = document.getElementById('buscadorRanking');
-        const overlayPerfil = document.getElementById('overlayPerfil');
-        const perfilFoto = document.getElementById('perfilFoto');
-        const perfilNombre = document.getElementById('perfilNombre');
-        const perfilPosicion = document.getElementById('perfilPosicion');
-        const perfilGrid = document.getElementById('perfilGrid');
-        const perfilDescripcion = document.getElementById('perfilDescripcion');
-        const perfilRedSocial = document.getElementById('perfilRedSocial');
-        const panelEdicionPerfil = document.getElementById('panelEdicionPerfil');
-        const editNombre = document.getElementById('editNombre');
-        const editDescripcion = document.getElementById('editDescripcion');
-        const editRedSocial = document.getElementById('editRedSocial');
-        const mensajeEditar = document.getElementById('mensajeEditar');
-        const btnEditarPerfil = document.getElementById('btnEditarPerfil');
-        const btnCerrarPerfil = document.getElementById('btnCerrarPerfil');
 
         const NICK_MIN = 3;
         const NICK_MAX = 12;
@@ -1345,11 +1118,6 @@
         let nicknameActual = '';
         let timeoutVerificarNickname = null;
         let ultimaListaRanking = [];
-        let filtroActual = 'global';
-        let editingPerfil = false;
-        let editNombreOriginal = '';
-        let editDescripcionOriginal = '';
-        let editRedSocialOriginal = '';
 
         function mostrarToast(texto) {
             toast.textContent = texto;
@@ -1402,10 +1170,6 @@
                         efectividad: 0,
                         rachaActual: 0,
                         mejorRacha: 0,
-                        golesFavor: 0,
-                        golesContra: 0,
-                        descripcion: '',
-                        redSocial: '',
                         ultimaActualizacion: Date.now()
                     });
                 }
@@ -1455,27 +1219,6 @@
             return '';
         }
 
-        function validarDescripcion(desc) {
-            if (!desc) return '';
-            if (desc.length > 200) return 'Máximo 200 caracteres';
-            return '';
-        }
-
-        function validarRedSocial(url) {
-            if (!url) return '';
-            if (!/^https?:\/\//.test(url)) return 'Debe incluir http:// o https://';
-            if (url.length > 200) return 'Máximo 200 caracteres';
-            return '';
-        }
-
-        function validarNombre(nick) {
-            if (!nick) return 'Ingresá un nickname';
-            if (nick.length < NICK_MIN) return 'Mínimo ' + NICK_MIN + ' caracteres';
-            if (nick.length > NICK_MAX) return 'Máximo ' + NICK_MAX + ' caracteres';
-            if (!/^[a-zA-Z0-9_áéíóúÁÉÍÓÚñÑ ]+$/.test(nick)) return 'Solo letras, números, espacios y _';
-            return '';
-        }
-
         function mostrarOverlayNickname() {
             overlayNickname.classList.add('visible');
             inputNickname.value = nicknameActual;
@@ -1516,8 +1259,6 @@
                 nombreUsuario.textContent = nick;
                 ocultarOverlayNickname();
                 mostrarToast('¡Nickname guardado: ' + nick + '!');
-                // Refrescar ranking
-                cargarRanking();
             } catch (error) {
                 console.error('Error guardando nickname:', error);
                 mensajeNickname.textContent = 'Error al guardar. Revisá las reglas de la base de datos.';
@@ -1527,49 +1268,30 @@
             }
         }
 
-        async function verificarAbandono(uid) {
-            try {
-                const userRef = ref(db, 'usuarios/' + uid);
-                const snap = await get(userRef);
-                if (snap.exists()) {
-                    const datos = snap.val();
-                    if (datos.enPartida === true) {
-                        const partidosJugados = (datos.partidosJugados || 0) + 1;
-                        const partidosPerdidos = (datos.partidosPerdidos || 0) + 1;
-                        await update(userRef, {
-                            partidosJugados,
-                            partidosPerdidos,
-                            enPartida: false,
-                            ultimaActualizacion: Date.now()
-                        });
-                        console.log('Abandono detectado: +1 partidosJugados, +1 partidosPerdidos');
-                        mostrarToast('⚠ Abandonaste una partida: +1 partido jugado, +1 partido perdido');
+            async function verificarAbandono(uid) {
+                try {
+                    const userRef = ref(db, 'usuarios/' + uid);
+                    const snap = await get(userRef);
+                    if (snap.exists()) {
+                        const datos = snap.val();
+                        // Si quedó la marca enPartida=true, significa que el jugador cerró play.html sin terminar
+                        if (datos.enPartida === true) {
+                            const partidosJugados = (datos.partidosJugados || 0) + 1;
+                            const partidosPerdidos = (datos.partidosPerdidos || 0) + 1;
+                            await update(userRef, {
+                                partidosJugados,
+                                partidosPerdidos,
+                                enPartida: false,
+                                ultimaActualizacion: Date.now()
+                            });
+                            console.log('Abandono detectado: +1 partidosJugados, +1 partidosPerdidos');
+                            mostrarToast('⚠ Abandonaste una partida: +1 partido jugado, +1 partido perdido');
+                        }
                     }
+                } catch (error) {
+                    console.error('Error verificando abandono:', error);
                 }
-            } catch (error) {
-                console.error('Error verificando abandono:', error);
             }
-        }
-
-        function calcularPuntos(jugador) {
-            const pj = jugador.partidosJugados || 0;
-            const pg = jugador.partidosGanados || 0;
-            const pe = jugador.partidosEmpatados || 0;
-            const pp = jugador.partidosPerdidos || 0;
-            return (pg * 3) + (pe * 1) - (pp * 5);
-        }
-
-        function calcularEfectividad(jugador) {
-            const pj = jugador.partidosJugados || 0;
-            const pg = jugador.partidosGanados || 0;
-            return pj > 0 ? Math.round((pg / pj) * 1000) / 10 : 0;
-        }
-
-        function calcularDiferenciaGoles(jugador) {
-            const gf = jugador.golesFavor || 0;
-            const gc = jugador.golesContra || 0;
-            return gf - gc;
-        }
 
         function actualizarEstadisticasUsuario(lista) {
             if (!usuarioActual || !lista || lista.length === 0) {
@@ -1577,18 +1299,27 @@
                 return;
             }
 
+            // Calcular puntos de todos los jugadores para ordenar
+            const listaConPuntos = lista.map(j => {
+                const pj = j.partidosJugados || 0;
+                const pg = j.partidosGanados || 0;
+                const pe = j.partidosEmpatados || 0;
+                const pp = j.partidosPerdidos || 0;
+                return {
+                    ...j,
+                    _puntos: (pg * 3) + (pe * 1) - (pp * 5),
+                    _efectividad: pj > 0 ? Math.round((pg / pj) * 1000) / 10 : 0
+                };
+            });
+
             // Ordenar igual que el ranking
-            const listaConPuntos = lista.map(j => ({
-                ...j,
-                _puntos: calcularPuntos(j),
-                _efectividad: calcularEfectividad(j)
-            }));
             listaConPuntos.sort((a, b) => {
                 const difPuntos = b._puntos - a._puntos;
                 if (difPuntos !== 0) return difPuntos;
                 return b._efectividad - a._efectividad;
             });
 
+            // Buscar la posición del usuario actual
             const posicion = listaConPuntos.findIndex(j => j.uid === usuarioActual.uid);
             if (posicion === -1) {
                 panelEstadisticas.classList.remove('visible');
@@ -1600,11 +1331,8 @@
             const pg = misDatos.partidosGanados || 0;
             const pe = misDatos.partidosEmpatados || 0;
             const pp = misDatos.partidosPerdidos || 0;
-            const puntos = calcularPuntos(misDatos);
-            const efectividad = calcularEfectividad(misDatos);
-            const gf = misDatos.golesFavor || 0;
-            const gc = misDatos.golesContra || 0;
-            const dg = gf - gc;
+            const puntos = (pg * 3) + (pe * 1) - (pp * 5);
+            const efectividad = pj > 0 ? Math.round((pg / pj) * 1000) / 10 : 0;
             const racha = misDatos.rachaActual || 0;
 
             miPosicionRanking.textContent = '#' + (posicion + 1);
@@ -1614,9 +1342,6 @@
             miPE.textContent = pe;
             miPP.textContent = pp;
             miEfec.textContent = efectividad + '%';
-            miGF.textContent = gf;
-            miGC.textContent = gc;
-            miDG.textContent = dg;
 
             panelEstadisticas.classList.add('visible');
         }
@@ -1637,7 +1362,9 @@
                         nombreUsuario.textContent = user.displayName || 'Jugador';
                         mostrarOverlayNickname();
                     }
+                    // Detectar si el jugador abandonó una partida sin terminar
                     await verificarAbandono(user.uid);
+                    // Actualizar panel de estadísticas con los datos ya cargados
                     actualizarEstadisticasUsuario(ultimaListaRanking);
                 });
             } else {
@@ -1703,6 +1430,8 @@
             }
         });
 
+        btnCerrarNickname.addEventListener('click', ocultarOverlayNickname);
+
         btnCerrarSesion.addEventListener('click', async () => {
             try {
                 await signOut(auth);
@@ -1712,12 +1441,20 @@
             }
         });
 
+        // Editar nickname desde el perfil (arriba del botón JUGAR)
+        infoUsuarioEditable.addEventListener('click', () => {
+            if (usuarioActual) {
+                mostrarOverlayNickname();
+            }
+        });
+
         // Si no hay sesión, el botón JUGAR inicia el login
         btnJugar.addEventListener('click', (e) => {
             if (!usuarioActual) {
                 e.preventDefault();
                 iniciarSesionGoogle();
             } else {
+                // Ya hay sesión, ir a play.html
                 window.location.href = 'play.html';
             }
         });
@@ -1729,30 +1466,17 @@
             return div.innerHTML;
         }
 
-        function ordenarListaRanking(lista) {
-            const listaConPuntos = lista.map(j => ({
-                ...j,
-                _puntos: calcularPuntos(j),
-                _efectividad: calcularEfectividad(j)
-            }));
-            listaConPuntos.sort((a, b) => {
-                const difPuntos = (b._puntos || 0) - (a._puntos || 0);
-                if (difPuntos !== 0) return difPuntos;
-                return (b._efectividad || 0) - (a._efectividad || 0);
-            });
-            return listaConPuntos;
-        }
-
         function renderRanking(lista, filtro) {
             const tbody = document.getElementById('cuerpoRanking');
             if (!lista || lista.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="9" class="vacio-ranking">Aún no hay jugadores registrados</td></tr>';
                 return;
             }
-
+            
+            // Filtrar según el tipo
             let listaFiltrada = [...lista];
             const hoy = new Date();
-
+            
             if (filtro === 'mes') {
                 const mesActual = hoy.getMonth();
                 listaFiltrada = lista.filter(j => {
@@ -1766,20 +1490,37 @@
                     return fecha.getDate() === diaActual;
                 });
             }
+            
+            // Calcular puntos efectivos para ordenar (considerar datos almacenados)
+            listaFiltrada.forEach(j => {
+                const pj = j.partidosJugados || 0;
+                const pg = j.partidosGanados || 0;
+                const pe = j.partidosEmpatados || 0;
+                const pp = j.partidosPerdidos || 0;
+                j._puntosCalc = (pg * 3) + (pe * 1) - (pp * 5);
+            });
 
-            const listaOrdenada = ordenarListaRanking(listaFiltrada);
-            const listaTop = listaOrdenada.slice(0, 10);
+            // Ordenar por puntos (mayor primero), luego por efectividad
+            listaFiltrada.sort((a, b) => {
+                const difPuntos = (b._puntosCalc || 0) - (a._puntosCalc || 0);
+                if (difPuntos !== 0) return difPuntos;
+                return (b.efectividad || 0) - (a.efectividad || 0);
+            });
+
+            // Mostrar solo top 10 DESPUÉS de ordenar
+            listaFiltrada = listaFiltrada.slice(0, 10);
 
             tbody.innerHTML = '';
-            listaTop.forEach((jugador, i) => {
+            listaFiltrada.forEach((jugador, i) => {
                 const tr = document.createElement('tr');
                 const posicion = i + 1;
                 const pj = jugador.partidosJugados || 0;
                 const pg = jugador.partidosGanados || 0;
                 const pe = jugador.partidosEmpatados || 0;
                 const pp = jugador.partidosPerdidos || 0;
-                const puntos = calcularPuntos(jugador);
-                const efectividad = calcularEfectividad(jugador);
+                // Puntos según regla: ganado = +3, empate = +1, perdido = -5
+                const puntos = (pg * 3) + (pe * 1) - (pp * 5);
+                const efectividad = pj > 0 ? Math.round((pg / pj) * 1000) / 10 : 0;
                 const racha = jugador.rachaActual || 0;
                 const nick = jugador.nickname || 'Jugador';
 
@@ -1794,286 +1535,6 @@
                     '<td>' + efectividad + '%</td>' +
                     '<td>' + (racha > 0 ? '🔥 ' + racha : '—') + '</td>';
                 tbody.appendChild(tr);
-
-                // Click para abrir perfil
-                tr.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    mostrarPerfilJugador(jugador, posicion);
-                });
-            });
-        }
-
-        function renderRankingFiltrado(lista, filtro) {
-            renderRanking(lista, filtro);
-        }
-
-        // ================= PERFIL JUGADOR =================
-        function mostrarPerfilJugador(jugador, posicion) {
-            // Cargar datos completos desde Firebase
-            const userRef = ref(db, 'usuarios/' + jugador.uid);
-            get(userRef).then((snap) => {
-                let datos = jugador;
-                if (snap.exists()) {
-                    datos = { ...jugador, ...snap.val() };
-                }
-
-                // Foto
-                if (usuarioActual && datos.uid === usuarioActual.uid && usuarioActual.photoURL) {
-                    perfilFoto.src = usuarioActual.photoURL;
-                    perfilFoto.style.display = 'block';
-                } else {
-                    perfilFoto.style.display = 'none';
-                }
-
-                // Nickname
-                const nick = datos.nickname || 'Jugador';
-                perfilNombre.textContent = nick;
-
-                // Posición
-                if (posicion > 0) {
-                    perfilPosicion.textContent = '#' + posicion + ' del ranking';
-                } else {
-                    perfilPosicion.textContent = 'No está en el top 10';
-                }
-
-                // Stats grid
-                const pj = datos.partidosJugados || 0;
-                const pg = datos.partidosGanados || 0;
-                const pe = datos.partidosEmpatados || 0;
-                const pp = datos.partidosPerdidos || 0;
-                const puntos = calcularPuntos(datos);
-                const efectividad = calcularEfectividad(datos);
-                const gf = datos.golesFavor || 0;
-                const gc = datos.golesContra || 0;
-                const dg = gf - gc;
-                const racha = datos.rachaActual || 0;
-                const mejorRacha = datos.mejorRacha || 0;
-
-                perfilGrid.innerHTML = '';
-                const items = [
-                    { valor: puntos, etiqueta: 'PTS', clase: '' },
-                    { valor: pj, etiqueta: 'PJ', clase: '' },
-                    { valor: pg, etiqueta: 'PG', clase: '' },
-                    { valor: pe, etiqueta: 'PE', clase: '' },
-                    { valor: pp, etiqueta: 'PP', clase: '' },
-                    { valor: efectividad + '%', etiqueta: 'EFEC', clase: '' },
-                    { valor: gf, etiqueta: 'GF', clase: 'positivo' },
-                    { valor: gc, etiqueta: 'GC', clase: 'negativo' },
-                    { valor: dg, etiqueta: 'DG', clase: dg >= 0 ? 'positivo' : 'negativo' },
-                    { valor: racha > 0 ? '🔥 ' + racha : '—', etiqueta: 'Racha', clase: '' },
-                    { valor: mejorRacha, etiqueta: 'Mejor Racha', clase: '' }
-                ];
-
-                items.forEach(item => {
-                    const div = document.createElement('div');
-                    div.className = 'perfil-item';
-                    div.innerHTML =
-                        '<span class="valor ' + item.clase + '">' + escaparHTML(String(item.valor)) + '</span>' +
-                        '<span class="etiqueta">' + item.etiqueta + '</span>';
-                    perfilGrid.appendChild(div);
-                });
-
-                // Descripción
-                const descripcion = datos.descripcion || '';
-                if (descripcion) {
-                    perfilDescripcion.innerHTML = '<span class="perfil-vacio"></span>' + escaparHTML(descripcion);
-                    perfilDescripcion.classList.remove('perfil-vacio');
-                } else {
-                    perfilDescripcion.textContent = '';
-                    perfilDescripcion.innerHTML = '<span class="perfil-vacio">Sin descripción</span>';
-                }
-
-                // Red social
-                const redSocial = datos.redSocial || '';
-                if (redSocial) {
-                    perfilRedSocial.innerHTML = '<a href="' + redSocial + '" target="_blank" rel="noopener">🔗 ' + escaparHTML(redSocial) + '</a>';
-                } else {
-                    perfilRedSocial.innerHTML = '';
-                }
-
-                // Panel de edición solo para el usuario actual
-                if (usuarioActual && datos.uid === usuarioActual.uid) {
-                    panelEdicionPerfil.style.display = 'block';
-                    editNombre.value = nick;
-                    editDescripcion.value = datos.descripcion || '';
-                    editRedSocial.value = datos.redSocial || '';
-                    editNombreOriginal = nick;
-                    editDescripcionOriginal = datos.descripcion || '';
-                    editRedSocialOriginal = datos.redSocial || '';
-                    mensajeEditar.textContent = '';
-                    mensajeEditar.className = 'mensaje-editar';
-                    btnEditarPerfil.disabled = true;
-                    editingPerfil = false;
-                } else {
-                    panelEdicionPerfil.style.display = 'none';
-                }
-
-                overlayPerfil.classList.add('visible');
-            }).catch(error => {
-                console.error('Error cargando perfil:', error);
-            });
-        }
-
-        function ocultarPerfil() {
-            overlayPerfil.classList.remove('visible');
-        }
-
-        // Detectar cambios en los campos de edición
-        function checkEdicionChanges() {
-            const nombreVal = editNombre.value.trim();
-            const descVal = editDescripcion.value.trim();
-            const redVal = editRedSocial.value.trim();
-            editingPerfil = (nombreVal !== editNombreOriginal) || (descVal !== editDescripcionOriginal) || (redVal !== editRedSocialOriginal);
-            btnEditarPerfil.disabled = !editingPerfil;
-        }
-
-        editNombre?.addEventListener('input', checkEdicionChanges);
-        editDescripcion?.addEventListener('input', checkEdicionChanges);
-        editRedSocial?.addEventListener('input', checkEdicionChanges);
-
-        async function guardarEdicionPerfil() {
-            const nick = editNombre.value.trim();
-            const descripcion = editDescripcion.value.trim();
-            const redSocial = editRedSocial.value.trim();
-
-            // Validar nickname
-            const errorNick = validarNombre(nick);
-            if (errorNick) {
-                mensajeEditar.textContent = errorNick;
-                mensajeEditar.className = 'mensaje-editar error';
-                return;
-            }
-
-            // Validar descripción
-            const errorDesc = validarDescripcion(descripcion);
-            if (errorDesc) {
-                mensajeEditar.textContent = errorDesc;
-                mensajeEditar.className = 'mensaje-editar error';
-                return;
-            }
-
-            // Validar red social
-            const errorRed = validarRedSocial(redSocial);
-            if (errorRed) {
-                mensajeEditar.textContent = errorRed;
-                mensajeEditar.className = 'mensaje-editar error';
-                return;
-            }
-
-            // Verificar disponibilidad de nickname si cambió
-            if (nick !== nicknameActual) {
-                const disponible = await verificarNicknameDisponible(nick);
-                if (!disponible) {
-                    mensajeEditar.textContent = 'Ese nickname ya está en uso';
-                    mensajeEditar.className = 'mensaje-editar error';
-                    return;
-                }
-            }
-
-            try {
-                btnEditarPerfil.disabled = true;
-                const userRef = ref(db, 'usuarios/' + usuarioActual.uid);
-                const nuevosDatos = {
-                    nickname: nick,
-                    descripcion: descripcion,
-                    redSocial: redSocial,
-                    ultimaActualizacion: Date.now()
-                };
-                await update(userRef, nuevosDatos);
-
-                // Actualizar estado local
-                nicknameActual = nick;
-                nombreUsuario.textContent = nick;
-                mensajeEditar.textContent = '✓ Perfil actualizado';
-                mensajeEditar.className = 'mensaje-editar ok';
-                editNombreOriginal = nick;
-                editDescripcionOriginal = descripcion;
-                editRedSocialOriginal = redSocial;
-                editingPerfil = false;
-
-                // Refrescar datos
-                cargarRanking();
-                actualizarEstadisticasUsuario(ultimaListaRanking);
-
-                setTimeout(() => {
-                    if (mensajeEditar.textContent === '✓ Perfil actualizado') {
-                        mensajeEditar.textContent = '';
-                    }
-                }, 2000);
-            } catch (error) {
-                console.error('Error guardando perfil:', error);
-                mensajeEditar.textContent = '❌ Error al guardar. Revisá las reglas.';
-                mensajeEditar.className = 'mensaje-editar error';
-            } finally {
-                btnEditarPerfil.disabled = true;
-            }
-        }
-
-        btnEditarPerfil?.addEventListener('click', guardarEdicionPerfil);
-
-        // ================= BÚSQUEDA EN RANKING =================
-        let timeoutBusqueda = null;
-
-        buscadorRanking?.addEventListener('input', () => {
-            const termino = buscadorRanking.value.trim().toLowerCase();
-            clearTimeout(timeoutBusqueda);
-            timeoutBusqueda = setTimeout(() => {
-                aplicarBusquedaRanking(termino);
-            }, 300);
-        });
-
-        function aplicarBusquedaRanking(termino) {
-            if (!termino) {
-                // Si no hay búsqueda, renderizar normal
-                const filtro = document.querySelector('input[name="filtroRanking"]:checked')?.value || 'global';
-                renderRanking(ultimaListaRanking, filtro);
-                return;
-            }
-
-            // Filtrar la lista completa por nickname
-            const listaFiltrada = ultimaListaRanking.filter(j => {
-                const nick = (j.nickname || 'Jugador').toLowerCase();
-                return nick.includes(termino);
-            });
-
-            // Ordenar y mostrar
-            const listaOrdenada = ordenarListaRanking(listaFiltrada);
-            const tbody = document.getElementById('cuerpoRanking');
-
-            if (listaOrdenada.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="9" class="vacio-ranking">No se encontró ningún jugador</td></tr>';
-                return;
-            }
-
-            tbody.innerHTML = '';
-            listaOrdenada.forEach((jugador, i) => {
-                const tr = document.createElement('tr');
-                const posicion = i + 1;
-                const pj = jugador.partidosJugados || 0;
-                const pg = jugador.partidosGanados || 0;
-                const pe = jugador.partidosEmpatados || 0;
-                const pp = jugador.partidosPerdidos || 0;
-                const puntos = calcularPuntos(jugador);
-                const efectividad = calcularEfectividad(jugador);
-                const racha = jugador.rachaActual || 0;
-                const nick = jugador.nickname || 'Jugador';
-
-                tr.innerHTML =
-                    '<td class="posicion' + (posicion <= 3 ? ' top3' : '') + '">' + posicion + '</td>' +
-                    '<td class="td-nick">' + escaparHTML(nick) + '</td>' +
-                    '<td class="puntos-td">' + puntos + '</td>' +
-                    '<td>' + pj + '</td>' +
-                    '<td>' + pg + '</td>' +
-                    '<td>' + pe + '</td>' +
-                    '<td>' + pp + '</td>' +
-                    '<td>' + efectividad + '%</td>' +
-                    '<td>' + (racha > 0 ? '🔥 ' + racha : '—') + '</td>';
-                tbody.appendChild(tr);
-
-                tr.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    mostrarPerfilJugador(jugador, posicion);
-                });
             });
         }
 
@@ -2084,16 +1545,12 @@
                     const datos = snap.val();
                     const lista = Object.keys(datos).map(uid => ({ ...datos[uid], uid }));
                     ultimaListaRanking = lista;
+                    // Actualizar panel de estadísticas del usuario
                     actualizarEstadisticasUsuario(lista);
+                    // Guardar filtro seleccionado en localStorage
                     const filtro = document.querySelector('input[name="filtroRanking"]:checked')?.value || 'global';
                     localStorage.setItem('rankingFiltro', filtro);
-                    // Si hay búsqueda activa, aplicar
-                    const termino = buscadorRanking.value.trim().toLowerCase();
-                    if (termino) {
-                        aplicarBusquedaRanking(termino);
-                    } else {
-                        renderRanking(lista, filtro);
-                    }
+                    renderRanking(lista, filtro);
                 } else {
                     renderRanking([]);
                 }
@@ -2114,12 +1571,7 @@
                     if (snap.exists()) {
                         const datos = snap.val();
                         const lista = Object.keys(datos).map(uid => ({ ...datos[uid], uid }));
-                        const termino = buscadorRanking.value.trim().toLowerCase();
-                        if (termino) {
-                            aplicarBusquedaRanking(termino);
-                        } else {
-                            renderRanking(lista, filtro);
-                        }
+                        renderRanking(lista, filtro);
                     }
                 });
             });
@@ -2129,22 +1581,6 @@
         document.addEventListener('DOMContentLoaded', () => {
             const filtroGuardado = localStorage.getItem('rankingFiltro') || 'global';
             document.querySelector('input[value="' + filtroGuardado + '"]').checked = true;
-        });
-
-        // Cerrar overlay de perfil al hacer click fuera
-        overlayPerfil?.addEventListener('click', (e) => {
-            if (e.target === overlayPerfil) {
-                ocultarPerfil();
-            }
-        });
-
-        btnCerrarPerfil?.addEventListener('click', ocultarPerfil);
-
-        // Cerrar perfil con Escape
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && overlayPerfil && overlayPerfil.classList.contains('visible')) {
-                ocultarPerfil();
-            }
         });
 
         cargarRanking();
