@@ -846,8 +846,118 @@
             transform: translate(-50%, -50%) scale(1);
         }
 
+        /* ---------- Overlay de advertencia al salir ---------- */
+        .overlay-salida {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.92);
+            z-index: 400;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .overlay-salida.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .salida-contenedor {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            width: 100%;
+            max-width: 380px;
+            background: var(--gris-oscuro);
+            border-radius: var(--borde-redondo);
+            padding: 32px 24px;
+            box-shadow: var(--sombra-carta);
+            text-align: center;
+        }
+
+        .salida-titulo {
+            font-size: clamp(24px, 6vw, 32px);
+            font-weight: 800;
+            color: var(--blanco);
+            text-align: center;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .salida-titulo .icono-advertencia {
+            color: var(--rojo);
+        }
+
+        .salida-mensaje {
+            font-size: clamp(14px, 3vmin, 16px);
+            color: rgba(255, 255, 255, 0.7);
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        .salida-mensaje .destacado-salida {
+            color: var(--dorado);
+            font-weight: 700;
+        }
+
+        .botones-salida {
+            display: flex;
+            gap: 12px;
+            width: 100%;
+            margin-top: 8px;
+        }
+
+        .btn-salida {
+            flex: 1;
+            padding: 14px 20px;
+            border-radius: 50px;
+            font-size: clamp(14px, 3vmin, 16px);
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            border: none;
+            transition: var(--transicion);
+            font-family: inherit;
+            text-align: center;
+        }
+
+        .btn-cancelar-salida {
+            background: transparent;
+            color: var(--blanco);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-cancelar-salida:hover {
+            border-color: var(--blanco);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .btn-salir-salida {
+            background: var(--rojo);
+            border-color: var(--rojo-oscuro);
+            color: var(--blanco);
+        }
+
+        .btn-salir-salida:hover {
+            background: #d44235;
+            box-shadow: 0 4px 16px rgba(192, 57, 43, 0.4);
+        }
+
         /* Responsive - móviles */
+
         @media (max-width: 767px) {
+
             /* 1. Cartas jugadas: al fondo de la mesa, dejando espacio arriba para indicador */
             .mesa-fila {
                 height: 100%;
@@ -1001,7 +1111,20 @@
         </div>
     </div>
 
+    <!-- Overlay de advertencia al salir -->
+    <div class="overlay-salida" id="overlaySalida">
+        <div class="salida-contenedor">
+            <div class="salida-titulo"><span class="icono-advertencia">⚠️</span> ¿Estás seguro?</div>
+            <div class="salida-mensaje">Si salís de la partida, <span class="destacado-salida">vas a perder puntos</span> y se registrará como abandono.</div>
+            <div class="botones-salida">
+                <button class="btn-salida btn-cancelar-salida" id="btnCancelarSalida">✕ Cancelar</button>
+                <button class="btn-salida btn-salir-salida" id="btnConfirmarSalida">🚪 Salir</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Mensaje flotante -->
+
     <div class="mensaje-flotante" id="mensajeFlotante"></div>
 
     <!-- Audio de fondo -->
@@ -1335,9 +1458,15 @@
                 dom.nombreEnTurno = document.getElementById('nombreEnTurno');
                 dom.nombreJugadorEtiqueta = document.getElementById('nombreJugadorEtiqueta');
                 dom.audioFondo = document.getElementById('audioFondo');
-                
+
+                // Cachear elementos del overlay de advertencia de salida
+                dom.overlaySalida = document.getElementById('overlaySalida');
+                dom.btnCancelarSalida = document.getElementById('btnCancelarSalida');
+                dom.btnConfirmarSalida = document.getElementById('btnConfirmarSalida');
+
                 // Cachear elementos de audio estáticos para móviles
                 dom.audioCarta = document.getElementById('sndCarta');
+
                 dom.audioGol = document.getElementById('sndGol');
                 dom.audioGolazo = document.getElementById('sndGolazo');
                 dom.audioGolcpu = document.getElementById('sndGolcpu');
@@ -2914,7 +3043,10 @@
                 dom.overlayBienvenida.classList.add('oculto');
                 estado.pausado = false;
                 renderizarTodo();
-                
+
+                // Empujar un estado de historial para interceptar el botón "atrás"
+                history.pushState({ juegoIniciado: true }, '', location.href);
+
                 // Reproducir audio de fondo
                 if (dom.audioFondo) {
                     dom.audioFondo.volume = 0.3;
@@ -2922,12 +3054,53 @@
                 }
             }
 
-            // Registrar abandono si el jugador sale antes de terminar la partida
-            window.addEventListener('beforeunload', () => {
+            // ---------- Advertencia de salida ----------
+            function mostrarAdvertenciaSalida(callbackConfirmada) {
+                estado.pausado = true;
+                dom.overlaySalida.classList.add('visible');
+
+                const onConfirmar = () => {
+                    dom.overlaySalida.classList.remove('visible');
+                    dom.btnCancelarSalida.removeEventListener('click', onCancelar);
+                    dom.btnConfirmarSalida.removeEventListener('click', onConfirmar);
+                    estado.pausado = false;
+                    if (callbackConfirmada) callbackConfirmada();
+                };
+
+                const onCancelar = () => {
+                    dom.overlaySalida.classList.remove('visible');
+                    dom.btnCancelarSalida.removeEventListener('click', onCancelar);
+                    dom.btnConfirmarSalida.removeEventListener('click', onConfirmar);
+                    estado.pausado = false;
+                };
+
+                dom.btnCancelarSalida.addEventListener('click', onCancelar);
+                dom.btnConfirmarSalida.addEventListener('click', onConfirmar);
+            }
+
+            // Interceptar navegación hacia atrás (botón del navegador)
+            window.addEventListener('popstate', (e) => {
                 if (partidoEnCurso()) {
-                    registrarAbandono();
+                    e.preventDefault();
+                    mostrarAdvertenciaSalida(() => {
+                        window.location.href = 'index.html';
+                    });
+                    // Mantener en la página empujando un nuevo estado
+                    history.pushState({ juegoIniciado: true }, '', location.href);
                 }
             });
+
+            // Registrar abandono si el jugador sale antes de terminar la partida
+window.addEventListener('beforeunload', (e) => {
+    if (partidoEnCurso()) {
+        mostrarAdvertenciaSalida(() => {
+            registrarAbandono();
+            window.location.href = 'index.html';
+        });
+        e.preventDefault();
+        e.returnValue = '';
+    }
+});
             // Al ocultar la pestaña, esperar 30 segundos antes de considerar abandono
             // (evita registrar abandono por cambiar de app o minimizar brevemente)
             let tiempoOcultoInicio = 0;
@@ -2988,9 +3161,11 @@
                 const { manoJ, manoC } = repartir(mazo);
                 estado.manoJugador = ordenarMano(manoJ);
                 estado.manoCpu = ordenarMano(manoC);
+                estado.partidoActivo = true;
                 ocultarPanelVar();
                 renderizarTodo();
                 reproducirAudioFondo();
+                history.pushState({ juegoIniciado: true }, '', location.href);
             }
 
             function inicializarJuego() {
@@ -3079,7 +3254,13 @@
 
                 window.addEventListener('golazo-auth-change', aplicarSesionDesdeFirebase);
                 dom.btnIrAlInicio.addEventListener('click', () => {
-                    window.location.href = 'index.html';
+                    if (partidoEnCurso()) {
+                        mostrarAdvertenciaSalida(() => {
+                            window.location.href = 'index.html';
+                        });
+                    } else {
+                        window.location.href = 'index.html';
+                    }
                 });
 
                 aplicarSesionDesdeFirebase();
@@ -3089,6 +3270,7 @@
                 dom.btnNoQuieroIzq.addEventListener('click', () => { if (!dom.btnNoQuieroIzq.disabled) jugadorRespondeNoQuiero(); });
                 dom.btnVar.addEventListener('click', () => {
                     if (!dom.btnVar.disabled) {
+
                         if (estado.fase === 'var_pedido' && estado.varTurnoDeclarar === 'jugador') declararVarJugador();
                         else if (estado.fase === 'penal_pedido') jugadorRespondeVar();
                     }
@@ -3128,7 +3310,13 @@
                 dom.btnRevancha.addEventListener('click', reiniciarPartido);
                 dom.btnInicio.addEventListener('click', () => {
                     detenerAudioFondo();
-                    window.location.href = 'index.html';
+                    if (partidoEnCurso()) {
+                        mostrarAdvertenciaSalida(() => {
+                            window.location.href = 'index.html';
+                        });
+                    } else {
+                        window.location.href = 'index.html';
+                    }
                 });
 
                 window.addEventListener('resize', () => { if (!estado.pausado) renderizarTodo(); });
