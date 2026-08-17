@@ -1148,7 +1148,7 @@
             }
         });
 
-        async function guardarResultadoPartido(resultado) {
+        async function guardarResultadoPartido(resultado, golesJugador, golesCpu) {
             const user = window.GolazoFirebase.usuario;
             if (!user) return;
             try {
@@ -1170,10 +1170,15 @@
                 const efectividad = partidosJugados > 0 ? Math.round((partidosGanados / partidosJugados) * 1000) / 10 : 0;
                 const puntos = (partidosGanados * 3) + (partidosEmpatados * 1) - (partidosPerdidos * 5);
 
+                // Goles a favor y en contra
+                const golesFavor = (datos.golesFavor || 0) + (golesJugador || 0);
+                const golesContra = (datos.golesContra || 0) + (golesCpu || 0);
+
                 const nuevosDatos = {
                     ...datos,
                     nickname: (datos.nickname && datos.nickname.length > 0) ? datos.nickname : (user.displayName || 'Jugador'),
                     email: datos.email || (user.email || ''),
+                    fotoURL: user.photoURL || (datos.fotoURL || ''),
                     partidosJugados,
                     partidosGanados,
                     partidosEmpatados,
@@ -1182,6 +1187,8 @@
                     efectividad,
                     rachaActual,
                     mejorRacha,
+                    golesFavor,
+                    golesContra,
                     ultimaActualizacion: Date.now()
                 };
 
@@ -2833,7 +2840,7 @@
                 }
                 // Guardar estadísticas del partido en Firebase Realtime Database
                 if (window.GolazoFirebase && window.GolazoFirebase.guardarResultadoPartido) {
-                    window.GolazoFirebase.guardarResultadoPartido(resultado);
+                    window.GolazoFirebase.guardarResultadoPartido(resultado, estado.golesJugador, estado.golesCpu);
                 }
             }
 

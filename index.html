@@ -442,7 +442,7 @@
             }
 
             .estadisticas-grid {
-                grid-template-columns: repeat(6, 1fr);
+                grid-template-columns: repeat(3, 1fr);
                 gap: 10px;
             }
 
@@ -461,6 +461,117 @@
             .estadistica-item .etiqueta {
                 font-size: 10px;
             }
+        }
+
+        /* ---------- Overlay Perfil Jugador ---------- */
+        .overlay-perfil {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.92);
+            z-index: 1000;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .overlay-perfil.visible {
+            display: flex;
+        }
+
+        .perfil-contenedor {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            width: 100%;
+            max-width: 360px;
+            background: var(--gris-oscuro, #1a1a1a);
+            border-radius: var(--borde-redondo);
+            padding: 32px 24px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+        }
+
+        .perfil-foto {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid var(--dorado);
+        }
+
+        .perfil-nick {
+            font-size: 24px;
+            font-weight: 900;
+            color: var(--blanco);
+            text-align: center;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .perfil-posicion {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--dorado);
+            background: rgba(200, 168, 78, 0.08);
+            border: 1px solid rgba(200, 168, 78, 0.2);
+            border-radius: 50px;
+            padding: 6px 16px;
+        }
+
+        .perfil-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            width: 100%;
+        }
+
+        .perfil-item {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            padding: 8px 4px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .perfil-item .valor {
+            font-size: 17px;
+            font-weight: 800;
+            color: var(--blanco);
+            line-height: 1.2;
+            white-space: nowrap;
+            font-variant-numeric: tabular-nums;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .perfil-item .valor.puntos-valor {
+            color: var(--dorado);
+            font-size: 19px;
+        }
+
+        .perfil-item .etiqueta {
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.5);
+            white-space: nowrap;
         }
 
         /* ---------- Ranking ---------- */
@@ -840,6 +951,18 @@
                     <span class="valor" id="miEfec">0%</span>
                     <span class="etiqueta">EFEC</span>
                 </div>
+                <div class="estadistica-item">
+                    <span class="valor" id="miGF">0</span>
+                    <span class="etiqueta">GF</span>
+                </div>
+                <div class="estadistica-item">
+                    <span class="valor" id="miGC">0</span>
+                    <span class="etiqueta">GC</span>
+                </div>
+                <div class="estadistica-item">
+                    <span class="valor" id="miDIF">0</span>
+                    <span class="etiqueta">DIF</span>
+                </div>
             </div>
         </div>
 
@@ -1057,6 +1180,54 @@
         </div>
     </div>
 
+    <!-- Overlay para ver perfil de un jugador del ranking -->
+    <div class="overlay-perfil" id="overlayPerfil">
+        <div class="perfil-contenedor">
+            <button class="btn-cerrar-nickname" id="btnCerrarPerfil" aria-label="Cerrar">✕</button>
+            <img id="perfilFoto" class="perfil-foto" alt="Foto de perfil">
+            <div class="perfil-nick" id="perfilNick"></div>
+            <div class="perfil-posicion" id="perfilPosicion"></div>
+            <div class="perfil-grid">
+                <div class="perfil-item">
+                    <span class="valor puntos-valor" id="perfilPuntos">0</span>
+                    <span class="etiqueta">PTS</span>
+                </div>
+                <div class="perfil-item">
+                    <span class="valor" id="perfilPJ">0</span>
+                    <span class="etiqueta">PJ</span>
+                </div>
+                <div class="perfil-item">
+                    <span class="valor" id="perfilPG">0</span>
+                    <span class="etiqueta">PG</span>
+                </div>
+                <div class="perfil-item">
+                    <span class="valor" id="perfilPE">0</span>
+                    <span class="etiqueta">PE</span>
+                </div>
+                <div class="perfil-item">
+                    <span class="valor" id="perfilPP">0</span>
+                    <span class="etiqueta">PP</span>
+                </div>
+                <div class="perfil-item">
+                    <span class="valor" id="perfilEfec">0%</span>
+                    <span class="etiqueta">EFEC</span>
+                </div>
+                <div class="perfil-item">
+                    <span class="valor" id="perfilGF">0</span>
+                    <span class="etiqueta">GF</span>
+                </div>
+                <div class="perfil-item">
+                    <span class="valor" id="perfilGC">0</span>
+                    <span class="etiqueta">GC</span>
+                </div>
+                <div class="perfil-item">
+                    <span class="valor" id="perfilDIF">0</span>
+                    <span class="etiqueta">DIF</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         const ENLACE_DONACION = 'https://link.mercadopago.com.ar/dinaponki';
         document.getElementById('btnDonar').href = ENLACE_DONACION;
@@ -1107,6 +1278,23 @@
         const miPE = document.getElementById('miPE');
         const miPP = document.getElementById('miPP');
         const miEfec = document.getElementById('miEfec');
+        const miGF = document.getElementById('miGF');
+        const miGC = document.getElementById('miGC');
+        const miDIF = document.getElementById('miDIF');
+        const overlayPerfil = document.getElementById('overlayPerfil');
+        const btnCerrarPerfil = document.getElementById('btnCerrarPerfil');
+        const perfilFoto = document.getElementById('perfilFoto');
+        const perfilNick = document.getElementById('perfilNick');
+        const perfilPosicion = document.getElementById('perfilPosicion');
+        const perfilPuntos = document.getElementById('perfilPuntos');
+        const perfilPJ = document.getElementById('perfilPJ');
+        const perfilPG = document.getElementById('perfilPG');
+        const perfilPE = document.getElementById('perfilPE');
+        const perfilPP = document.getElementById('perfilPP');
+        const perfilEfec = document.getElementById('perfilEfec');
+        const perfilGF = document.getElementById('perfilGF');
+        const perfilGC = document.getElementById('perfilGC');
+        const perfilDIF = document.getElementById('perfilDIF');
 
         const NICK_MIN = 3;
         const NICK_MAX = 12;
@@ -1162,6 +1350,7 @@
                     await set(userRef, {
                         nickname: '',
                         email: user.email || '',
+                        fotoURL: user.photoURL || '',
                         partidosJugados: 0,
                         partidosGanados: 0,
                         partidosEmpatados: 0,
@@ -1334,6 +1523,9 @@
             const puntos = (pg * 3) + (pe * 1) - (pp * 5);
             const efectividad = pj > 0 ? Math.round((pg / pj) * 1000) / 10 : 0;
             const racha = misDatos.rachaActual || 0;
+            const gf = misDatos.golesFavor || 0;
+            const gc = misDatos.golesContra || 0;
+            const dif = gf - gc;
 
             miPosicionRanking.textContent = '#' + (posicion + 1);
             miPuntos.textContent = puntos;
@@ -1342,6 +1534,9 @@
             miPE.textContent = pe;
             miPP.textContent = pp;
             miEfec.textContent = efectividad + '%';
+            miGF.textContent = gf;
+            miGC.textContent = gc;
+            miDIF.textContent = (dif > 0 ? '+' : '') + dif;
 
             panelEstadisticas.classList.add('visible');
         }
@@ -1448,6 +1643,68 @@
             }
         });
 
+        // ================= PERFIL DE JUGADOR (desde ranking) =================
+        function mostrarPerfilJugador(uid) {
+            const jugador = ultimaListaRanking.find(j => j.uid === uid);
+            if (!jugador) return;
+
+            // Calcular posición en el ranking global
+            const listaConPuntos = [...ultimaListaRanking].map(j => {
+                const pj = j.partidosJugados || 0;
+                const pg = j.partidosGanados || 0;
+                const pe = j.partidosEmpatados || 0;
+                const pp = j.partidosPerdidos || 0;
+                return {
+                    ...j,
+                    _puntos: (pg * 3) + (pe * 1) - (pp * 5),
+                    _efectividad: pj > 0 ? Math.round((pg / pj) * 1000) / 10 : 0
+                };
+            });
+            listaConPuntos.sort((a, b) => {
+                const difPuntos = b._puntos - a._puntos;
+                if (difPuntos !== 0) return difPuntos;
+                return b._efectividad - a._efectividad;
+            });
+            const posicion = listaConPuntos.findIndex(j => j.uid === uid) + 1;
+
+            const pj = jugador.partidosJugados || 0;
+            const pg = jugador.partidosGanados || 0;
+            const pe = jugador.partidosEmpatados || 0;
+            const pp = jugador.partidosPerdidos || 0;
+            const puntos = (pg * 3) + (pe * 1) - (pp * 5);
+            const efectividad = pj > 0 ? Math.round((pg / pj) * 1000) / 10 : 0;
+            const gf = jugador.golesFavor || 0;
+            const gc = jugador.golesContra || 0;
+            const dif = gf - gc;
+
+            perfilFoto.src = jugador.fotoURL || '';
+            perfilNick.textContent = jugador.nickname || 'Jugador';
+            perfilPosicion.textContent = 'Posición #' + posicion + ' del ranking';
+            perfilPuntos.textContent = puntos;
+            perfilPJ.textContent = pj;
+            perfilPG.textContent = pg;
+            perfilPE.textContent = pe;
+            perfilPP.textContent = pp;
+            perfilEfec.textContent = efectividad + '%';
+            perfilGF.textContent = gf;
+            perfilGC.textContent = gc;
+            perfilDIF.textContent = (dif > 0 ? '+' : '') + dif;
+
+            overlayPerfil.classList.add('visible');
+        }
+
+        function ocultarPerfilJugador() {
+            overlayPerfil.classList.remove('visible');
+        }
+
+        btnCerrarPerfil.addEventListener('click', ocultarPerfilJugador);
+
+        overlayPerfil.addEventListener('click', (e) => {
+            if (e.target === overlayPerfil) {
+                ocultarPerfilJugador();
+            }
+        });
+
         // Si no hay sesión, el botón JUGAR inicia el login
         btnJugar.addEventListener('click', (e) => {
             if (!usuarioActual) {
@@ -1523,6 +1780,10 @@
                 const efectividad = pj > 0 ? Math.round((pg / pj) * 1000) / 10 : 0;
                 const racha = jugador.rachaActual || 0;
                 const nick = jugador.nickname || 'Jugador';
+
+                tr.style.cursor = 'pointer';
+                tr.title = 'Ver perfil de ' + nick;
+                tr.addEventListener('click', () => mostrarPerfilJugador(jugador.uid));
 
                 tr.innerHTML =
                     '<td class="posicion' + (posicion <= 3 ? ' top3' : '') + '">' + posicion + '</td>' +
