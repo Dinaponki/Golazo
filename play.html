@@ -2077,80 +2077,519 @@
             }
 
             // --- IA ---
+            // ============================================================
+            // IA INTELIGENTE: evalúa probabilidades, marcador, cartas
+            // jugadas del oponente y situación de la mano para tomar
+            // la mejor decisión posible en cada circunstancia.
+            // ============================================================
+
+            // Cartas que un jugador ya jugó en toda la mano (visibles en la mesa)
+            function iaCartasJugadasPor(quien) {
+                return estado.cartasEnMesa
+                    .filter(c => c.origen === quien)
+                    .map(c => c.carta);
+            }
+
+            // Deduce las cartas posibles que le quedan al oponente:
+            // todas las cartas del mazo menos las que ya se jugaron en la mesa
+            // y menos las que tiene el CPU en la mano.
+            function iaPosiblesCartasOponente() {
+                const jugadas = iaCartasJugadasPor('jugador');
+                const idsJugadas = new Set(jugadas.map(c => c.id));
+                const idsCpu = new Set(estado.manoCpu.map(c => c.id));
+                const posibles = [];
+                for (const pos of POSICIONES) {
+                    for (const num of NUMEROS) {
+                        const id = `${pos}${num}`;
+                        if (!idsJugadas.has(id) && !idsCpu.has(id)) {
+                            posibles.push(crearCarta(pos, num));
+                        }
+                    }
+                }
+                return posibles;
+            }
+
+            // Probabilidad (0-1) de que una carta gane contra las cartas posibles
+            // del oponente en las posiciones indicadas (o todas si no se filtra).
+            function iaProbabilidadGanar(carta, posicionesOponente) {
+                const posibles = iaPosiblesCartasOponente();
+                const filtradas = posicionesOponente
+                    ? posibles.filter(c => posicionesOponente.includes(c.posicion))
+                    : posibles;
+                if (!filtradas.length) return 0.5;
+                let gana = 0, empata = 0;
+                for (const c of filtradas) {
+                    if (carta.numero > c.numero) gana++;
+                    else if (carta.numero === c.numero) empata++;
+                }
+                // El empate no da punto a nadie, se cuenta como medio éxito
+                return (gana + empata * 0.5) / filtradas.length;
+            }
+
+            // Probabilidad de que el oponente tenga una carta >= umbral
+            // en las posiciones indicadas.
+            function iaProbabilidadOponenteTiene(umbral, posiciones) {
+                const posibles = iaPosiblesCartasOponente();
+                const filtradas = posiciones
+                    ? posibles.filter(c => posiciones.includes(c.posicion))
+                    : posibles;
+                if (!filtradas.length) return 0;
+                const total = filtradas.length;
+                const mayores = filtradas.filter(c => c.numero >= umbral).length;
+                return mayores / total;
+            }
+
+            // Evalúa la fuerza general de una mano (0-100)
+            function iaFuerzaMano(mano) {
+                if (!mano.length) return 0;
+                let suma = 0;
+                for (const c of mano) {
+                    suma += c.numero;
+                }
+                return (suma / (mano.length * 10)) * 100;
+            }
+
+            // Evalúa la fuerza de la mano del oponente basándose en
+            // las cartas que ya jugó y las que le quedan.
+            function iaFuerzaOponente() {
+                const jugadas = iaCartasJugadasPor('jugador');
+                const restantes = estado.manoJugador.length;
+                // Estimación: promedio de cartas jugadas + valor esperado de las restantes (~5.5)
+                const sumaJugadas = jugadas.reduce((s, c) => s + c.numero, 0);
+                const estimado = sumaJugadas + restantes * 5.5;
+                const total = (jugadas.length + restantes) * 10;
+                return total ? (estimado / total) * 100 : 50;
+            }
+
+            // ¿El CPU va ganando en puntos de la mano actual?
+            function iaVentajaPuntos() {
+                return estado.puntosCpu - estado.puntosJugador;
+            }
+
+            // ¿El CPU va ganando en goles del partido?
+            function iaVentajaGoles() {
+                return estado.golesCpu - estado.golesJugador;
+            }
+
+            // ¿Conviene arriesgar? Si va perdiendo, arriesga más.
+            function iaNivelRiesgo() {
+                const ventajaPuntos = iaVentajaPuntos();
+                const ventajaGoles = iaVentajaGoles();
+                // Base: 0.5 (neutral)
+                let riesgo = 0.5;
+                // Si va perdiendo por puntos, arriesga más
+                riesgo += Math.max(-0.25, Math.min(0.25, -ventajaPuntos * 0.08));
+                // Si va perdiendo por goles, arriesga más
+                riesgo += Math.max(-0.15, Math.min(0.15, -ventajaGoles * 0.1));
+                // Si es la última mano, arriesga más si va perdiendo
+                if (estado.manoActual >= TOTAL_MANOS - 1 && ventajaGoles < 0) riesgo += 0.15;
+                return Math.max(0.1, Math.min(0.9, riesgo));
+            }
+
+            // Mejor delantero del CPU
+            function iaMejorDelantero() {
+                return mejorCartaDe(estado.manoCpu, 'Del');
+            }
+
+            // Mejor arquero del CPU
+            function iaMejorArquero() {
+                return mejorCartaDe(estado.manoCpu, 'Arq');
+            }
+
+            // Mejor defensor/arquero del CPU
+            function iaMejorDefensa() {
+                return mejorCartaDeVarias(estado.manoCpu, ['Arq', 'Def']);
+            }
+
+            // Probabilidad de éxito de un penal del CPU:
+            // su mejor Del vs el probable Arq del oponente
+            function iaProbabilidadPenalExitoso() {
+                const del = iaMejorDelantero();
+                if (!del) return 0;
+                // El oponente usará su mejor arquero disponible
+                const probArqAlto = iaProbabilidadOponenteTiene(del.numero, ['Arq']);
+                // Si el oponente no tiene arquero, es gol seguro
+                const probSinArq = iaProbabilidadOponenteTiene(1, ['Arq']);
+                const probArq = 1 - probSinArq;
+                // Probabilidad de éxito = 1 - prob(arq >= del)
+                return 1 - probArqAlto;
+            }
+
+            // Probabilidad de éxito de un gol del CPU:
+            // su mejor Del vs el probable Arq/Def del oponente
+            function iaProbabilidadGolExitoso() {
+                const del = iaMejorDelantero();
+                if (!del) return 0;
+                const probDefAlto = iaProbabilidadOponenteTiene(del.numero, ['Arq', 'Def']);
+                const probSinDef = iaProbabilidadOponenteTiene(1, ['Arq', 'Def']);
+                const probDef = 1 - probSinDef;
+                return 1 - probDefAlto;
+            }
+
+            // Probabilidad de que el oponente gane un penal contra el CPU:
+            // su mejor Del vs el mejor Arq del CPU
+            function iaProbabilidadPenalOponente() {
+                const arq = iaMejorArquero();
+                if (!arq) return 1;
+                // El oponente usará su mejor delantero
+                const probDelAlto = iaProbabilidadOponenteTiene(arq.numero, ['Del']);
+                const probSinDel = iaProbabilidadOponenteTiene(1, ['Del']);
+                const probDel = 1 - probSinDel;
+                return 1 - probDelAlto;
+            }
+
+            // Probabilidad de que el oponente gane un gol contra el CPU:
+            // su mejor Del vs el mejor Arq/Def del CPU
+            function iaProbabilidadGolOponente() {
+                const def = iaMejorDefensa();
+                if (!def) return 1;
+                const probDelAlto = iaProbabilidadOponenteTiene(def.numero, ['Del']);
+                const probSinDel = iaProbabilidadOponenteTiene(1, ['Del']);
+                const probDel = 1 - probSinDel;
+                return 1 - probDelAlto;
+            }
+
+            // --- Elección de carta en juego normal ---
             function iaElegirCarta() {
                 const mano = estado.manoCpu;
                 if (!mano.length) return null;
-                
+
                 // Si hay penal activo y CPU es el defensor, jugar el arquero más alto
                 if (estado.penalActivo && estado.penalAtacante === 'jugador') {
                     const arq = mejorCartaDe(mano, 'Arq');
                     if (arq) return arq;
+                    // Sin arquero: jugar la carta más baja para minimizar daño
+                    return mano.reduce((a, b) => a.numero < b.numero ? a : b);
                 }
-                
-                // Si hay penal activo y CPU es el atacante, jugar el delantero
+
+                // Si hay penal activo y CPU es el atacante, jugar el delantero más alto
                 if (estado.penalActivo && estado.penalAtacante === 'cpu') {
                     const del = mejorCartaDe(mano, 'Del');
                     if (del) return del;
+                    // Sin delantero: jugar la carta más baja (el penal se pierde igual)
+                    return mano.reduce((a, b) => a.numero < b.numero ? a : b);
                 }
-                
-                // Si hay gol activo y CPU es el defensor, jugar Arq/Def más alto (o carta más alta)
+
+                // Si hay gol activo y CPU es el defensor, jugar Arq/Def más alto
                 if (estado.golActivo && estado.golAtacante === 'jugador') {
                     const def = mejorCartaDeVarias(mano, ['Arq', 'Def']);
                     if (def) return def;
-                    return cartaMasAlta(mano);
+                    return mano.reduce((a, b) => a.numero < b.numero ? a : b);
                 }
-                
-                // Si hay gol activo y CPU es el atacante, jugar el delantero (o carta más alta)
+
+                // Si hay gol activo y CPU es el atacante, jugar el delantero más alto
                 if (estado.golActivo && estado.golAtacante === 'cpu') {
                     const del = mejorCartaDe(mano, 'Del');
                     if (del) return del;
-                    return cartaMasAlta(mano);
+                    return mano.reduce((a, b) => a.numero < b.numero ? a : b);
                 }
-                
-                const r = Math.random();
-                if (r < 0.45) return mano.reduce((a, b) => a.numero > b.numero ? a : b);
-                if (r < 0.75) return mano.reduce((a, b) => a.numero < b.numero ? a : b);
-                return mano[Math.floor(Math.random() * mano.length)];
+
+                // --- Juego normal ---
+                const esMano = estado.turnoActual === estado.turnoInicial;
+                const cartaJugador = cartasDeRondaActual().filter(c => c.origen === 'jugador').pop();
+                const riesgo = iaNivelRiesgo();
+                const puntosCpu = estado.puntosCpu;
+                const puntosJugador = estado.puntosJugador;
+                const quedanRondas = 4 - estado.rondaActual;
+                const cartasRestantesCpu = mano.length;
+                const cartasRestantesJugador = estado.manoJugador.length;
+
+                // Guardar el mejor delantero si aún no se usó el canto de gol/penal
+                const puedeCantarPenal = estado.rondaActual === 0 && !estado.penalUsado && !estado.penalCantadoPor;
+                const puedeCantarGol = estado.rondaActual >= 1 && !estado.golUsado;
+                const delantero = mejorCartaDe(mano, 'Del');
+                const guardarDelantero = (puedeCantarPenal || puedeCantarGol) && delantero && delantero.numero >= 6;
+
+                // Si el CPU es MANO (empieza la ronda)
+                if (esMano) {
+                    // Si va ganando por puntos y quedan pocas rondas, puede jugar conservador
+                    if (puntosCpu >= 2 && quedanRondas <= 2 && puntosJugador === 0) {
+                        // Jugar una carta media para no arriesgar el delantero
+                        const sinDel = mano.filter(c => !(guardarDelantero && c.id === delantero.id));
+                        if (sinDel.length) {
+                            // Jugar la carta más alta que no sea el delantero guardado
+                            return sinDel.reduce((a, b) => a.numero > b.numero ? a : b);
+                        }
+                    }
+
+                    // Si es mano, jugar una carta fuerte para presionar
+                    // pero guardar el delantero si puede servir para un canto
+                    const candidatas = guardarDelantero
+                        ? mano.filter(c => c.id !== delantero.id)
+                        : mano;
+
+                    if (candidatas.length) {
+                        // Jugar la carta más alta disponible (presión)
+                        return candidatas.reduce((a, b) => a.numero > b.numero ? a : b);
+                    }
+                    // Si solo queda el delantero, jugarlo
+                    return delantero;
+                }
+
+                // Si el CPU es PIE (responde a la carta del jugador)
+                if (cartaJugador) {
+                    const numeroJugador = cartaJugador.carta.numero;
+
+                    // ¿Puedo ganar con alguna carta?
+                    const ganadoras = mano.filter(c => c.numero > numeroJugador);
+                    if (ganadoras.length) {
+                        // Si puedo ganar, usar la carta MÍNIMA necesaria para ganar
+                        // (ahorrar cartas fuertes para futuras rondas/cantos)
+                        let mejorOpcion = ganadoras.reduce((a, b) => a.numero < b.numero ? a : b);
+
+                        // Pero si el delantero es la única que gana y lo necesito para un canto,
+                        // considerar si vale la pena usarlo
+                        if (guardarDelantero && mejorOpcion.id === delantero.id) {
+                            // Si hay otra carta que gana, usarla
+                            const otrasGanadoras = ganadoras.filter(c => c.id !== delantero.id);
+                            if (otrasGanadoras.length) {
+                                mejorOpcion = otrasGanadoras.reduce((a, b) => a.numero < b.numero ? a : b);
+                            } else {
+                                // Solo el delantero gana. Decidir según el contexto:
+                                // - Si ganar esta ronda me da el gol (llego a 3 puntos), usar el delantero
+                                // - Si el delantero es muy alto (9-10) y el canto es muy valioso, sacrificar la ronda
+                                const ganoConEsto = puntosCpu + 1 >= PUNTOS_PARA_GOL;
+                                const delanteroMuyAlto = delantero.numero >= 9;
+                                if (ganoConEsto || !delanteroMuyAlto || riesgo > 0.6) {
+                                    return mejorOpcion;
+                                }
+                                // Sacrificar la ronda: jugar la carta más baja
+                                return mano.reduce((a, b) => a.numero < b.numero ? a : b);
+                            }
+                        }
+                        return mejorOpcion;
+                    }
+
+                    // No puedo ganar con ninguna carta
+                    // Si el oponente está a punto de llegar a 3 puntos, intentar empatar
+                    // con una carta del mismo número (el empate no da punto)
+                    const empates = mano.filter(c => c.numero === numeroJugador);
+                    if (empates.length && puntosJugador + 1 >= PUNTOS_PARA_GOL) {
+                        return empates[0];
+                    }
+
+                    // No puedo ganar: sacrificar la carta más débil
+                    // (pero guardar el delantero si es necesario para un canto)
+                    const sacrificables = guardarDelantero
+                        ? mano.filter(c => c.id !== delantero.id)
+                        : mano;
+
+                    if (sacrificables.length) {
+                        return sacrificables.reduce((a, b) => a.numero < b.numero ? a : b);
+                    }
+                    // Solo queda el delantero, jugarlo
+                    return delantero;
+                }
+
+                // Sin carta del jugador visible (caso raro): jugar la más alta
+                return mano.reduce((a, b) => a.numero > b.numero ? a : b);
             }
 
+            // --- Decisión de cantar penal ---
             function iaDecidirCantarPenal() {
                 if (estado.penalUsado || estado.penalCantadoPor || estado.rondaActual !== 0) return false;
-                const d = mejorCartaDe(estado.manoCpu, 'Del');
-                return (d && d.numero >= 7) || Math.random() < 0.2;
+                const del = iaMejorDelantero();
+                if (!del) return false;
+
+                const probExito = iaProbabilidadPenalExitoso();
+                const riesgo = iaNivelRiesgo();
+                const puntosCpu = estado.puntosCpu;
+                const puntosJugador = estado.puntosJugador;
+
+                // Si el delantero es muy alto (9-10), casi siempre conviene cantar
+                if (del.numero >= 9 && probExito >= 0.6) return true;
+
+                // Si el delantero es alto (7-8), cantar si la probabilidad es buena
+                if (del.numero >= 7 && probExito >= 0.55) return true;
+
+                // Si el delantero es medio (5-6), cantar solo si va perdiendo o hay buen riesgo
+                if (del.numero >= 5 && probExito >= 0.5 && riesgo >= 0.55) return true;
+
+                // Si va perdiendo por puntos y tiene un delantero decente, arriesgar
+                if (puntosJugador > puntosCpu && del.numero >= 5 && probExito >= 0.45) return true;
+
+                // Si va perdiendo el partido y es la última mano, arriesgar más
+                if (estado.manoActual >= TOTAL_MANOS - 1 && iaVentajaGoles() < 0 && del.numero >= 5) return true;
+
+                // Pequeña probabilidad de sorpresa si el riesgo es alto
+                if (riesgo >= 0.7 && del.numero >= 4 && probExito >= 0.4) {
+                    return Math.random() < 0.3;
+                }
+
+                return false;
             }
 
+            // --- Decisión de cantar gol ---
             function iaDecidirCantarGol() {
                 if (estado.golUsado || estado.rondaActual < 1 || estado.manoJugador.length === 0 || estado.manoCpu.length === 0) return false;
-                const d = mejorCartaDe(estado.manoCpu, 'Del');
-                return (d && d.numero >= 6) || Math.random() < 0.25;
+                const del = iaMejorDelantero();
+                if (!del) return false;
+
+                const probExito = iaProbabilidadGolExitoso();
+                const riesgo = iaNivelRiesgo();
+                const puntosCpu = estado.puntosCpu;
+                const puntosJugador = estado.puntosJugador;
+
+                // Si el delantero es muy alto (9-10), casi siempre conviene cantar
+                if (del.numero >= 9 && probExito >= 0.55) return true;
+
+                // Si el delantero es alto (7-8), cantar si la probabilidad es buena
+                if (del.numero >= 7 && probExito >= 0.5) return true;
+
+                // Si el delantero es medio (5-6), cantar solo si va perdiendo o hay buen riesgo
+                if (del.numero >= 5 && probExito >= 0.45 && riesgo >= 0.55) return true;
+
+                // Si va perdiendo por puntos y tiene un delantero decente, arriesgar
+                if (puntosJugador > puntosCpu && del.numero >= 5 && probExito >= 0.4) return true;
+
+                // Si va perdiendo el partido y es la última mano, arriesgar más
+                if (estado.manoActual >= TOTAL_MANOS - 1 && iaVentajaGoles() < 0 && del.numero >= 5) return true;
+
+                // Pequeña probabilidad de sorpresa si el riesgo es alto
+                if (riesgo >= 0.7 && del.numero >= 4 && probExito >= 0.35) {
+                    return Math.random() < 0.25;
+                }
+
+                return false;
             }
 
+            // --- Respuesta a cantos del oponente ---
             function iaResponderCanto(tipo) {
+                const riesgo = iaNivelRiesgo();
+                const puntosCpu = estado.puntosCpu;
+                const puntosJugador = estado.puntosJugador;
                 const r = Math.random();
+
                 if (tipo === 'penal') {
-                    const a = mejorCartaDe(estado.manoCpu, 'Arq');
-                    if (a && a.numero >= 6) return Math.random() < 0.7 ? 'quiero' : 'var';
-                    if (r < 0.3) return 'quiero';
-                    if (r < 0.55) return 'var';
+                    const arq = iaMejorArquero();
+                    const probOponente = iaProbabilidadPenalOponente();
+
+                    // Si no tengo arquero, el penal es gol casi seguro → no querer
+                    if (!arq) return 'no_quiero';
+
+                    // Si mi arquero es muy alto (9-10), aceptar o pedir VAR
+                    if (arq.numero >= 9) {
+                        // Si el oponente probablemente no tiene delantero alto, aceptar
+                        if (probOponente <= 0.4) return 'quiero';
+                        return r < 0.6 ? 'quiero' : 'var';
+                    }
+
+                    // Si mi arquero es alto (7-8)
+                    if (arq.numero >= 7) {
+                        if (probOponente <= 0.35) return 'quiero';
+                        if (probOponente <= 0.6) return r < 0.5 ? 'quiero' : 'var';
+                        return r < 0.4 ? 'var' : 'no_quiero';
+                    }
+
+                    // Si mi arquero es medio (5-6)
+                    if (arq.numero >= 5) {
+                        // Si voy ganando, puedo arriesgar a aceptar
+                        if (iaVentajaPuntos() > 0 && probOponente <= 0.5) {
+                            return r < 0.4 ? 'quiero' : 'var';
+                        }
+                        // Si voy perdiendo, mejor no querer o VAR
+                        return r < 0.3 ? 'var' : 'no_quiero';
+                    }
+
+                    // Arquero bajo (1-4): casi siempre no querer
+                    // Pero si voy perdiendo feo, intentar VAR como última chance
+                    if (iaVentajaPuntos() <= -2 && arq.numero >= 4) {
+                        return r < 0.4 ? 'var' : 'no_quiero';
+                    }
                     return 'no_quiero';
                 }
+
                 if (tipo === 'gol') {
-                    const d = mejorCartaDeVarias(estado.manoCpu, ['Def', 'Arq']);
-                    if (d && d.numero >= 5) return Math.random() < 0.6 ? 'quiero' : 'no_quiero';
-                    if (r < 0.25) return 'golazo';
-                    if (r < 0.5) return 'quiero';
+                    const def = iaMejorDefensa();
+                    const probOponente = iaProbabilidadGolOponente();
+
+                    // Si no tengo defensa, el gol es casi seguro → no querer
+                    if (!def) return 'no_quiero';
+
+                    // Si mi defensa es muy alta (9-10), aceptar
+                    if (def.numero >= 9) {
+                        if (probOponente <= 0.4) return 'quiero';
+                        return r < 0.5 ? 'quiero' : 'no_quiero';
+                    }
+
+                    // Si mi defensa es alta (7-8)
+                    if (def.numero >= 7) {
+                        if (probOponente <= 0.35) return 'quiero';
+                        if (probOponente <= 0.55) return r < 0.5 ? 'quiero' : 'no_quiero';
+                        // Si voy perdiendo, puedo intentar golazo como contraataque
+                        if (iaVentajaPuntos() < 0 && iaMejorDelantero() && iaMejorDelantero().numero >= 6) {
+                            return r < 0.3 ? 'golazo' : 'no_quiero';
+                        }
+                        return 'no_quiero';
+                    }
+
+                    // Si mi defensa es media (5-6)
+                    if (def.numero >= 5) {
+                        // Si voy ganando, aceptar con moderación
+                        if (iaVentajaPuntos() > 0 && probOponente <= 0.5) {
+                            return r < 0.4 ? 'quiero' : 'no_quiero';
+                        }
+                        // Si voy perdiendo, intentar golazo
+                        if (iaVentajaPuntos() < 0 && iaMejorDelantero() && iaMejorDelantero().numero >= 5) {
+                            return r < 0.35 ? 'golazo' : 'no_quiero';
+                        }
+                        return 'no_quiero';
+                    }
+
+                    // Defensa baja (1-4): no querer, o golazo si voy perdiendo
+                    if (iaVentajaPuntos() < 0 && iaMejorDelantero() && iaMejorDelantero().numero >= 6) {
+                        return r < 0.3 ? 'golazo' : 'no_quiero';
+                    }
                     return 'no_quiero';
                 }
+
                 if (tipo === 'golazo') {
-                    const d = mejorCartaDeVarias(estado.manoCpu, ['Arq', 'Def']);
-                    if (d && d.numero >= 6) return 'quiero';
-                    return r < 0.4 ? 'quiero' : 'no_quiero';
+                    const def = iaMejorDefensa();
+                    const probOponente = iaProbabilidadGolOponente();
+
+                    // Si no tengo defensa, no querer (el golazo es muy costoso)
+                    if (!def) return 'no_quiero';
+
+                    // Si mi defensa es muy alta (9-10), aceptar
+                    if (def.numero >= 9 && probOponente <= 0.5) return 'quiero';
+
+                    // Si mi defensa es alta (7-8) y voy ganando, aceptar
+                    if (def.numero >= 7 && iaVentajaPuntos() > 0 && probOponente <= 0.45) {
+                        return r < 0.6 ? 'quiero' : 'no_quiero';
+                    }
+
+                    // Si voy perdiendo mucho, aceptar el riesgo (un golazo puede empatar el partido)
+                    if (iaVentajaGoles() <= -2 && def.numero >= 6) {
+                        return r < 0.5 ? 'quiero' : 'no_quiero';
+                    }
+
+                    // En general, no querer un golazo (cuesta 2 puntos si se rechaza)
+                    return 'no_quiero';
                 }
+
                 return 'no_quiero';
             }
 
+            // --- Decisión de aceptar/rechazar VAR ---
             function iaDecidirVar() {
-                return Math.random() < 0.6 ? 'quiero' : 'no_quiero';
+                // El VAR compara el número más alto entre Arq y Del de cada jugador
+                const miMejor = numeroMasAltoArqDel(estado.manoCpu);
+                const suMejor = numeroMasAltoArqDel(estado.manoJugador);
+
+                // Si mi mejor es mayor, aceptar el VAR (voy a ganar)
+                if (miMejor > suMejor) return 'quiero';
+
+                // Si mi mejor es menor, rechazar (voy a perder)
+                if (miMejor < suMejor) return 'no_quiero';
+
+                // Empate: el VAR se ejecuta sin puntos para nadie
+                // Si voy perdiendo, aceptar (puede anular el penal)
+                // Si voy ganando, rechazar (mejor asegurar)
+                if (iaVentajaPuntos() < 0) return 'quiero';
+                if (iaVentajaPuntos() > 0) return 'no_quiero';
+
+                // Empate en puntos: 50/50
+                return Math.random() < 0.5 ? 'quiero' : 'no_quiero';
             }
 
             function iaDeclararVar() {
