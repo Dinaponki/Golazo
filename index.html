@@ -497,14 +497,6 @@
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
         }
 
-        .perfil-foto {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 3px solid var(--dorado);
-        }
-
         .perfil-nick {
             font-size: 24px;
             font-weight: 900;
@@ -662,6 +654,35 @@
             padding: 24px;
             color: rgba(255, 255, 255, 0.5);
             font-size: 14px;
+        }
+
+        .buscador-ranking {
+            width: 100%;
+            margin-bottom: 12px;
+        }
+
+        .input-buscador {
+            width: 100%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            border: 2px solid #333;
+            background: #333;
+            color: var(--blanco);
+            font-size: 14px;
+            font-weight: 600;
+            outline: none;
+            transition: var(--transicion);
+            font-family: inherit;
+        }
+
+        .input-buscador:focus {
+            border-color: var(--dorado);
+            background: #3a3a3a;
+        }
+
+        .input-buscador::placeholder {
+            color: rgba(255, 255, 255, 0.3);
+            font-weight: 400;
         }
 
         .filtros-ranking {
@@ -988,6 +1009,9 @@
         <!-- Ranking global -->
         <section class="ranking-seccion">
             <h2>🏆 Ranking</h2>
+            <div class="buscador-ranking">
+                <input type="text" id="inputBuscador" class="input-buscador" placeholder="🔍 Buscar jugador por nickname..." autocomplete="off">
+            </div>
             <div class="filtros-ranking">
                 <label>
                     <input type="radio" name="filtroRanking" value="global" checked>
@@ -1184,7 +1208,6 @@
     <div class="overlay-perfil" id="overlayPerfil">
         <div class="perfil-contenedor">
             <button class="btn-cerrar-nickname" id="btnCerrarPerfil" aria-label="Cerrar">✕</button>
-            <img id="perfilFoto" class="perfil-foto" alt="Foto de perfil">
             <div class="perfil-nick" id="perfilNick"></div>
             <div class="perfil-posicion" id="perfilPosicion"></div>
             <div class="perfil-grid">
@@ -1283,7 +1306,7 @@
         const miDIF = document.getElementById('miDIF');
         const overlayPerfil = document.getElementById('overlayPerfil');
         const btnCerrarPerfil = document.getElementById('btnCerrarPerfil');
-        const perfilFoto = document.getElementById('perfilFoto');
+        const inputBuscador = document.getElementById('inputBuscador');
         const perfilNick = document.getElementById('perfilNick');
         const perfilPosicion = document.getElementById('perfilPosicion');
         const perfilPuntos = document.getElementById('perfilPuntos');
@@ -1677,7 +1700,6 @@
             const gc = jugador.golesContra || 0;
             const dif = gf - gc;
 
-            perfilFoto.src = jugador.fotoURL || '';
             perfilNick.textContent = jugador.nickname || 'Jugador';
             perfilPosicion.textContent = 'Posición #' + posicion + ' del ranking';
             perfilPuntos.textContent = puntos;
@@ -1723,6 +1745,52 @@
             return div.innerHTML;
         }
 
+        function calcularEstadisticasPorPeriodo(jugador, filtro) {
+            // Si es global, usar las estadísticas acumuladas
+            if (filtro === 'global') {
+                const pj = jugador.partidosJugados || 0;
+                const pg = jugador.partidosGanados || 0;
+                const pe = jugador.partidosEmpatados || 0;
+                const pp = jugador.partidosPerdidos || 0;
+                const gf = jugador.golesFavor || 0;
+                const gc = jugador.golesContra || 0;
+                return {
+                    pj, pg, pe, pp, gf, gc,
+                    puntos: (pg * 3) + (pe * 1) - (pp * 5),
+                    efectividad: pj > 0 ? Math.round((pg / pj) * 1000) / 10 : 0,
+                    racha: jugador.rachaActual || 0
+                };
+            }
+
+            // Para mes/día, calcular desde el historial de partidos
+            const historial = jugador.historialPartidos || [];
+            const hoy = new Date();
+            const partidosFiltrados = historial.filter(p => {
+                const fecha = new Date(p.fecha);
+                if (filtro === 'mes') {
+                    return fecha.getMonth() === hoy.getMonth() && fecha.getFullYear() === hoy.getFullYear();
+                }
+                if (filtro === 'dia') {
+                    return fecha.getDate() === hoy.getDate() && fecha.getMonth() === hoy.getMonth() && fecha.getFullYear() === hoy.getFullYear();
+                }
+                return true;
+            });
+
+            const pj = partidosFiltrados.length;
+            const pg = partidosFiltrados.filter(p => p.resultado === 'ganar').length;
+            const pe = partidosFiltrados.filter(p => p.resultado === 'empate').length;
+            const pp = partidosFiltrados.filter(p => p.resultado === 'perder').length;
+            const gf = partidosFiltrados.reduce((sum, p) => sum + (p.golesFavor || 0), 0);
+            const gc = partidosFiltrados.reduce((sum, p) => sum + (p.golesContra || 0), 0);
+
+            return {
+                pj, pg, pe, pp, gf, gc,
+                puntos: (pg * 3) + (pe * 1) - (pp * 5),
+                efectividad: pj > 0 ? Math.round((pg / pj) * 1000) / 10 : 0,
+                racha: 0
+            };
+        }
+
         function renderRanking(lista, filtro) {
             const tbody = document.getElementById('cuerpoRanking');
             if (!lista || lista.length === 0) {
@@ -1736,32 +1804,39 @@
             
             if (filtro === 'mes') {
                 const mesActual = hoy.getMonth();
+                const anioActual = hoy.getFullYear();
                 listaFiltrada = lista.filter(j => {
-                    const fecha = new Date(j.ultimaActualizacion);
-                    return fecha.getMonth() === mesActual;
+                    const historial = j.historialPartidos || [];
+                    return historial.some(p => {
+                        const fecha = new Date(p.fecha);
+                        return fecha.getMonth() === mesActual && fecha.getFullYear() === anioActual;
+                    });
                 });
             } else if (filtro === 'dia') {
                 const diaActual = hoy.getDate();
+                const mesActual = hoy.getMonth();
+                const anioActual = hoy.getFullYear();
                 listaFiltrada = lista.filter(j => {
-                    const fecha = new Date(j.ultimaActualizacion);
-                    return fecha.getDate() === diaActual;
+                    const historial = j.historialPartidos || [];
+                    return historial.some(p => {
+                        const fecha = new Date(p.fecha);
+                        return fecha.getDate() === diaActual && fecha.getMonth() === mesActual && fecha.getFullYear() === anioActual;
+                    });
                 });
             }
             
-            // Calcular puntos efectivos para ordenar (considerar datos almacenados)
+            // Calcular estadísticas según el período
             listaFiltrada.forEach(j => {
-                const pj = j.partidosJugados || 0;
-                const pg = j.partidosGanados || 0;
-                const pe = j.partidosEmpatados || 0;
-                const pp = j.partidosPerdidos || 0;
-                j._puntosCalc = (pg * 3) + (pe * 1) - (pp * 5);
+                const stats = calcularEstadisticasPorPeriodo(j, filtro);
+                j._stats = stats;
+                j._puntosCalc = stats.puntos;
             });
 
             // Ordenar por puntos (mayor primero), luego por efectividad
             listaFiltrada.sort((a, b) => {
                 const difPuntos = (b._puntosCalc || 0) - (a._puntosCalc || 0);
                 if (difPuntos !== 0) return difPuntos;
-                return (b.efectividad || 0) - (a.efectividad || 0);
+                return (b._stats.efectividad || 0) - (a._stats.efectividad || 0);
             });
 
             // Mostrar solo top 10 DESPUÉS de ordenar
@@ -1771,14 +1846,7 @@
             listaFiltrada.forEach((jugador, i) => {
                 const tr = document.createElement('tr');
                 const posicion = i + 1;
-                const pj = jugador.partidosJugados || 0;
-                const pg = jugador.partidosGanados || 0;
-                const pe = jugador.partidosEmpatados || 0;
-                const pp = jugador.partidosPerdidos || 0;
-                // Puntos según regla: ganado = +3, empate = +1, perdido = -5
-                const puntos = (pg * 3) + (pe * 1) - (pp * 5);
-                const efectividad = pj > 0 ? Math.round((pg / pj) * 1000) / 10 : 0;
-                const racha = jugador.rachaActual || 0;
+                const stats = jugador._stats;
                 const nick = jugador.nickname || 'Jugador';
 
                 tr.style.cursor = 'pointer';
@@ -1788,13 +1856,13 @@
                 tr.innerHTML =
                     '<td class="posicion' + (posicion <= 3 ? ' top3' : '') + '">' + posicion + '</td>' +
                     '<td class="td-nick">' + escaparHTML(nick) + '</td>' +
-                    '<td class="puntos-td">' + puntos + '</td>' +
-                    '<td>' + pj + '</td>' +
-                    '<td>' + pg + '</td>' +
-                    '<td>' + pe + '</td>' +
-                    '<td>' + pp + '</td>' +
-                    '<td>' + efectividad + '%</td>' +
-                    '<td>' + (racha > 0 ? '🔥 ' + racha : '—') + '</td>';
+                    '<td class="puntos-td">' + stats.puntos + '</td>' +
+                    '<td>' + stats.pj + '</td>' +
+                    '<td>' + stats.pg + '</td>' +
+                    '<td>' + stats.pe + '</td>' +
+                    '<td>' + stats.pp + '</td>' +
+                    '<td>' + stats.efectividad + '%</td>' +
+                    '<td>' + (stats.racha > 0 ? '🔥 ' + stats.racha : '—') + '</td>';
                 tbody.appendChild(tr);
             });
         }
@@ -1836,6 +1904,23 @@
                     }
                 });
             });
+        });
+
+        // Buscador de jugadores
+        inputBuscador.addEventListener('input', () => {
+            const termino = inputBuscador.value.trim().toLowerCase();
+            const filtro = document.querySelector('input[name="filtroRanking"]:checked')?.value || 'global';
+            
+            if (!termino) {
+                renderRanking(ultimaListaRanking, filtro);
+                return;
+            }
+
+            const filtrados = ultimaListaRanking.filter(j => {
+                const nick = (j.nickname || 'Jugador').toLowerCase();
+                return nick.includes(termino);
+            });
+            renderRanking(filtrados, filtro);
         });
 
         // Cargar filtro guardado al iniciar

@@ -1174,6 +1174,17 @@
                 const golesFavor = (datos.golesFavor || 0) + (golesJugador || 0);
                 const golesContra = (datos.golesContra || 0) + (golesCpu || 0);
 
+                // Historial de partidos para filtros por período
+                const historialPartidos = datos.historialPartidos || [];
+                historialPartidos.push({
+                    fecha: Date.now(),
+                    resultado,
+                    golesFavor: golesJugador || 0,
+                    golesContra: golesCpu || 0
+                });
+                // Limitar a los últimos 200 partidos para no saturar la base
+                const historialLimitado = historialPartidos.slice(-200);
+
                 const nuevosDatos = {
                     ...datos,
                     nickname: (datos.nickname && datos.nickname.length > 0) ? datos.nickname : (user.displayName || 'Jugador'),
@@ -1189,6 +1200,7 @@
                     mejorRacha,
                     golesFavor,
                     golesContra,
+                    historialPartidos: historialLimitado,
                     ultimaActualizacion: Date.now()
                 };
 
