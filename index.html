@@ -711,6 +711,24 @@
             font-weight: 700;
         }
 
+        .filtros-ranking .semana-actual {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .filtros-ranking .semana-actual input[type="radio"] {
+            display: none;
+        }
+
+        .filtros-ranking .semana-actual input[type="radio"]:checked + span {
+            color: var(--dorado);
+            font-weight: 700;
+        }
+
         /* ---------- Panel Nickname ---------- */
         .overlay-nickname {
             position: fixed;
@@ -1777,18 +1795,22 @@
                 };
             }
 
-            // Para mes/día, calcular desde el historial de partidos
+            // Para semana actual, calcular desde el historial de partidos
+            // La semana comienza el lunes (o domingo, aquí usamos lunes)
             const historial = jugador.historialPartidos || [];
             const hoy = new Date();
+            const diaSemanaHoy = hoy.getDay(); // 0=domingo, 1=lunes, ..., 6=sábado
+            // Ajustar: si es domingo (0), tratamos como fin de semana pasado
+            const esDomingo = diaSemanaHoy === 0;
+            const diaInicioSemana = esDomingo
+                ? new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - 6) // Domingo pasado
+                : new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - (diaSemanaHoy - 1)); // Este lunes
+            const diaFinSemana = new Date(diaInicioSemana);
+            diaFinSemana.setDate(diaFinSemana.getDate() + 6); // Sábado de esta semana
+
             const partidosFiltrados = historial.filter(p => {
                 const fecha = new Date(p.fecha);
-                if (filtro === 'mes') {
-                    return fecha.getMonth() === hoy.getMonth() && fecha.getFullYear() === hoy.getFullYear();
-                }
-                if (filtro === 'dia') {
-                    return fecha.getDate() === hoy.getDate() && fecha.getMonth() === hoy.getMonth() && fecha.getFullYear() === hoy.getFullYear();
-                }
-                return true;
+                return fecha >= diaInicioSemana && fecha <= diaFinSemana;
             });
 
             const pj = partidosFiltrados.length;
