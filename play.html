@@ -2475,10 +2475,6 @@
                 // para evitar que el jugador gane un punto automáticamente
                 if (puntosJugador >= 2) return true;
 
-                // Si el CPU va perdiendo la mano por 2 o más puntos, 
-                // siempre quiere cantar para intentar empatar o dar la vuelta
-                if (puntosJugador - puntosCpu >= 2) return true;
-
                 // Si el delantero es muy alto (9-10), casi siempre conviene cantar
                 if (del.numero >= 9 && probExito >= 0.55) return true;
 

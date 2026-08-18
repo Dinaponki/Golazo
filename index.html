@@ -711,119 +711,6 @@
             font-weight: 700;
         }
 
-        /* AÑADIDO: Contenedor para el radio de semana actual */
-        .filtros-ranking .semana-container {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            cursor: pointer;
-            user-select: none;
-        }
-
-        .filtros-ranking .semana-container input[type="radio"] {
-            display: none;
-        }
-
-        .filtros-ranking .semana-container span {
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 13px;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .filtros-ranking .semana-container input[type="radio"]:checked + span {
-            color: var(--dorado);
-            font-weight: 700;
-            border-bottom: 2px solid var(--dorado);
-        }
-
-        .filtros-ranking .semana-actual {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            cursor: pointer;
-            font-size: 13px;
-            color: rgba(255, 255, 255, 0.7);
-        }
-
-        .filtros-ranking .semana-actual input[type="radio"] {
-            display: none;
-        }
-
-        .filtros-ranking .semana-actual input[type="radio"]:checked + span {
-            color: var(--dorado);
-            font-weight: 700;
-        }
-
-        /* AÑADIDO: Estilo para el radio de semana actual */
-        .filtros-ranking .semana-actual {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            cursor: pointer;
-        }
-
-        .filtros-ranking .semana-actual input[type="radio"]:checked + span {
-            color: var(--dorado);
-            font-weight: 700;
-            border-bottom: 2px solid var(--dorado);
-        }
-
-        .filtros-ranking .semana-actual {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            cursor: pointer;
-            font-size: 13px;
-            color: rgba(255, 255, 255, 0.7);
-        }
-
-        .filtros-ranking .semana-actual input[type="radio"] {
-            display: none;
-        }
-
-        .filtros-ranking .semana-actual input[type="radio"]:checked + span {
-            color: var(--dorado);
-            font-weight: 700;
-        }
-
-        .filtros-ranking .semana-actual {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            cursor: pointer;
-            font-size: 13px;
-            color: rgba(255, 255, 255, 0.7);
-        }
-
-        .filtros-ranking .semana-actual input[type="radio"] {
-            display: none;
-        }
-
-        .filtros-ranking .semana-actual input[type="radio"]:checked + span {
-            color: var(--dorado);
-            font-weight: 700;
-        }
-
-        .filtros-ranking .semana-actual {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            cursor: pointer;
-            font-size: 13px;
-            color: rgba(255, 255, 255, 0.7);
-        }
-
-        .filtros-ranking .semana-actual input[type="radio"] {
-            display: none;
-        }
-
-        .filtros-ranking .semana-actual input[type="radio"]:checked + span {
-            color: var(--dorado);
-            font-weight: 700;
-        }
-
         /* ---------- Panel Nickname ---------- */
         .overlay-nickname {
             position: fixed;
@@ -1133,6 +1020,10 @@
                 <label>
                     <input type="radio" name="filtroRanking" value="mes">
                     <span>Mes actual</span>
+                </label>
+                <label>
+                    <input type="radio" name="filtroRanking" value="semana">
+                    <span>Semana actual</span>
                 </label>
                 <label>
                     <input type="radio" name="filtroRanking" value="dia">
@@ -1890,22 +1781,28 @@
                 };
             }
 
-            // Para semana actual, calcular desde el historial de partidos
-            // La semana comienza el lunes (o domingo, aquí usamos lunes)
+            // Para mes/día, calcular desde el historial de partidos
             const historial = jugador.historialPartidos || [];
             const hoy = new Date();
-            const diaSemanaHoy = hoy.getDay(); // 0=domingo, 1=lunes, ..., 6=sábado
-            // Ajustar: si es domingo (0), tratamos como fin de semana pasado
-            const esDomingo = diaSemanaHoy === 0;
-            const diaInicioSemana = esDomingo
-                ? new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - 6) // Domingo pasado
-                : new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - (diaSemanaHoy - 1)); // Este lunes
-            const diaFinSemana = new Date(diaInicioSemana);
-            diaFinSemana.setDate(diaFinSemana.getDate() + 6); // Sábado de esta semana
+
+            // Inicio de la semana actual (lunes a las 00:00)
+            const inicioSemana = new Date(hoy);
+            const diaSemana = (hoy.getDay() + 6) % 7; // Lunes = 0, Domingo = 6
+            inicioSemana.setDate(hoy.getDate() - diaSemana);
+            inicioSemana.setHours(0, 0, 0, 0);
 
             const partidosFiltrados = historial.filter(p => {
                 const fecha = new Date(p.fecha);
-                return fecha >= diaInicioSemana && fecha <= diaFinSemana;
+                if (filtro === 'mes') {
+                    return fecha.getMonth() === hoy.getMonth() && fecha.getFullYear() === hoy.getFullYear();
+                }
+                if (filtro === 'dia') {
+                    return fecha.getDate() === hoy.getDate() && fecha.getMonth() === hoy.getMonth() && fecha.getFullYear() === hoy.getFullYear();
+                }
+                if (filtro === 'semana') {
+                    return fecha >= inicioSemana;
+                }
+                return true;
             });
 
             const pj = partidosFiltrados.length;
@@ -1933,7 +1830,13 @@
             // Filtrar según el tipo
             let listaFiltrada = [...lista];
             const hoy = new Date();
-            
+
+            // Inicio de la semana actual (lunes a las 00:00)
+            const inicioSemana = new Date(hoy);
+            const diaSemana = (hoy.getDay() + 6) % 7; // Lunes = 0, Domingo = 6
+            inicioSemana.setDate(hoy.getDate() - diaSemana);
+            inicioSemana.setHours(0, 0, 0, 0);
+
             if (filtro === 'mes') {
                 const mesActual = hoy.getMonth();
                 const anioActual = hoy.getFullYear();
@@ -1942,6 +1845,14 @@
                     return historial.some(p => {
                         const fecha = new Date(p.fecha);
                         return fecha.getMonth() === mesActual && fecha.getFullYear() === anioActual;
+                    });
+                });
+            } else if (filtro === 'semana') {
+                listaFiltrada = lista.filter(j => {
+                    const historial = j.historialPartidos || [];
+                    return historial.some(p => {
+                        const fecha = new Date(p.fecha);
+                        return fecha >= inicioSemana;
                     });
                 });
             } else if (filtro === 'dia') {
