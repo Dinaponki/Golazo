@@ -2254,6 +2254,46 @@
                 const mano = estado.manoCpu;
                 if (!mano.length) return null;
 
+                // Si hay un canto pendiente (el canto fue aceptado pero hay que
+                // completar la ronda normal primero), el CPU debe tirar la carta
+                // adecuada para ese canto.
+                if (estado.cantoPendiente) {
+                    const pendiente = estado.cantoPendiente;
+                    const esAtacante = pendiente.pedidoPor === 'cpu';
+
+                    if (pendiente.tipo === 'penal') {
+                        if (esAtacante) {
+                            // Atacante: debe tirar un Delantero
+                            const del = mejorCartaDe(mano, 'Del');
+                            if (del) return del;
+                            // Sin delantero: carta más baja (el penal se pierde igual)
+                            return mano.reduce((a, b) => a.numero < b.numero ? a : b);
+                        } else {
+                            // Defensor: debe tirar un Arquero
+                            const arq = mejorCartaDe(mano, 'Arq');
+                            if (arq) return arq;
+                            // Sin arquero: carta más baja (gol automático)
+                            return mano.reduce((a, b) => a.numero < b.numero ? a : b);
+                        }
+                    }
+
+                    if (pendiente.tipo === 'gol' || pendiente.tipo === 'golazo') {
+                        if (esAtacante) {
+                            // Atacante: debe tirar un Delantero
+                            const del = mejorCartaDe(mano, 'Del');
+                            if (del) return del;
+                            // Sin delantero: carta más alta (según reglas)
+                            return cartaMasAlta(mano);
+                        } else {
+                            // Defensor: debe tirar un Arquero o Defensor
+                            const def = mejorCartaDeVarias(mano, ['Arq', 'Def']);
+                            if (def) return def;
+                            // Sin defensa: carta más alta (según reglas)
+                            return cartaMasAlta(mano);
+                        }
+                    }
+                }
+
                 // Si hay penal activo y CPU es el defensor, jugar el arquero más alto
                 if (estado.penalActivo && estado.penalAtacante === 'jugador') {
                     const arq = mejorCartaDe(mano, 'Arq');
@@ -2300,8 +2340,33 @@
                 const delantero = mejorCartaDe(mano, 'Del');
                 const guardarDelantero = (puedeCantarPenal || puedeCantarGol) && delantero && delantero.numero >= 6;
 
+                // El jugador está a 1 punto de hacer gol (tiene 2 puntos)
+                const jugadorAlBordeDelGol = puntosJugador >= PUNTOS_PARA_GOL - 1;
+                // El CPU está a 1 punto de hacer gol (tiene 2 puntos)
+                const cpuAlBordeDelGol = puntosCpu >= PUNTOS_PARA_GOL - 1;
+
                 // Si el CPU es MANO (empieza la ronda)
                 if (esMano) {
+                    // Si el CPU está a 1 punto del gol, jugar la carta más alta posible
+                    // para intentar ganar la ronda y convertir el gol
+                    if (cpuAlBordeDelGol) {
+                        // Jugar la carta más alta (incluso el delantero guardado)
+                        return mano.reduce((a, b) => a.numero > b.numero ? a : b);
+                    }
+
+                    // Si el jugador está a 1 punto del gol, jugar una carta fuerte
+                    // para evitar que el jugador gane la ronda
+                    if (jugadorAlBordeDelGol) {
+                        // Jugar la carta más alta disponible (presión máxima)
+                        const candidatas = guardarDelantero
+                            ? mano.filter(c => c.id !== delantero.id)
+                            : mano;
+                        if (candidatas.length) {
+                            return candidatas.reduce((a, b) => a.numero > b.numero ? a : b);
+                        }
+                        return delantero;
+                    }
+
                     // Si va ganando por puntos y quedan pocas rondas, puede jugar conservador
                     if (puntosCpu >= 2 && quedanRondas <= 2 && puntosJugador === 0) {
                         // Jugar una carta media para no arriesgar el delantero
@@ -2336,6 +2401,18 @@
                         // Si puedo ganar, usar la carta MÍNIMA necesaria para ganar
                         // (ahorrar cartas fuertes para futuras rondas/cantos)
                         let mejorOpcion = ganadoras.reduce((a, b) => a.numero < b.numero ? a : b);
+
+                        // Si el CPU está a 1 punto del gol, usar la carta más alta
+                        // para asegurar la victoria de la ronda
+                        if (cpuAlBordeDelGol) {
+                            return ganadoras.reduce((a, b) => a.numero > b.numero ? a : b);
+                        }
+
+                        // Si el jugador está a 1 punto del gol, usar la carta más alta
+                        // para asegurar que el jugador NO gane la ronda
+                        if (jugadorAlBordeDelGol) {
+                            return ganadoras.reduce((a, b) => a.numero > b.numero ? a : b);
+                        }
 
                         // Pero si el delantero es la única que gana y lo necesito para un canto,
                         // considerar si vale la pena usarlo
@@ -2593,7 +2670,47 @@
             }
 
             function iaDeclararVar() {
-                return numeroMasAltoArqDel(estado.manoCpu);
+                const real = numeroMasAltoArqDel(estado.manoCpu);
+                const suMejor = numeroMasAltoArqDel(estado.manoJugador);
+                const riesgo = iaNivelRiesgo();
+                const ventajaPuntos = iaVentajaPuntos();
+
+                // Si mi valor real es mayor que el del oponente, declarar la verdad
+                if (real > suMejor) return real;
+
+                // Si mi valor real es menor, puedo intentar mentir
+                if (real < suMejor) {
+                    // Mentir solo si el riesgo es alto (voy perdiendo) y tengo algo que ganar
+                    // El VAR: si miento y me descubren, pierdo automáticamente
+                    // Si no miento, pierdo igual (mi valor es menor)
+                    // Así que mentir es la única chance de ganar
+                    if (riesgo >= 0.6) {
+                        // Mentir declarando un valor mayor que el del oponente
+                        // (pero no demasiado alto para no ser obvio)
+                        const mentira = suMejor + 1;
+                        // Solo mentir si no es demasiado descarado (máximo 10)
+                        if (mentira <= 10) {
+                            // Probabilidad de mentir según el riesgo
+                            const probMentir = Math.min(0.7, riesgo);
+                            if (Math.random() < probMentir) {
+                                return mentira;
+                            }
+                        }
+                    }
+                    // Si no miento, declaro la verdad
+                    return real;
+                }
+
+                // Empate: mi valor es igual al del oponente
+                // Si voy perdiendo, puedo intentar mentir para ganar
+                if (ventajaPuntos < 0 && riesgo >= 0.6) {
+                    const mentira = real + 1;
+                    if (mentira <= 10 && Math.random() < 0.5) {
+                        return mentira;
+                    }
+                }
+                // Si voy ganando, declarar la verdad (el empate ejecuta el penal sin puntos)
+                return real;
             }
 
             // --- Resolución de ronda ---
