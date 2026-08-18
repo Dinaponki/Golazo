@@ -2254,51 +2254,47 @@
                 const mano = estado.manoCpu;
                 if (!mano.length) return null;
 
-                // Si hay un canto pendiente (el canto fue aceptado pero hay que
-                // completar la ronda normal primero), el CPU debe tirar la carta
-                // adecuada para ese canto.
+                // === FLUJO CON CANTO PENDIENTE ===
+                // Si hay un canto pendiente (el canto fue aceptado pero el rival
+                // ya jugó su carta en la ronda normal), el CPU DEBE COMPLETAR LA
+                // RONDA NORMAL primero con una carta de descarte (la más débil que
+                // no sea la carta de ejecución del canto). La carta de ejecución
+                // del canto se jugará en el siguiente turno cuando
+                // penalActivo/golActivo sea true.
                 if (estado.cantoPendiente) {
                     const pendiente = estado.cantoPendiente;
                     const esAtacante = pendiente.pedidoPor === 'cpu';
 
+                    // Determinar qué carta se usará para EJECUTAR el canto luego
+                    let cartaEjecucionCanto = null;
                     if (pendiente.tipo === 'penal') {
-                        if (esAtacante) {
-                            // Atacante: debe tirar un Delantero
-                            const del = mejorCartaDe(mano, 'Del');
-                            if (del) return del;
-                            // Sin delantero: carta más baja (el penal se pierde igual)
-                            return mano.reduce((a, b) => a.numero < b.numero ? a : b);
-                        } else {
-                            // Defensor: debe tirar un Arquero
-                            const arq = mejorCartaDe(mano, 'Arq');
-                            if (arq) return arq;
-                            // Sin arquero: carta más baja (gol automático)
-                            return mano.reduce((a, b) => a.numero < b.numero ? a : b);
-                        }
+                        cartaEjecucionCanto = esAtacante
+                            ? mejorCartaDe(mano, 'Del')
+                            : mejorCartaDe(mano, 'Arq');
+                    } else {
+                        cartaEjecucionCanto = esAtacante
+                            ? mejorCartaDe(mano, 'Del')
+                            : mejorCartaDeVarias(mano, ['Arq', 'Def']);
                     }
 
-                    if (pendiente.tipo === 'gol' || pendiente.tipo === 'golazo') {
-                        if (esAtacante) {
-                            // Atacante: debe tirar un Delantero
-                            const del = mejorCartaDe(mano, 'Del');
-                            if (del) return del;
-                            // Sin delantero: carta más alta (según reglas)
-                            return cartaMasAlta(mano);
-                        } else {
-                            // Defensor: debe tirar un Arquero o Defensor
-                            const def = mejorCartaDeVarias(mano, ['Arq', 'Def']);
-                            if (def) return def;
-                            // Sin defensa: carta más alta (según reglas)
-                            return cartaMasAlta(mano);
-                        }
+                    // Para completar la ronda normal, tirar la carta MÁS DÉBIL
+                    // que NO sea la necesaria para el canto (así la guardamos).
+                    const descartables = cartaEjecucionCanto
+                        ? mano.filter(c => c.id !== cartaEjecucionCanto.id)
+                        : mano;
+
+                    if (descartables.length) {
+                        return descartables.reduce((a, b) => a.numero < b.numero ? a : b);
                     }
+
+                    // Si solo queda la carta del canto, tirarla (no queda otra)
+                    return cartaEjecucionCanto || mano[0];
                 }
 
                 // Si hay penal activo y CPU es el defensor, jugar el arquero más alto
                 if (estado.penalActivo && estado.penalAtacante === 'jugador') {
                     const arq = mejorCartaDe(mano, 'Arq');
                     if (arq) return arq;
-                    // Sin arquero: jugar la carta más baja para minimizar daño
                     return mano.reduce((a, b) => a.numero < b.numero ? a : b);
                 }
 
@@ -2306,7 +2302,6 @@
                 if (estado.penalActivo && estado.penalAtacante === 'cpu') {
                     const del = mejorCartaDe(mano, 'Del');
                     if (del) return del;
-                    // Sin delantero: jugar la carta más baja (el penal se pierde igual)
                     return mano.reduce((a, b) => a.numero < b.numero ? a : b);
                 }
 
@@ -2331,8 +2326,6 @@
                 const puntosCpu = estado.puntosCpu;
                 const puntosJugador = estado.puntosJugador;
                 const quedanRondas = 4 - estado.rondaActual;
-                const cartasRestantesCpu = mano.length;
-                const cartasRestantesJugador = estado.manoJugador.length;
 
                 // Guardar el mejor delantero si aún no se usó el canto de gol/penal
                 const puedeCantarPenal = estado.rondaActual === 0 && !estado.penalUsado && !estado.penalCantadoPor;
@@ -2340,24 +2333,19 @@
                 const delantero = mejorCartaDe(mano, 'Del');
                 const guardarDelantero = (puedeCantarPenal || puedeCantarGol) && delantero && delantero.numero >= 6;
 
-                // El jugador está a 1 punto de hacer gol (tiene 2 puntos)
+                // Jugadores a 1 punto del gol
                 const jugadorAlBordeDelGol = puntosJugador >= PUNTOS_PARA_GOL - 1;
-                // El CPU está a 1 punto de hacer gol (tiene 2 puntos)
                 const cpuAlBordeDelGol = puntosCpu >= PUNTOS_PARA_GOL - 1;
 
                 // Si el CPU es MANO (empieza la ronda)
                 if (esMano) {
-                    // Si el CPU está a 1 punto del gol, jugar la carta más alta posible
-                    // para intentar ganar la ronda y convertir el gol
+                    // Si el CPU está a 1 punto del gol, jugar la carta más alta
                     if (cpuAlBordeDelGol) {
-                        // Jugar la carta más alta (incluso el delantero guardado)
                         return mano.reduce((a, b) => a.numero > b.numero ? a : b);
                     }
 
-                    // Si el jugador está a 1 punto del gol, jugar una carta fuerte
-                    // para evitar que el jugador gane la ronda
+                    // Si el jugador está a 1 punto del gol, jugar carta fuerte
                     if (jugadorAlBordeDelGol) {
-                        // Jugar la carta más alta disponible (presión máxima)
                         const candidatas = guardarDelantero
                             ? mano.filter(c => c.id !== delantero.id)
                             : mano;
@@ -2367,27 +2355,22 @@
                         return delantero;
                     }
 
-                    // Si va ganando por puntos y quedan pocas rondas, puede jugar conservador
+                    // Si va ganando por puntos y quedan pocas rondas
                     if (puntosCpu >= 2 && quedanRondas <= 2 && puntosJugador === 0) {
-                        // Jugar una carta media para no arriesgar el delantero
                         const sinDel = mano.filter(c => !(guardarDelantero && c.id === delantero.id));
                         if (sinDel.length) {
-                            // Jugar la carta más alta que no sea el delantero guardado
                             return sinDel.reduce((a, b) => a.numero > b.numero ? a : b);
                         }
                     }
 
-                    // Si es mano, jugar una carta fuerte para presionar
-                    // pero guardar el delantero si puede servir para un canto
+                    // Jugar carta fuerte para presionar (guardando delantero)
                     const candidatas = guardarDelantero
                         ? mano.filter(c => c.id !== delantero.id)
                         : mano;
 
                     if (candidatas.length) {
-                        // Jugar la carta más alta disponible (presión)
                         return candidatas.reduce((a, b) => a.numero > b.numero ? a : b);
                     }
-                    // Si solo queda el delantero, jugarlo
                     return delantero;
                 }
 
@@ -2398,55 +2381,38 @@
                     // ¿Puedo ganar con alguna carta?
                     const ganadoras = mano.filter(c => c.numero > numeroJugador);
                     if (ganadoras.length) {
-                        // Si puedo ganar, usar la carta MÍNIMA necesaria para ganar
-                        // (ahorrar cartas fuertes para futuras rondas/cantos)
+                        // Usar carta mínima para ganar (ahorra cartas fuertes)
                         let mejorOpcion = ganadoras.reduce((a, b) => a.numero < b.numero ? a : b);
 
-                        // Si el CPU está a 1 punto del gol, usar la carta más alta
-                        // para asegurar la victoria de la ronda
-                        if (cpuAlBordeDelGol) {
+                        // Si el CPU está a 1 punto del gol, usar la más alta
+                        if (cpuAlBordeDelGol || jugadorAlBordeDelGol) {
                             return ganadoras.reduce((a, b) => a.numero > b.numero ? a : b);
                         }
 
-                        // Si el jugador está a 1 punto del gol, usar la carta más alta
-                        // para asegurar que el jugador NO gane la ronda
-                        if (jugadorAlBordeDelGol) {
-                            return ganadoras.reduce((a, b) => a.numero > b.numero ? a : b);
-                        }
-
-                        // Pero si el delantero es la única que gana y lo necesito para un canto,
-                        // considerar si vale la pena usarlo
+                        // Si el delantero es la única que gana y hay que guardarlo
                         if (guardarDelantero && mejorOpcion.id === delantero.id) {
-                            // Si hay otra carta que gana, usarla
                             const otrasGanadoras = ganadoras.filter(c => c.id !== delantero.id);
                             if (otrasGanadoras.length) {
                                 mejorOpcion = otrasGanadoras.reduce((a, b) => a.numero < b.numero ? a : b);
                             } else {
-                                // Solo el delantero gana. Decidir según el contexto:
-                                // - Si ganar esta ronda me da el gol (llego a 3 puntos), usar el delantero
-                                // - Si el delantero es muy alto (9-10) y el canto es muy valioso, sacrificar la ronda
                                 const ganoConEsto = puntosCpu + 1 >= PUNTOS_PARA_GOL;
                                 const delanteroMuyAlto = delantero.numero >= 9;
                                 if (ganoConEsto || !delanteroMuyAlto || riesgo > 0.6) {
                                     return mejorOpcion;
                                 }
-                                // Sacrificar la ronda: jugar la carta más baja
                                 return mano.reduce((a, b) => a.numero < b.numero ? a : b);
                             }
                         }
                         return mejorOpcion;
                     }
 
-                    // No puedo ganar con ninguna carta
-                    // Si el oponente está a punto de llegar a 3 puntos, intentar empatar
-                    // con una carta del mismo número (el empate no da punto)
+                    // No puedo ganar: intentar empatar si el rival está a punto de hacer gol
                     const empates = mano.filter(c => c.numero === numeroJugador);
                     if (empates.length && puntosJugador + 1 >= PUNTOS_PARA_GOL) {
                         return empates[0];
                     }
 
-                    // No puedo ganar: sacrificar la carta más débil
-                    // (pero guardar el delantero si es necesario para un canto)
+                    // Sacrificar la carta más débil (guardando el delantero)
                     const sacrificables = guardarDelantero
                         ? mano.filter(c => c.id !== delantero.id)
                         : mano;
@@ -2454,14 +2420,12 @@
                     if (sacrificables.length) {
                         return sacrificables.reduce((a, b) => a.numero < b.numero ? a : b);
                     }
-                    // Solo queda el delantero, jugarlo
                     return delantero;
                 }
 
                 // Sin carta del jugador visible (caso raro): jugar la más alta
                 return mano.reduce((a, b) => a.numero > b.numero ? a : b);
             }
-
             // --- Decisión de cantar penal ---
             function iaDecidirCantarPenal() {
                 if (estado.penalUsado || estado.penalCantadoPor || estado.rondaActual !== 0) return false;
