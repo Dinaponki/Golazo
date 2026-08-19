@@ -1849,24 +1849,36 @@
             const carta = estado.juego.manoJugador[idx];
             if (!carta) return;
 
-            // Enviar acción a Firebase
-            const partidaRef = ref(db, 'partidas/' + estado.partidaId);
-            const accionRef = ref(db, 'partidas/' + estado.partidaId + '/acciones');
-            const nuevaAccion = push(accionRef);
-
-            set(nuevaAccion, {
-                tipo: 'jugar_carta',
-                carta: carta,
-                origen: 'jugador',
-                timestamp: Date.now()
-            });
-
             // Actualizar localmente
             estado.juego.manoJugador.splice(idx, 1);
             estado.juego.cartaSeleccionada = null;
             estado.juego.cartasEnMesa.push({ carta, origen: 'jugador' });
             estado.juego.fase = 'esperando_rival';
             estado.juego.turnoActual = 'rival';
+
+            // Actualizar el estado del juego en Firebase para que el rival lo vea
+            const partidaRef = ref(db, 'partidas/' + estado.partidaId);
+            const juegoRef = ref(db, 'partidas/' + estado.partidaId + '/juego');
+
+            // Determinar las manos según el lado del jugador
+            // El creador es 'jugador' y el unido es 'rival' en Firebase
+            const manoJugadorAbsoluta = estado.miLado === 'jugador' ? estado.juego.manoJugador : estado.juego.manoRival;
+            const manoRivalAbsoluta = estado.miLado === 'jugador' ? estado.juego.manoRival : estado.juego.manoJugador;
+
+            // El turno actual en Firebase es absoluto: 'jugador' = creador, 'rival' = unido
+            const turnoAbsoluto = estado.juego.turnoActual === 'jugador' ? (estado.miLado === 'jugador' ? 'jugador' : 'rival') : (estado.miLado === 'jugador' ? 'rival' : 'jugador');
+
+            // Actualizar el nodo juego en Firebase
+            update(juegoRef, {
+                manoJugador: manoJugadorAbsoluta,
+                manoRival: manoRivalAbsoluta,
+                cartasEnMesa: estado.juego.cartasEnMesa,
+                turnoActual: turnoAbsoluto,
+                fase: estado.juego.fase,
+                ultimaActividad: Date.now()
+            }).catch((error) => {
+                console.error('Error actualizando juego en Firebase:', error);
+            });
 
             reproducirSonido('carta');
             renderizarTodo();
