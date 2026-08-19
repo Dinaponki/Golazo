@@ -197,6 +197,29 @@
             background: rgba(200, 168, 78, 0.08);
         }
 
+        .boton-online {
+            background: transparent;
+            color: var(--dorado);
+            border: 2px solid var(--dorado);
+            font-size: 15px;
+            padding: 12px 36px;
+            letter-spacing: 0.06em;
+            opacity: 0.75;
+            max-width: 320px;
+        }
+
+        .boton-online:hover {
+            background: rgba(200, 168, 78, 0.1);
+            border-color: var(--dorado-claro);
+            color: var(--dorado-claro);
+            opacity: 1;
+            transform: translateY(-2px);
+        }
+
+        .boton-online:active {
+            transform: translateY(0);
+        }
+
         .footer {
             font-size: 12px;
             color: rgba(255, 255, 255, 0.35);
@@ -988,6 +1011,8 @@
         </div>
 
         <a href="play.html" class="boton boton-jugar" id="btnJugar">⚽ JUGAR VS. CPU</a>
+
+        <a href="playonline.html" class="boton boton-online" id="btnOnline">🌐 ONLINE PROXIMAMENTE...</a>
 
         <a href="rules.html" class="boton boton-donar">📖 REGLAS</a>
 

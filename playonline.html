@@ -1,0 +1,2483 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Golazo Online | Dinaponki</title>
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="shortcut icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="Golazo" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <style>
+        :root { 
+            --verde-fondo: #1a3c2a;
+            --verde-mesa: #1e4430;
+            --verde-oscuro: #0f2b1a;
+            --verde-claro: #2d5a3f;
+            --dorado: #c8a84e;
+            --dorado-claro: #d4b356;
+            --blanco: #f5f5f0;
+            --negro: #111;
+            --rojo: #c0392b;
+            --rojo-oscuro: #962d22;
+            --azul: #2980b9;
+            --gris-oscuro: #1a1a1a;
+            --gris-medio: #333;
+            --gris-claro: #888;
+            --borde-carta: #1a1a1a;
+            --sombra-carta: 0 8px 24px rgba(0, 0, 0, 0.5);
+            --sombra-suave: 0 4px 16px rgba(0, 0, 0, 0.35);
+            --transicion: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --transicion-rapida: 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+            --borde-redondo: 14px;
+            --borde-redondo-carta: 10px;
+            --carta-mesa: clamp(238.29px, 52.728vmin, 461.37px);
+            --carta-mesa-max-h: clamp(330.05px, 72.501vmin, 645.918px);
+            --carta-mano: clamp(223.08px, 46.137vmin, 412.088px);
+            --carta-mano-max-h: clamp(313.073px, 66.0vmin, 576.713px);
+            --carta-cpu: clamp(105.456px, 22.308vmin, 186.576px);
+            --carta-cpu-max-h: clamp(146.016px, 30.34vmin, 263.64px);
+            --mano-altura: clamp(279.15px, 45.63vmin, 443.625px);
+            --btn-font: clamp(15px, 3.6vmin, 22px);
+            --btn-pad-y: clamp(10px, 2.2vmin, 18px);
+            --btn-pad-x: clamp(12px, 3vmin, 28px);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--verde-fondo);
+            color: var(--blanco);
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        .juego {
+            display: grid;
+            height: 100dvh;
+            max-height: 100dvh;
+            width: 100vw;
+            max-width: 100vw;
+            overflow: hidden;
+            position: relative;
+            gap: clamp(3px, 0.8vh, 10px);
+            padding: clamp(4px, 1vh, 10px);
+            grid-template-rows: auto minmax(0, 1fr) auto auto auto;
+            grid-template-columns: 1fr;
+            grid-template-areas:
+                "cpu"
+                "mesa"
+                "botones"
+                "jugador"
+                "marcador";
+        }
+
+        .zona-cpu { grid-area: cpu; }
+        .zona-mesa { grid-area: mesa; }
+        .zona-botones { grid-area: botones; }
+        .zona-jugador { grid-area: jugador; }
+        .panel-marcador { grid-area: marcador; }
+
+        /* Zona CPU (Rival Online) */
+        .zona-cpu {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: clamp(2px, 0.5vh, 6px);
+            padding: 0 4px 0;
+            flex-shrink: 0;
+        }
+
+        .etiqueta-turno {
+            font-size: clamp(13px, 2.8vmin, 17px);
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            color: rgba(255, 255, 255, 0.6);
+            text-transform: uppercase;
+            transition: color 0.3s, transform 0.3s;
+        }
+
+        @keyframes latido {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.12); }
+        }
+
+        .etiqueta-turno.activo {
+            color: var(--dorado);
+            animation: latido 0.9s ease-in-out infinite;
+        }
+
+        .mano-cpu {
+            display: flex;
+            gap: clamp(4px, 1vmin, 8px);
+            justify-content: center;
+            flex-wrap: nowrap;
+            margin-top: calc(-1 * clamp(4px, 1vh, 10px));
+            overflow: hidden;
+            height: calc(var(--carta-cpu-max-h) * 0.6);
+            align-items: flex-end;
+        }
+
+        /* Zona mesa */
+        .zona-mesa {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            min-height: 0;
+            background: radial-gradient(ellipse at center, rgba(30, 68, 48, 0.7) 0%, transparent 70%);
+            border-radius: var(--borde-redondo);
+            margin: 0 2px;
+            overflow: visible;
+        }
+
+        .indicador-canto {
+            font-size: clamp(14px, 3.2vmin, 19px);
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            color: var(--dorado);
+            text-align: center;
+            min-height: 0;
+            padding: clamp(3px, 0.6vh, 5px) clamp(10px, 2.5vmin, 15px);
+            flex-shrink: 0;
+            border-radius: 20px;
+            background: rgba(0,0,0,0.3);
+            margin-bottom: 8px;
+            transition: opacity 0.3s;
+            opacity: 0;
+        }
+
+        .indicador-canto.visible {
+            opacity: 1;
+        }
+
+        .mesa-cartas {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            position: relative;
+            min-height: 0;
+            padding: 12px;
+            overflow: visible;
+        }
+
+        .mesa-fila {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            width: auto;
+            min-height: 0;
+        }
+
+        .mesa-cartas .carta-contenedor {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            transition: var(--transicion);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+        }
+
+        .mesa-cartas .carta-contenedor.ganadora {
+            z-index: 6;
+            transform: translate(-50%, -50%) translateY(-10px) scale(1.02);
+            filter: drop-shadow(0 10px 14px rgba(200,168,78,0.5));
+        }
+
+        .mesa-cartas .carta-contenedor.perdedora {
+            z-index: 2;
+            transform: translate(-50%, -50%) translateY(6px);
+            opacity: 0.9;
+        }
+
+        .mesa-cartas .carta-img {
+            width: var(--carta-mano);
+            height: auto;
+            max-height: var(--carta-mano-max-h);
+            filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.4));
+        }
+
+        /* Botones */
+        .zona-botones {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: center;
+            gap: clamp(6px, 1.5vmin, 12px);
+            padding: clamp(2px, 0.5vh, 6px) 4px;
+            flex-shrink: 0;
+        }
+
+        .botones-laterales {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: stretch;
+            gap: clamp(4px, 1vmin, 8px);
+            padding: 0;
+        }
+
+        .grupo-botones {
+            display: flex;
+            gap: clamp(4px, 1vmin, 8px);
+            justify-content: center;
+        }
+
+        .btn-accion {
+            padding: var(--btn-pad-y) var(--btn-pad-x);
+            border-radius: 50px;
+            font-size: var(--btn-font);
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: var(--transicion-rapida);
+            background: var(--gris-medio);
+            color: var(--blanco);
+            white-space: nowrap;
+            position: relative;
+            min-width: clamp(90px, 20vmin, 140px);
+            text-align: center;
+        }
+
+        .btn-accion:active:not(:disabled) {
+            transform: scale(0.95);
+        }
+
+        .btn-accion:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            filter: grayscale(0.5);
+        }
+
+        .btn-penal {
+            background: var(--rojo);
+            border-color: var(--rojo-oscuro);
+        }
+
+        .btn-penal:not(:disabled):hover {
+            background: #d44235;
+            box-shadow: 0 4px 16px rgba(192, 57, 43, 0.4);
+        }
+
+        .btn-gol {
+            background: var(--dorado);
+            border-color: #a8883a;
+            color: #1a2a10;
+        }
+
+        .btn-gol:not(:disabled):hover {
+            background: var(--dorado-claro);
+            box-shadow: 0 4px 16px rgba(200, 168, 78, 0.5);
+        }
+
+        .btn-golazo {
+            background: #e67e22;
+            border-color: #c0651f;
+            color: #fff;
+        }
+
+        .btn-golazo:not(:disabled):hover {
+            background: #f08c34;
+            box-shadow: 0 4px 16px rgba(230, 126, 34, 0.5);
+        }
+
+        .btn-quiero {
+            background: #27ae60;
+            border-color: #1e8449;
+        }
+
+        .btn-quiero:not(:disabled):hover {
+            background: #2ecc71;
+            box-shadow: 0 4px 16px rgba(39, 174, 96, 0.4);
+        }
+
+        .btn-no-quiero {
+            background: #7f8c8d;
+            border-color: #6c7a7a;
+        }
+
+        .btn-no-quiero:not(:disabled):hover {
+            background: #95a5a6;
+        }
+
+        .btn-var {
+            background: #2980b9;
+            border-color: #1f6da0;
+        }
+
+        .btn-jugar-carta {
+            background: #8e44ad;
+            border-color: #6c3483;
+        }
+
+        .btn-jugar-carta:not(:disabled):hover {
+            background: #9b59b6;
+            box-shadow: 0 4px 16px rgba(142, 68, 173, 0.4);
+        }
+
+        .btn-var:not(:disabled):hover {
+            background: #3498db;
+            box-shadow: 0 4px 16px rgba(41, 128, 185, 0.4);
+        }
+
+        /* Zona jugador */
+        .zona-jugador {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: clamp(2px, 0.5vh, 6px);
+            padding: 0 4px clamp(2px, 0.5vh, 6px);
+            flex-shrink: 0;
+        }
+
+        .mano-jugador {
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            position: relative;
+            height: var(--mano-altura);
+            min-height: 0;
+            width: min(100%, 920px);
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 0 16px;
+        }
+
+        .mano-jugador .carta-contenedor {
+            position: absolute;
+            transition: var(--transicion);
+            cursor: pointer;
+            transform-origin: bottom center;
+        }
+
+        .mano-jugador .carta-contenedor.seleccionada {
+            transform: translateY(clamp(-10px, -2vh, -20px)) scale(1.06);
+            z-index: 10 !important;
+            filter: brightness(1.1);
+        }
+
+        /* Panel marcador */
+        .panel-marcador {
+            background: var(--gris-oscuro);
+            border-radius: var(--borde-redondo);
+            padding: clamp(6px, 1.2vh, 10px) clamp(10px, 2.5vw, 16px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: clamp(6px, 1.5vw, 12px);
+            margin: 0;
+            box-shadow: var(--sombra-suave);
+            cursor: pointer;
+            transition: var(--transicion);
+            flex-shrink: 0;
+        }
+
+        /* Botones de sonido */
+        .botones-sonido {
+            display: flex;
+            gap: clamp(6px, 1vmin, 10px);
+            flex-shrink: 0;
+        }
+
+        .btn-sonido {
+            padding: clamp(6px, 1.2vh, 10px) clamp(10px, 2vw, 14px);
+            border-radius: 50px;
+            font-size: clamp(12px, 2.8vmin, 16px);
+            font-weight: 700;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: var(--transicion-rapida);
+            background: var(--gris-medio);
+            color: var(--blanco);
+            white-space: nowrap;
+            min-width: clamp(50px, 12vmin, 70px);
+            text-align: center;
+        }
+
+        .btn-sonido:hover {
+            background: #444;
+            transform: scale(1.05);
+        }
+
+        .btn-sonido:active {
+            transform: scale(0.95);
+        }
+
+        .btn-sonido.desactivado {
+            opacity: 0.4;
+            background: var(--gris-oscuro);
+            border-color: var(--gris-medio);
+        }
+
+        .btn-sonido.activo {
+            background: #27ae60;
+            border-color: #1e8449;
+        }
+
+        .panel-marcador:hover {
+            background: #222;
+        }
+
+        .panel-marcador:active {
+            transform: scale(0.98);
+        }
+
+        .panel-marcador .jugador-info,
+        .panel-marcador .cpu-info {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            min-width: 60px;
+        }
+
+        .panel-marcador .nombre {
+            font-size: clamp(12px, 2.6vmin, 15px);
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            color: rgba(255, 255, 255, 0.8);
+            max-width: 100px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .panel-marcador .goles-numero {
+            font-size: clamp(26px, 6.5vmin, 44px);
+            font-weight: 900;
+            color: var(--blanco);
+            line-height: 1;
+        }
+
+        .panel-marcador .estrellas {
+            display: flex;
+            gap: 5px;
+            font-size: clamp(15px, 3.8vmin, 20px);
+        }
+
+        .panel-marcador .estrellas .estrella {
+            color: rgba(255, 255, 255, 0.2);
+            transition: var(--transicion);
+        }
+
+        .panel-marcador .estrellas .estrella.encendida {
+            color: var(--dorado);
+            text-shadow: 0 0 8px rgba(200, 168, 78, 0.5);
+        }
+
+        .panel-marcador .centro-marcador {
+            font-size: clamp(14px, 3.2vmin, 18px);
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            color: rgba(255, 255, 255, 0.5);
+            text-align: center;
+        }
+
+        .panel-marcador .minuto {
+            font-size: clamp(13px, 2.8vmin, 16px);
+            color: var(--dorado);
+        }
+
+        /* Cartas */
+        .carta-img {
+            display: block;
+            background: transparent;
+            object-fit: contain;
+            transition: var(--transicion);
+        }
+
+        .mano-cpu .carta-img {
+            width: var(--carta-cpu);
+            height: auto;
+            max-height: var(--carta-cpu-max-h);
+        }
+
+        .mano-jugador .carta-img {
+            width: var(--carta-mano);
+            height: auto;
+            max-height: var(--carta-mano-max-h);
+            background: transparent;
+            filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.35));
+        }
+
+        /* ============ OVERLAY LOBBY / CONEXIÓN ============ */
+        .overlay-lobby {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 300;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .overlay-lobby.oculto {
+            display: none;
+        }
+
+        .lobby-contenedor {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            width: 100%;
+            max-width: 400px;
+            background: var(--gris-oscuro);
+            border-radius: var(--borde-redondo);
+            padding: 32px 24px;
+            box-shadow: var(--sombra-carta);
+        }
+
+        .lobby-titulo {
+            font-size: clamp(28px, 7vw, 40px);
+            font-weight: 900;
+            letter-spacing: -0.02em;
+            color: var(--dorado);
+            text-align: center;
+        }
+
+        .lobby-subtitulo {
+            font-size: clamp(14px, 3.5vmin, 18px);
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.7);
+            text-align: center;
+        }
+
+        .lobby-estado {
+            font-size: clamp(13px, 3vmin, 15px);
+            color: rgba(255, 255, 255, 0.5);
+            text-align: center;
+            min-height: 20px;
+        }
+
+        .lobby-codigo {
+            font-size: clamp(24px, 6vmin, 36px);
+            font-weight: 900;
+            letter-spacing: 0.15em;
+            color: var(--blanco);
+            background: rgba(255, 255, 255, 0.08);
+            border: 2px dashed rgba(200, 168, 78, 0.4);
+            border-radius: 12px;
+            padding: 12px 24px;
+            text-align: center;
+            user-select: all;
+            -webkit-user-select: all;
+        }
+
+        .lobby-input {
+            width: 100%;
+            padding: 14px 16px;
+            border-radius: 12px;
+            border: 2px solid #333;
+            background: #333;
+            color: var(--blanco);
+            font-size: clamp(16px, 4vmin, 20px);
+            font-weight: 700;
+            text-align: center;
+            outline: none;
+            transition: var(--transicion);
+            font-family: inherit;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        .lobby-input:focus {
+            border-color: var(--dorado);
+            background: #3a3a3a;
+        }
+
+        .lobby-input::placeholder {
+            color: rgba(255, 255, 255, 0.3);
+            font-weight: 400;
+            letter-spacing: 0.05em;
+            text-transform: none;
+        }
+
+        .lobby-botones {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .btn-lobby {
+            width: 100%;
+            padding: 14px 24px;
+            border-radius: 50px;
+            font-size: clamp(15px, 3.5vmin, 18px);
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            cursor: pointer;
+            border: none;
+            transition: var(--transicion);
+            font-family: inherit;
+        }
+
+        .btn-crear {
+            background: var(--dorado);
+            color: #1a2a10;
+        }
+
+        .btn-crear:hover {
+            background: var(--dorado-claro);
+            box-shadow: 0 4px 20px rgba(200, 168, 78, 0.4);
+        }
+
+        .btn-unirse {
+            background: #27ae60;
+            color: #fff;
+        }
+
+        .btn-unirse:hover {
+            background: #2ecc71;
+            box-shadow: 0 4px 20px rgba(39, 174, 96, 0.4);
+        }
+
+        .btn-unirse:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .btn-volver-lobby {
+            background: transparent;
+            color: var(--blanco);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-volver-lobby:hover {
+            border-color: var(--dorado);
+            color: var(--dorado);
+            background: rgba(200, 168, 78, 0.08);
+        }
+
+        .lobby-mensaje {
+            font-size: clamp(12px, 2.8vmin, 14px);
+            text-align: center;
+            line-height: 1.4;
+            min-height: 20px;
+            color: #e74c3c;
+        }
+
+        .lobby-mensaje.ok {
+            color: #2ecc71;
+        }
+
+        .lobby-jugadores {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            width: 100%;
+            padding: 8px 0;
+        }
+
+        .lobby-jugador {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding: 10px 16px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            min-width: 100px;
+        }
+
+        .lobby-jugador .jugador-nombre {
+            font-size: clamp(13px, 3vmin, 15px);
+            font-weight: 700;
+            color: var(--blanco);
+            max-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .lobby-jugador .jugador-estado {
+            font-size: clamp(10px, 2.4vmin, 12px);
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .lobby-jugador .jugador-estado.listo {
+            color: #2ecc71;
+        }
+
+        .lobby-jugador .jugador-estado.esperando {
+            color: var(--dorado);
+        }
+
+        .lobby-jugador .jugador-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--dorado);
+        }
+
+        .lobby-jugador .jugador-avatar.placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--gris-medio);
+            font-size: 20px;
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .lobby-vs {
+            font-size: clamp(20px, 5vmin, 28px);
+            font-weight: 900;
+            color: var(--dorado);
+            align-self: center;
+        }
+
+        /* Overlay esperando rival */
+        .overlay-esperando {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 250;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            padding: 20px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .overlay-esperando.oculto {
+            display: none;
+        }
+
+        .esperando-titulo {
+            font-size: clamp(24px, 6vw, 36px);
+            font-weight: 900;
+            color: var(--dorado);
+            text-align: center;
+        }
+
+        .esperando-subtitulo {
+            font-size: clamp(14px, 3.5vmin, 18px);
+            color: rgba(255, 255, 255, 0.7);
+            text-align: center;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top-color: var(--dorado);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Overlay fin */
+        .overlay-fin {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            padding: 20px;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .overlay-fin.oculto {
+            display: none;
+        }
+
+        .overlay-fin .resultado-titulo {
+            font-size: clamp(36px, 8vw, 60px);
+            font-weight: 900;
+            letter-spacing: -0.02em;
+            text-align: center;
+        }
+
+        .overlay-fin .resultado-titulo.ganaste { color: #2ecc71; }
+        .overlay-fin .resultado-titulo.perdiste { color: #e74c3c; }
+        .overlay-fin .resultado-titulo.empate { color: var(--dorado); }
+
+        .overlay-fin .resultado-marcador {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--blanco);
+        }
+
+        .overlay-fin .botones-fin {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .overlay-fin .btn-fin {
+            padding: 14px 32px;
+            border-radius: 50px;
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            border: none;
+            transition: var(--transicion);
+        }
+
+        .btn-revancha {
+            background: var(--dorado);
+            color: #1a2a10;
+        }
+
+        .btn-revancha:hover {
+            background: var(--dorado-claro);
+            box-shadow: 0 4px 20px rgba(200, 168, 78, 0.4);
+        }
+
+        .btn-inicio {
+            background: transparent;
+            color: var(--blanco);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-inicio:hover {
+            border-color: var(--blanco);
+        }
+
+        /* Mensaje flotante */
+        .mensaje-flotante {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            background: rgba(0, 0, 0, 0.9);
+            color: var(--dorado);
+            padding: 20px 36px;
+            border-radius: 50px;
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            z-index: 150;
+            pointer-events: none;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            text-align: center;
+        }
+
+        .mensaje-flotante.mostrar {
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        /* Panel VAR */
+        .var-panel {
+            background: rgba(0, 0, 0, 0.85);
+            border: 2px solid var(--dorado);
+            color: var(--dorado);
+            padding: 8px 12px;
+            border-radius: 10px;
+            font-size: clamp(12px, 2.6vmin, 16px);
+            font-weight: 800;
+            letter-spacing: 0.03em;
+            text-align: center;
+            opacity: 0;
+            transition: opacity 0.3s;
+            max-width: 100%;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+            pointer-events: none;
+        }
+
+        .var-panel.visible {
+            opacity: 1;
+        }
+
+        .var-panel .var-titulo {
+            display: block;
+            font-size: clamp(10px, 2.2vmin, 13px);
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 3px;
+        }
+
+        /* Overlay de advertencia al salir */
+        .overlay-salida {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.92);
+            z-index: 400;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .overlay-salida.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .salida-contenedor {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            width: 100%;
+            max-width: 380px;
+            background: var(--gris-oscuro);
+            border-radius: var(--borde-redondo);
+            padding: 32px 24px;
+            box-shadow: var(--sombra-carta);
+            text-align: center;
+        }
+
+        .salida-titulo {
+            font-size: clamp(24px, 6vw, 32px);
+            font-weight: 800;
+            color: var(--blanco);
+            text-align: center;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .salida-titulo .icono-advertencia {
+            color: var(--rojo);
+        }
+
+        .salida-mensaje {
+            font-size: clamp(14px, 3vmin, 16px);
+            color: rgba(255, 255, 255, 0.7);
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        .salida-mensaje .destacado-salida {
+            color: var(--dorado);
+            font-weight: 700;
+        }
+
+        .botones-salida {
+            display: flex;
+            gap: 12px;
+            width: 100%;
+            margin-top: 8px;
+        }
+
+        .btn-salida {
+            flex: 1;
+            padding: 14px 20px;
+            border-radius: 50px;
+            font-size: clamp(14px, 3vmin, 16px);
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            border: none;
+            transition: var(--transicion);
+            font-family: inherit;
+            text-align: center;
+        }
+
+        .btn-cancelar-salida {
+            background: transparent;
+            color: var(--blanco);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-cancelar-salida:hover {
+            border-color: var(--blanco);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .btn-salir-salida {
+            background: var(--rojo);
+            border-color: var(--rojo-oscuro);
+            color: var(--blanco);
+        }
+
+        .btn-salir-salida:hover {
+            background: #d44235;
+            box-shadow: 0 4px 16px rgba(192, 57, 43, 0.4);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* Responsive - móviles */
+        @media (max-width: 767px) {
+            .mesa-fila {
+                height: 100%;
+                width: 100%;
+            }
+
+            .indicador-canto {
+                margin-bottom: 4px;
+            }
+
+            .mesa-cartas .carta-contenedor {
+                top: 95%;
+                left: 50%;
+            }
+
+            .zona-jugador .etiqueta-turno {
+                margin-top: clamp(4px, 0.8vh, 8px);
+            }
+
+            .zona-botones {
+                justify-content: space-between;
+                align-items: flex-start;
+                padding: 0;
+                gap: 0;
+            }
+
+            .botones-laterales {
+                flex: 0 0 auto;
+                max-width: 28%;
+                flex-direction: column;
+                gap: clamp(4px, 0.8vmin, 6px);
+                padding: 0;
+            }
+
+            .botones-laterales.izquierda {
+                grid-area: auto;
+                justify-content: flex-start;
+                align-items: stretch;
+                align-self: flex-start;
+            }
+
+            .botones-laterales.derecha {
+                justify-content: flex-end;
+                align-items: stretch;
+                align-self: flex-start;
+            }
+
+            .btn-accion {
+                min-width: 0;
+                width: 100%;
+                flex: 0 0 auto;
+                height: clamp(28px, 6vmin, 34px);
+                font-size: clamp(10px, 2.4vmin, 14px);
+                padding: var(--btn-pad-y) clamp(8px, 2vmin, 12px);
+                white-space: nowrap;
+                text-align: center;
+                line-height: 1.2;
+                letter-spacing: 0.01em;
+            }
+        }
+
+        @media (min-width: 768px) {
+            .mano-cpu {
+                margin-top: calc(-1 * clamp(8px, 1.5vh, 14px));
+            }
+
+            .juego {
+                grid-template-rows: auto minmax(0, 1fr) auto auto;
+                grid-template-columns: minmax(120px, 13vw) 1fr minmax(120px, 13vw);
+                grid-template-areas:
+                    "cpu cpu cpu"
+                    "botones-izq mesa botones-der"
+                    "jugador jugador jugador"
+                    "marcador marcador marcador";
+                gap: clamp(6px, 1.2vh, 14px);
+                padding: clamp(8px, 1.5vh, 14px) clamp(10px, 2vw, 18px);
+                max-width: 1400px;
+                margin: 0 auto;
+            }
+
+            .zona-botones {
+                display: contents;
+            }
+
+            .botones-laterales.izquierda {
+                grid-area: botones-izq;
+                gap: clamp(6px, 1.2vh, 12px);
+            }
+
+            .botones-laterales.derecha {
+                grid-area: botones-der;
+                gap: clamp(6px, 1.2vh, 12px);
+            }
+
+            .btn-accion {
+                min-width: clamp(140px, 16vw, 200px);
+                width: 100%;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .juego {
+                grid-template-columns: minmax(140px, 14vw) 1fr minmax(140px, 14vw);
+                max-width: 1500px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- ============ OVERLAY LOBBY (Crear/Unirse a partida) ============ -->
+    <div class="overlay-lobby" id="overlayLobby">
+        <div class="lobby-contenedor">
+            <div class="lobby-titulo">🌐 GOLAZO ONLINE</div>
+            <div class="lobby-subtitulo" id="lobbySubtitulo">Cargando sesión...</div>
+            <div class="lobby-estado" id="lobbyEstado"></div>
+            <div class="lobby-mensaje" id="lobbyMensaje"></div>
+            <div class="lobby-botones">
+                <button class="btn-lobby btn-crear" id="btnCrearPartida" disabled>➕ Crear partida</button>
+                <div style="display:flex; gap:8px; width:100%;">
+                    <input type="text" id="inputCodigo" class="lobby-input" placeholder="Código de partida" maxlength="6" autocomplete="off" disabled>
+                    <button class="btn-lobby btn-unirse" id="btnUnirsePartida" disabled>Unirse</button>
+                </div>
+                <button class="btn-lobby btn-volver-lobby" id="btnVolverInicio">🏠 Volver al inicio</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ OVERLAY ESPERANDO RIVAL ============ -->
+    <div class="overlay-esperando oculto" id="overlayEsperando">
+        <div class="esperando-titulo" id="esperandoTitulo">Esperando rival...</div>
+        <div class="spinner"></div>
+        <div class="esperando-subtitulo" id="esperandoSubtitulo">Compartí el código de partida</div>
+        <div class="lobby-codigo" id="codigoPartida">------</div>
+        <div class="lobby-jugadores" id="lobbyJugadores"></div>
+        <button class="btn-lobby btn-volver-lobby" id="btnCancelarEspera">✕ Cancelar</button>
+    </div>
+
+    <!-- ============ OVERLAY FIN DE PARTIDA ============ -->
+    <div class="overlay-fin oculto" id="overlayFin">
+        <div class="resultado-titulo" id="resultadoTitulo"></div>
+        <div class="resultado-marcador" id="resultadoMarcador"></div>
+        <div class="botones-fin">
+            <button class="btn-fin btn-revancha" id="btnRevancha">⚽ Jugar otra vez</button>
+            <button class="btn-fin btn-inicio" id="btnInicio">🏠 Volver al inicio</button>
+        </div>
+    </div>
+
+    <!-- ============ OVERLAY ADVERTENCIA SALIDA ============ -->
+    <div class="overlay-salida" id="overlaySalida">
+        <div class="salida-contenedor">
+            <div class="salida-titulo"><span class="icono-advertencia">⚠️</span> ¿Abandonar partida?</div>
+            <div class="salida-mensaje">Si salís de la partida online, <span class="destacado-salida">se registrará como abandono</span> y tu rival ganará la partida.</div>
+            <div class="botones-salida">
+                <button class="btn-salida btn-cancelar-salida" id="btnCancelarSalida">✕ Cancelar</button>
+                <button class="btn-salida btn-salir-salida" id="btnConfirmarSalida">🚪 Salir</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mensaje flotante -->
+    <div class="mensaje-flotante" id="mensajeFlotante"></div>
+
+    <!-- Audio de fondo -->
+    <audio id="audioFondo" loop preload="auto">
+        <source src="sounds/background.mp3" type="audio/mpeg">
+    </audio>
+
+    <!-- Elementos de audio estáticos para móviles -->
+    <audio id="sndCarta" preload="auto"><source src="sounds/carta.mp3" type="audio/mpeg"></audio>
+    <audio id="sndGol" preload="auto"><source src="sounds/gol.mp3" type="audio/mpeg"></audio>
+    <audio id="sndGolazo" preload="auto"><source src="sounds/golazo.mp3" type="audio/mpeg"></audio>
+    <audio id="sndGolcpu" preload="auto"><source src="sounds/golcpu.mp3" type="audio/mpeg"></audio>
+    <audio id="sndGolplayer" preload="auto"><source src="sounds/golplayer.mp3" type="audio/mpeg"></audio>
+    <audio id="sndQuiero" preload="auto"><source src="sounds/quiero.mp3" type="audio/mpeg"></audio>
+    <audio id="sndMmmquiero" preload="auto"><source src="sounds/mmmquiero.mp3" type="audio/mpeg"></audio>
+    <audio id="sndNoquiero" preload="auto"><source src="sounds/noquiero.mp3" type="audio/mpeg"></audio>
+    <audio id="sndPenal" preload="auto"><source src="sounds/penal.mp3" type="audio/mpeg"></audio>
+    <audio id="sndPuntocpu" preload="auto"><source src="sounds/puntocpu.mp3" type="audio/mpeg"></audio>
+    <audio id="sndPuntoplayer" preload="auto"><source src="sounds/puntoplayer.mp3" type="audio/mpeg"></audio>
+    <audio id="sndVar" preload="auto"><source src="sounds/var.mp3" type="audio/mpeg"></audio>
+    <audio id="sndGanar" preload="auto"><source src="sounds/ganar.mp3" type="audio/mpeg"></audio>
+    <audio id="sndEmpate" preload="auto"><source src="sounds/empate.mp3" type="audio/mpeg"></audio>
+    <audio id="sndPerder" preload="auto"><source src="sounds/perder.mp3" type="audio/mpeg"></audio>
+
+    <!-- ============ CONTENEDOR DEL JUEGO ============ -->
+    <div class="juego" id="juego">
+        <!-- Zona Rival Online -->
+        <div class="zona-cpu">
+            <div class="mano-cpu" id="manoCpu"></div>
+            <span class="etiqueta-turno" id="etiquetaCpu">Esperando rival...</span>
+        </div>
+
+        <!-- Zona mesa -->
+        <div class="zona-mesa">
+            <div class="indicador-canto" id="indicadorCanto"></div>
+            <div class="mesa-cartas" id="mesaCartas"></div>
+        </div>
+
+        <!-- Botones -->
+        <div class="zona-botones">
+            <div class="botones-laterales izquierda" id="botonesIzquierda">
+                <button class="btn-accion btn-penal" id="btnPenal" disabled>🥅 Penal</button>
+                <button class="btn-accion btn-quiero" id="btnQuieroIzq" disabled>✓ Quiero</button>
+                <button class="btn-accion btn-no-quiero" id="btnNoQuieroIzq" disabled>✗ No quiero</button>
+                <button class="btn-accion btn-var" id="btnVar" disabled>📺 VAR</button>
+            </div>
+
+            <div class="botones-laterales derecha" id="botonesDerecha">
+                <button class="btn-accion btn-gol" id="btnGol" disabled>⚽ Gol</button>
+                <button class="btn-accion btn-quiero" id="btnQuieroDer" disabled>✓ Quiero</button>
+                <button class="btn-accion btn-no-quiero" id="btnNoQuieroDer" disabled>✗ No quiero</button>
+                <button class="btn-accion btn-golazo" id="btnGolazo" disabled>💥 Golazo</button>
+                <div class="var-panel" id="varPanel">
+                    <span class="var-titulo">📺 VAR</span>
+                    <span id="varPanelTexto"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Zona jugador -->
+        <div class="zona-jugador">
+            <span class="etiqueta-turno" id="etiquetaJugador">Turno de <span id="nombreEnTurno">Jugador</span></span>
+            <div class="mano-jugador" id="manoJugador"></div>
+        </div>
+
+        <!-- Panel marcador -->
+        <div class="panel-marcador" id="panelMarcador">
+            <div class="jugador-info">
+                <span class="nombre" id="nombreJugadorEtiqueta">Jugador</span>
+                <span class="goles-numero" id="golesJugador">0</span>
+                <span class="estrellas" id="estrellasJugador">
+                    <span class="estrella">★</span><span class="estrella">★</span><span class="estrella">★</span>
+                </span>
+            </div>
+            <div class="centro-marcador">
+                <div>⚽</div>
+                <div class="minuto" id="minutoActual">0'</div>
+            </div>
+            <div class="cpu-info">
+                <span class="nombre" id="nombreRivalEtiqueta">Rival</span>
+                <span class="goles-numero" id="golesCpu">0</span>
+                <span class="estrellas" id="estrellasCpu">
+                    <span class="estrella">★</span><span class="estrella">★</span><span class="estrella">★</span>
+                </span>
+            </div>
+            <div class="botones-sonido">
+                <button class="btn-sonido activo" id="btnSonido" title="Efectos de sonido">🔊</button>
+                <button class="btn-sonido activo" id="btnMusica" title="Música de fondo">🎵</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // ============================================================
+        // GOLAZO ONLINE - CONEXIÓN Y ESTRUCTURA DE PARTIDA 1vs1
+        // ============================================================
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
+        import { getDatabase, ref, get, set, update, onValue, remove, push, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDsgQ2dwokGq3umlptHtMCVgFISLe8ySM0",
+            authDomain: "golazo-juego.firebaseapp.com",
+            databaseURL: "https://golazo-juego-default-rtdb.firebaseio.com/",
+            projectId: "golazo-juego",
+            storageBucket: "golazo-juego.firebasestorage.app",
+            messagingSenderId: "642135658463",
+            appId: "1:642135658463:web:4177f755fa612370dcfe6a",
+            measurementId: "G-58N0YWBXYM"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+
+        // ============ CONSTANTES DEL JUEGO ============
+        const POSICIONES = ['Arq', 'Def', 'Vol', 'Del'];
+        const NUMEROS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+        const CARTAS_POR_JUGADOR = 4;
+        const TOTAL_MANOS = 9;
+        const PUNTOS_PARA_GOL = 3;
+        const MINUTOS = ["0' a 10'", "10' a 20'", "20' a 30'", "30' a 40'", "40' a 50'", "50' a 60'", "60' a 70'", "70' a 80'", "80' a 90'"];
+        const RUTA_IMAGENES = 'img/';
+        const RUTA_DORSO = 'img/Dorso.png';
+        const CODIGO_LENGTH = 6;
+
+        // ============ ESTADO GLOBAL ============
+        const estado = {
+            usuario: null,
+            nickname: '',
+            fotoURL: '',
+            partidaId: null,
+            miRol: null, // 'creador' o 'unido'
+            miLado: null, // 'jugador' o 'rival' (lado en la mesa)
+            rivalNombre: 'Rival',
+            rivalFoto: '',
+            enPartida: false,
+            fase: 'lobby', // lobby, esperando, jugando, fin
+            sonidosActivados: true,
+            musicaActivada: true,
+            // Estado del juego (se sincronizará con Firebase)
+            juego: {
+                mazo: [],
+                manoJugador: [],
+                manoRival: [],
+                golesJugador: 0,
+                golesRival: 0,
+                puntosJugador: 0,
+                puntosRival: 0,
+                manoActual: 0,
+                rondaActual: 0,
+                turnoInicial: 'jugador',
+                turnoActual: 'jugador',
+                cartasEnMesa: [],
+                cartaSeleccionada: null,
+                fase: 'esperando_seleccion',
+                penalUsado: false,
+                penalCantadoPor: null,
+                penalActivo: false,
+                penalAtacante: null,
+                penalCartas: [],
+                golActivo: false,
+                golAtacante: null,
+                golCartas: [],
+                golUsado: false,
+                golazoUsado: false,
+                cantoActual: null,
+                cantoPedidoPor: null,
+                cantoPendiente: null,
+                varPedidoPor: null,
+                varDeclaraciones: { jugador: null, rival: null },
+                varTurnoDeclarar: null,
+                esperandoRespuestaDe: null,
+                historialManos: [],
+                inicioRonda: 0,
+                ganadorManoAnterior: null,
+                golEnMano: false,
+                puntosManoJugador: 0,
+                puntosManoRival: 0,
+                golesInicioManoJugador: 0,
+                golesInicioManoRival: 0,
+            }
+        };
+
+        // ============ REFERENCIAS DOM ============
+        const dom = {};
+
+        function cacheDom() {
+            dom.overlayLobby = document.getElementById('overlayLobby');
+            dom.lobbySubtitulo = document.getElementById('lobbySubtitulo');
+            dom.lobbyEstado = document.getElementById('lobbyEstado');
+            dom.lobbyMensaje = document.getElementById('lobbyMensaje');
+            dom.btnCrearPartida = document.getElementById('btnCrearPartida');
+            dom.inputCodigo = document.getElementById('inputCodigo');
+            dom.btnUnirsePartida = document.getElementById('btnUnirsePartida');
+            dom.btnVolverInicio = document.getElementById('btnVolverInicio');
+            dom.overlayEsperando = document.getElementById('overlayEsperando');
+            dom.esperandoTitulo = document.getElementById('esperandoTitulo');
+            dom.esperandoSubtitulo = document.getElementById('esperandoSubtitulo');
+            dom.codigoPartida = document.getElementById('codigoPartida');
+            dom.lobbyJugadores = document.getElementById('lobbyJugadores');
+            dom.btnCancelarEspera = document.getElementById('btnCancelarEspera');
+            dom.overlayFin = document.getElementById('overlayFin');
+            dom.resultadoTitulo = document.getElementById('resultadoTitulo');
+            dom.resultadoMarcador = document.getElementById('resultadoMarcador');
+            dom.btnRevancha = document.getElementById('btnRevancha');
+            dom.btnInicio = document.getElementById('btnInicio');
+            dom.overlaySalida = document.getElementById('overlaySalida');
+            dom.btnCancelarSalida = document.getElementById('btnCancelarSalida');
+            dom.btnConfirmarSalida = document.getElementById('btnConfirmarSalida');
+            dom.mensajeFlotante = document.getElementById('mensajeFlotante');
+            dom.manoCpu = document.getElementById('manoCpu');
+            dom.manoJugador = document.getElementById('manoJugador');
+            dom.mesaCartas = document.getElementById('mesaCartas');
+            dom.golesJugador = document.getElementById('golesJugador');
+            dom.golesCpu = document.getElementById('golesCpu');
+            dom.estrellasJugador = document.getElementById('estrellasJugador');
+            dom.estrellasCpu = document.getElementById('estrellasCpu');
+            dom.minutoActual = document.getElementById('minutoActual');
+            dom.indicadorCanto = document.getElementById('indicadorCanto');
+            dom.etiquetaCpu = document.getElementById('etiquetaCpu');
+            dom.etiquetaJugador = document.getElementById('etiquetaJugador');
+            dom.nombreEnTurno = document.getElementById('nombreEnTurno');
+            dom.nombreJugadorEtiqueta = document.getElementById('nombreJugadorEtiqueta');
+            dom.nombreRivalEtiqueta = document.getElementById('nombreRivalEtiqueta');
+            dom.btnPenal = document.getElementById('btnPenal');
+            dom.btnQuieroIzq = document.getElementById('btnQuieroIzq');
+            dom.btnNoQuieroIzq = document.getElementById('btnNoQuieroIzq');
+            dom.btnVar = document.getElementById('btnVar');
+            dom.btnGol = document.getElementById('btnGol');
+            dom.btnQuieroDer = document.getElementById('btnQuieroDer');
+            dom.btnNoQuieroDer = document.getElementById('btnNoQuieroDer');
+            dom.btnGolazo = document.getElementById('btnGolazo');
+            dom.btnSonido = document.getElementById('btnSonido');
+            dom.btnMusica = document.getElementById('btnMusica');
+            dom.varPanel = document.getElementById('varPanel');
+            dom.varPanelTexto = document.getElementById('varPanelTexto');
+            dom.audioFondo = document.getElementById('audioFondo');
+            dom.audioCarta = document.getElementById('sndCarta');
+            dom.audioGol = document.getElementById('sndGol');
+            dom.audioGolazo = document.getElementById('sndGolazo');
+            dom.audioGolcpu = document.getElementById('sndGolcpu');
+            dom.audioGolplayer = document.getElementById('sndGolplayer');
+            dom.audioQuiero = document.getElementById('sndQuiero');
+            dom.audioMmmquiero = document.getElementById('sndMmmquiero');
+            dom.audioNoquiero = document.getElementById('sndNoquiero');
+            dom.audioPenal = document.getElementById('sndPenal');
+            dom.audioPuntocpu = document.getElementById('sndPuntocpu');
+            dom.audioPuntoplayer = document.getElementById('sndPuntoplayer');
+            dom.audioVar = document.getElementById('sndVar');
+            dom.audioGanar = document.getElementById('sndGanar');
+            dom.audioEmpate = document.getElementById('sndEmpate');
+            dom.audioPerder = document.getElementById('sndPerder');
+
+            dom.sonidos = {
+                'carta': dom.audioCarta,
+                'gol': dom.audioGol,
+                'golazo': dom.audioGolazo,
+                'golcpu': dom.audioGolcpu,
+                'golplayer': dom.audioGolplayer,
+                'quiero': dom.audioQuiero,
+                'mmmquiero': dom.audioMmmquiero,
+                'noquiero': dom.audioNoquiero,
+                'penal': dom.audioPenal,
+                'puntocpu': dom.audioPuntocpu,
+                'puntoplayer': dom.audioPuntoplayer,
+                'var': dom.audioVar,
+                'ganar': dom.audioGanar,
+                'empate': dom.audioEmpate,
+                'perder': dom.audioPerder,
+            };
+        }
+
+        // ============ UTILIDADES ============
+        function generarCodigoPartida() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let codigo = '';
+            for (let i = 0; i < CODIGO_LENGTH; i++) {
+                codigo += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return codigo;
+        }
+
+        function crearCarta(posicion, numero) {
+            const nombresPos = { Arq: 'Arquero', Def: 'Defensor', Vol: 'Volante', Del: 'Delantero' };
+            return {
+                id: `${posicion}${numero}`,
+                posicion,
+                numero,
+                nombre: `${nombresPos[posicion]} ${numero}`,
+                imagen: `${RUTA_IMAGENES}${nombresPos[posicion]}${numero}.png`,
+            };
+        }
+
+        function crearMazo() {
+            const mazo = [];
+            for (const pos of POSICIONES) {
+                for (const num of NUMEROS) {
+                    mazo.push(crearCarta(pos, num));
+                }
+            }
+            return mazo;
+        }
+
+        function mezclarMazo(mazo) {
+            const copia = [...mazo];
+            for (let i = copia.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [copia[i], copia[j]] = [copia[j], copia[i]];
+            }
+            return copia;
+        }
+
+        function repartir(mazo) {
+            const manoJ = [], manoR = [], restante = [...mazo];
+            for (let i = 0; i < CARTAS_POR_JUGADOR; i++) {
+                manoJ.push(restante.pop());
+                manoR.push(restante.pop());
+            }
+            return { manoJ, manoR, mazoRestante: restante };
+        }
+
+        function ordenarMano(mano) {
+            const orden = { Arq: 0, Def: 1, Vol: 2, Del: 3 };
+            return [...mano].sort((a, b) => orden[a.posicion] - orden[b.posicion] || b.numero - a.numero);
+        }
+
+        function reproducirSonido(nombre) {
+            if (!estado.sonidosActivados) return;
+            const audio = dom.sonidos[nombre];
+            if (!audio) return;
+            audio.volume = 0.7;
+            audio.currentTime = 0;
+            audio.play().catch(() => {});
+        }
+
+        function reproducirAudioFondo() {
+            if (!estado.musicaActivada) return;
+            if (dom.audioFondo) {
+                dom.audioFondo.volume = 0.3;
+                dom.audioFondo.play().catch(() => {});
+            }
+        }
+
+        function detenerAudioFondo() {
+            if (dom.audioFondo) {
+                dom.audioFondo.pause();
+                dom.audioFondo.currentTime = 0;
+            }
+        }
+
+        let timeoutMensaje;
+        function mostrarMensaje(t) {
+            if (timeoutMensaje) clearTimeout(timeoutMensaje);
+            dom.mensajeFlotante.textContent = t;
+            dom.mensajeFlotante.classList.add('mostrar');
+            timeoutMensaje = setTimeout(() => dom.mensajeFlotante.classList.remove('mostrar'), 1800);
+        }
+
+        function mostrarLobbyMensaje(texto, esError) {
+            dom.lobbyMensaje.textContent = texto;
+            dom.lobbyMensaje.className = 'lobby-mensaje' + (esError ? '' : ' ok');
+        }
+
+        // ============ ESCALADO DINÁMICO ============
+        function actualizarEscalado() {
+            const vh = window.innerHeight;
+            const vw = window.innerWidth;
+            const vmin = Math.min(vh, vw);
+            const isWide = vw >= 768;
+            const aspectRatio = 1039 / 744;
+
+            const zonaCpu = vh * (isWide ? 0.055 : 0.09);
+            const zonaBotones = isWide ? 0 : vh * 0.12;
+            const zonaJugador = vh * (isWide ? 0.19 : 0.18);
+            const zonaMarcador = vh * 0.08;
+            const gaps = vh * 0.035;
+            const espacioMesa = vh - zonaCpu - zonaBotones - zonaJugador - zonaMarcador - gaps;
+
+            let cartaMesa = Math.min(espacioMesa * 0.52, vw * (isWide ? 0.24 : 0.42), vmin * 0.36, 210);
+            cartaMesa = Math.max(cartaMesa, vmin * 0.15);
+
+            let cartaMano = Math.min(zonaJugador * 0.95, vw * 0.34, cartaMesa * 1.25, vmin * 0.31, 200);
+            cartaMano = Math.max(cartaMano, vmin * 0.16);
+
+            let cartaCpu = Math.min(cartaMano * 0.8, vw * 0.2, vmin * 0.21, 140) * 0.8;
+            cartaCpu = Math.max(cartaCpu, vmin * 0.13);
+
+            const btnFont = Math.max(15, Math.min(24, vmin * 0.05));
+            const btnPadY = Math.max(10, Math.min(20, vmin * 0.028));
+            const btnPadX = Math.max(14, Math.min(32, vmin * 0.04));
+            const manoAltura = cartaMano * aspectRatio + (isWide ? 18 : 14);
+
+            const root = document.documentElement;
+            root.style.setProperty('--carta-mesa', cartaMesa + 'px');
+            root.style.setProperty('--carta-mesa-max-h', (cartaMesa * aspectRatio) + 'px');
+            root.style.setProperty('--carta-mano', cartaMano + 'px');
+            root.style.setProperty('--carta-mano-max-h', (cartaMano * aspectRatio) + 'px');
+            root.style.setProperty('--carta-cpu', cartaCpu + 'px');
+            root.style.setProperty('--carta-cpu-max-h', (cartaCpu * aspectRatio) + 'px');
+            root.style.setProperty('--mano-altura', manoAltura + 'px');
+            root.style.setProperty('--btn-font', btnFont + 'px');
+            root.style.setProperty('--btn-pad-y', btnPadY + 'px');
+            root.style.setProperty('--btn-pad-x', btnPadX + 'px');
+        }
+
+        // ============ RENDERIZADO ============
+        function renderizarManoRival() {
+            dom.manoCpu.innerHTML = '';
+            const cantidad = estado.juego.manoRival.length;
+            for (let i = 0; i < cantidad; i++) {
+                const c = document.createElement('div');
+                c.className = 'carta-contenedor';
+                const img = document.createElement('img');
+                img.src = RUTA_DORSO;
+                img.className = 'carta-img dorso';
+                img.draggable = false;
+                c.appendChild(img);
+                dom.manoCpu.appendChild(c);
+            }
+        }
+
+        function renderizarManoJugador() {
+            dom.manoJugador.innerHTML = '';
+            const mano = estado.juego.manoJugador;
+            const style = getComputedStyle(document.documentElement);
+            const anchoCarta = parseFloat(style.getPropertyValue('--carta-mano')) || 100;
+            const manoAltura = parseFloat(style.getPropertyValue('--mano-altura')) || 130;
+
+            if (!mano.length) {
+                dom.manoJugador.style.height = manoAltura + 'px';
+                return;
+            }
+
+            const anchoDisponible = Math.min(window.innerWidth - 32, 920);
+            let anchoCartaJugador = anchoCarta * 1.25;
+            const factorSuperp = 0.85;
+            let superp = anchoCartaJugador * factorSuperp;
+            const anchoTotal = (mano.length - 1) * superp + anchoCartaJugador;
+            if (anchoTotal > anchoDisponible) {
+                anchoCartaJugador = anchoDisponible / (1 + (mano.length - 1) * factorSuperp);
+                superp = anchoCartaJugador * factorSuperp;
+            }
+            if (anchoCartaJugador > anchoDisponible) {
+                anchoCartaJugador = anchoDisponible;
+                superp = anchoCartaJugador * factorSuperp;
+            }
+            const offsetBase = (anchoDisponible - ((mano.length - 1) * superp + anchoCartaJugador)) / 2;
+            dom.manoJugador.style.height = manoAltura + 'px';
+            mano.forEach((carta, i) => {
+                const cont = document.createElement('div');
+                cont.className = 'carta-contenedor';
+                cont.dataset.index = i;
+                cont.style.zIndex = i;
+                cont.style.left = `${offsetBase + i * superp}px`;
+                if (estado.juego.cartaSeleccionada === i) {
+                    cont.classList.add('seleccionada');
+                    cont.style.zIndex = 20;
+                }
+                const img = document.createElement('img');
+                img.src = carta.imagen;
+                img.className = 'carta-img';
+                img.draggable = false;
+                img.style.width = anchoCartaJugador + 'px';
+                cont.appendChild(img);
+                cont.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (estado.fase !== 'jugando') return;
+                    if (estado.juego.fase !== 'esperando_seleccion') return;
+                    if (estado.juego.turnoActual !== 'jugador') return;
+                    if (estado.juego.cartaSeleccionada === i) {
+                        jugarCartaSeleccionada();
+                    } else {
+                        estado.juego.cartaSeleccionada = i;
+                        renderizarManoJugador();
+                    }
+                });
+                dom.manoJugador.appendChild(cont);
+            });
+        }
+
+        function renderizarMesa() {
+            dom.mesaCartas.innerHTML = '';
+            if (!estado.juego.cartasEnMesa.length) return;
+
+            const filaMesa = document.createElement('div');
+            filaMesa.className = 'mesa-fila';
+
+            const esMovil = window.innerWidth < 768;
+            estado.juego.cartasEnMesa.forEach((item, index) => {
+                const cont = document.createElement('div');
+                cont.className = 'carta-contenedor';
+                const img = document.createElement('img');
+                img.src = item.carta.imagen;
+                img.className = 'carta-img';
+                img.draggable = false;
+                cont.appendChild(img);
+                cont.style.zIndex = index + 1;
+                if (esMovil) {
+                    cont.style.transform = `translate(-50%, 0%) translateX(${(index % 2) * 12}px) translateY(${Math.floor(index / 2) * 8}px)`;
+                } else {
+                    cont.style.transform = `translate(-50%, -42%) translateX(${(index % 2) * 12}px) translateY(${Math.floor(index / 2) * 8}px)`;
+                }
+                filaMesa.appendChild(cont);
+            });
+
+            dom.mesaCartas.appendChild(filaMesa);
+        }
+
+        function renderizarEstrellas() {
+            const pJ = estado.juego.puntosJugador;
+            const pR = estado.juego.puntosRival;
+            dom.estrellasJugador.querySelectorAll('.estrella').forEach((el, i) => {
+                el.classList.toggle('encendida', i < pJ);
+            });
+            dom.estrellasCpu.querySelectorAll('.estrella').forEach((el, i) => {
+                el.classList.toggle('encendida', i < pR);
+            });
+        }
+
+        function renderizarMarcador() {
+            dom.golesJugador.textContent = estado.juego.golesJugador;
+            dom.golesCpu.textContent = estado.juego.golesRival;
+            dom.minutoActual.textContent = MINUTOS[estado.juego.manoActual] || '0\' a 10\'';
+            renderizarEstrellas();
+        }
+
+        function actualizarIndicadorCanto() {
+            if (estado.juego.cantoActual) {
+                const textos = { penal: '🥅 PENAL', gol: '⚽ GOL', golazo: '💥 GOLAZO' };
+                dom.indicadorCanto.textContent = textos[estado.juego.cantoActual] || '';
+                dom.indicadorCanto.classList.add('visible');
+            } else {
+                dom.indicadorCanto.classList.remove('visible');
+            }
+        }
+
+        function actualizarEtiquetasTurno() {
+            if (estado.fase === 'jugando') {
+                if (estado.juego.turnoActual === 'jugador') {
+                    dom.etiquetaJugador.classList.add('activo');
+                    dom.etiquetaCpu.classList.remove('activo');
+                } else {
+                    dom.etiquetaCpu.classList.add('activo');
+                    dom.etiquetaJugador.classList.remove('activo');
+                }
+            } else {
+                dom.etiquetaJugador.classList.remove('activo');
+                dom.etiquetaCpu.classList.remove('activo');
+            }
+        }
+
+        function actualizarBotones() {
+            const todos = [
+                dom.btnPenal, dom.btnQuieroIzq, dom.btnNoQuieroIzq, dom.btnVar,
+                dom.btnGol, dom.btnQuieroDer, dom.btnNoQuieroDer, dom.btnGolazo
+            ];
+            todos.forEach(b => b.disabled = true);
+
+            if (estado.fase !== 'jugando') return;
+
+            const fase = estado.juego.fase;
+            const esMiTurno = estado.juego.turnoActual === 'jugador';
+            const quedan = estado.juego.manoJugador.length > 0;
+            const rivalTieneCartas = estado.juego.manoRival.length > 0;
+
+            switch (fase) {
+                case 'esperando_seleccion':
+                    if (esMiTurno && quedan) {
+                        if (estado.juego.rondaActual === 0 && !estado.juego.penalUsado && !estado.juego.penalCantadoPor && !estado.juego.penalActivo && !estado.juego.golActivo) {
+                            dom.btnPenal.disabled = false;
+                        }
+                        if (estado.juego.rondaActual >= 1 && !estado.juego.golUsado && !estado.juego.penalActivo && !estado.juego.golActivo && rivalTieneCartas) {
+                            dom.btnGol.disabled = false;
+                        }
+                    }
+                    break;
+                case 'penal_pedido':
+                    if (estado.juego.esperandoRespuestaDe === 'jugador') {
+                        dom.btnQuieroIzq.disabled = false;
+                        dom.btnNoQuieroIzq.disabled = false;
+                        dom.btnVar.disabled = false;
+                    }
+                    break;
+                case 'gol_pedido':
+                    if (estado.juego.esperandoRespuestaDe === 'jugador') {
+                        dom.btnQuieroDer.disabled = false;
+                        dom.btnNoQuieroDer.disabled = false;
+                        dom.btnGolazo.disabled = false;
+                    }
+                    break;
+                case 'golazo_pedido':
+                    if (estado.juego.esperandoRespuestaDe === 'jugador') {
+                        dom.btnQuieroDer.disabled = false;
+                        dom.btnNoQuieroDer.disabled = false;
+                    }
+                    break;
+                case 'var_decision':
+                    if (estado.juego.esperandoRespuestaDe === 'jugador') {
+                        dom.btnQuieroIzq.disabled = false;
+                        dom.btnNoQuieroIzq.disabled = false;
+                    }
+                    break;
+                case 'var_pedido':
+                    if (estado.juego.varTurnoDeclarar === 'jugador') {
+                        dom.btnVar.disabled = false;
+                        dom.btnVar.textContent = '📢 DECLARAR';
+                    } else {
+                        dom.btnVar.textContent = '📺 VAR';
+                    }
+                    break;
+                default:
+                    dom.btnVar.textContent = '📺 VAR';
+            }
+        }
+
+        function renderizarTodo() {
+            actualizarEscalado();
+            renderizarManoRival();
+            renderizarManoJugador();
+            renderizarMesa();
+            renderizarMarcador();
+            actualizarIndicadorCanto();
+            actualizarEtiquetasTurno();
+            actualizarBotones();
+        }
+
+        // ============ ACCIONES DE JUEGO (se envían a Firebase) ============
+        function jugarCartaSeleccionada() {
+            if (estado.fase !== 'jugando') return;
+            if (estado.juego.fase !== 'esperando_seleccion') return;
+            if (estado.juego.turnoActual !== 'jugador') return;
+            if (estado.juego.cartaSeleccionada === null) return;
+
+            const idx = estado.juego.cartaSeleccionada;
+            const carta = estado.juego.manoJugador[idx];
+            if (!carta) return;
+
+            // Enviar acción a Firebase
+            const partidaRef = ref(db, 'partidas/' + estado.partidaId);
+            const accionRef = ref(db, 'partidas/' + estado.partidaId + '/acciones');
+            const nuevaAccion = push(accionRef);
+
+            set(nuevaAccion, {
+                tipo: 'jugar_carta',
+                carta: carta,
+                origen: 'jugador',
+                timestamp: Date.now()
+            });
+
+            // Actualizar localmente
+            estado.juego.manoJugador.splice(idx, 1);
+            estado.juego.cartaSeleccionada = null;
+            estado.juego.cartasEnMesa.push({ carta, origen: 'jugador' });
+            estado.juego.fase = 'esperando_rival';
+            estado.juego.turnoActual = 'rival';
+
+            reproducirSonido('carta');
+            renderizarTodo();
+        }
+
+        // ============ FIREBASE: CREAR PARTIDA ============
+        async function crearPartida() {
+            if (!estado.usuario) return;
+
+            mostrarLobbyMensaje('Creando partida...', false);
+            dom.btnCrearPartida.disabled = true;
+
+            try {
+                // Generar código único
+                let codigo = generarCodigoPartida();
+                let existe = true;
+                let intentos = 0;
+
+                while (existe && intentos < 10) {
+                    const snap = await get(ref(db, 'partidas/' + codigo));
+                    existe = snap.exists();
+                    if (existe) {
+                        codigo = generarCodigoPartida();
+                        intentos++;
+                    }
+                }
+
+                if (existe) {
+                    mostrarLobbyMensaje('Error generando código. Intentá de nuevo.', true);
+                    dom.btnCrearPartida.disabled = false;
+                    return;
+                }
+
+                const partidaRef = ref(db, 'partidas/' + codigo);
+                await set(partidaRef, {
+                    codigo: codigo,
+                    creador: {
+                        uid: estado.usuario.uid,
+                        nickname: estado.nickname || 'Jugador',
+                        fotoURL: estado.fotoURL || '',
+                        listo: true
+                    },
+                    unido: null,
+                    estado: 'esperando', // esperando, jugando, terminada
+                    creadoEn: Date.now(),
+                    ultimaActividad: Date.now()
+                });
+
+                estado.partidaId = codigo;
+                estado.miRol = 'creador';
+                estado.miLado = 'jugador';
+                estado.fase = 'esperando';
+
+                // Mostrar overlay de espera
+                dom.overlayLobby.classList.add('oculto');
+                dom.overlayEsperando.classList.remove('oculto');
+                dom.codigoPartida.textContent = codigo;
+                dom.esperandoTitulo.textContent = 'Esperando rival...';
+                dom.esperandoSubtitulo.textContent = 'Compartí este código con tu rival';
+
+                // Escuchar cambios en la partida
+                escucharPartida(codigo);
+
+            } catch (error) {
+                console.error('Error creando partida:', error);
+                mostrarLobbyMensaje('Error al crear la partida. Revisá tu conexión.', true);
+                dom.btnCrearPartida.disabled = false;
+            }
+        }
+
+        // ============ FIREBASE: UNIRSE A PARTIDA ============
+        async function unirsePartida() {
+            if (!estado.usuario) return;
+
+            const codigo = dom.inputCodigo.value.trim().toUpperCase();
+            if (codigo.length !== CODIGO_LENGTH) {
+                mostrarLobbyMensaje('El código debe tener ' + CODIGO_LENGTH + ' caracteres.', true);
+                return;
+            }
+
+            mostrarLobbyMensaje('Buscando partida...', false);
+            dom.btnUnirsePartida.disabled = true;
+
+            try {
+                const partidaRef = ref(db, 'partidas/' + codigo);
+                const snap = await get(partidaRef);
+
+                if (!snap.exists()) {
+                    mostrarLobbyMensaje('No se encontró ninguna partida con ese código.', true);
+                    dom.btnUnirsePartida.disabled = false;
+                    return;
+                }
+
+                const partida = snap.val();
+
+                if (partida.estado !== 'esperando') {
+                    mostrarLobbyMensaje('Esa partida ya comenzó o terminó.', true);
+                    dom.btnUnirsePartida.disabled = false;
+                    return;
+                }
+
+                if (partida.unido) {
+                    mostrarLobbyMensaje('Esa partida ya tiene 2 jugadores.', true);
+                    dom.btnUnirsePartida.disabled = false;
+                    return;
+                }
+
+                if (partida.creador.uid === estado.usuario.uid) {
+                    mostrarLobbyMensaje('Ya sos el creador de esa partida.', true);
+                    dom.btnUnirsePartida.disabled = false;
+                    return;
+                }
+
+                // Unirse a la partida
+                await update(partidaRef, {
+                    unido: {
+                        uid: estado.usuario.uid,
+                        nickname: estado.nickname || 'Jugador',
+                        fotoURL: estado.fotoURL || '',
+                        listo: true
+                    },
+                    estado: 'jugando',
+                    ultimaActividad: Date.now()
+                });
+
+                estado.partidaId = codigo;
+                estado.miRol = 'unido';
+                estado.miLado = 'rival';
+                estado.fase = 'jugando';
+
+                // Ocultar lobby
+                dom.overlayLobby.classList.add('oculto');
+                dom.overlayEsperando.classList.add('oculto');
+
+                // Configurar nombres
+                dom.nombreRivalEtiqueta.textContent = partida.creador.nickname || 'Rival';
+                estado.rivalNombre = partida.creador.nickname || 'Rival';
+
+                // Escuchar cambios en la partida
+                escucharPartida(codigo);
+
+                // Inicializar el juego
+                iniciarJuegoOnline();
+
+            } catch (error) {
+                console.error('Error uniéndose a partida:', error);
+                mostrarLobbyMensaje('Error al unirse. Revisá tu conexión.', true);
+                dom.btnUnirsePartida.disabled = false;
+            }
+        }
+
+        // ============ FIREBASE: ESCUCHAR PARTIDA ============
+        let partidaListener = null;
+
+        function escucharPartida(codigo) {
+            if (partidaListener) {
+                partidaListener();
+                partidaListener = null;
+            }
+
+            const partidaRef = ref(db, 'partidas/' + codigo);
+            partidaListener = onValue(partidaRef, (snap) => {
+                if (!snap.exists()) {
+                    // La partida fue eliminada
+                    mostrarMensaje('La partida terminó');
+                    return;
+                }
+
+                const partida = snap.val();
+
+                // Si soy el creador y alguien se unió
+                if (estado.miRol === 'creador' && partida.unido && estado.fase === 'esperando') {
+                    estado.fase = 'jugando';
+                    dom.overlayEsperando.classList.add('oculto');
+                    dom.nombreRivalEtiqueta.textContent = partida.unido.nickname || 'Rival';
+                    estado.rivalNombre = partida.unido.nickname || 'Rival';
+                    iniciarJuegoOnline();
+                }
+
+                // Si la partida está en estado jugando y hay datos de juego
+                if (partida.estado === 'jugando' && partida.juego) {
+                    // Actualizar estado del juego desde Firebase
+                    if (partida.juego.manoJugador && partida.juego.manoRival) {
+                        // Determinar qué mano es la mía según mi lado
+                        const miMano = estado.miLado === 'jugador' ? partida.juego.manoJugador : partida.juego.manoRival;
+                        const rivalMano = estado.miLado === 'jugador' ? partida.juego.manoRival : partida.juego.manoJugador;
+
+                        estado.juego.manoJugador = miMano || [];
+                        estado.juego.manoRival = rivalMano || [];
+                    }
+
+                    // Sincronizar otros campos del juego
+                    if (partida.juego.golesJugador !== undefined) {
+                        estado.juego.golesJugador = estado.miLado === 'jugador' ? partida.juego.golesJugador : partida.juego.golesRival;
+                        estado.juego.golesRival = estado.miLado === 'jugador' ? partida.juego.golesRival : partida.juego.golesJugador;
+                    }
+                    if (partida.juego.puntosJugador !== undefined) {
+                        estado.juego.puntosJugador = estado.miLado === 'jugador' ? partida.juego.puntosJugador : partida.juego.puntosRival;
+                        estado.juego.puntosRival = estado.miLado === 'jugador' ? partida.juego.puntosRival : partida.juego.puntosJugador;
+                    }
+                    if (partida.juego.manoActual !== undefined) estado.juego.manoActual = partida.juego.manoActual;
+                    if (partida.juego.rondaActual !== undefined) estado.juego.rondaActual = partida.juego.rondaActual;
+                    if (partida.juego.turnoActual !== undefined) {
+                        // Convertir turno según mi lado
+                        const turnoAbsoluto = partida.juego.turnoActual;
+                        estado.juego.turnoActual = turnoAbsoluto === 'jugador' ? (estado.miLado === 'jugador' ? 'jugador' : 'rival') : (estado.miLado === 'jugador' ? 'rival' : 'jugador');
+                    }
+                    if (partida.juego.cartasEnMesa !== undefined) estado.juego.cartasEnMesa = partida.juego.cartasEnMesa || [];
+                    if (partida.juego.fase !== undefined) estado.juego.fase = partida.juego.fase;
+                    if (partida.juego.cantoActual !== undefined) estado.juego.cantoActual = partida.juego.cantoActual;
+                    if (partida.juego.cantoPedidoPor !== undefined) estado.juego.cantoPedidoPor = partida.juego.cantoPedidoPor;
+                    if (partida.juego.esperandoRespuestaDe !== undefined) {
+                        const respAbsoluto = partida.juego.esperandoRespuestaDe;
+                        estado.juego.esperandoRespuestaDe = respAbsoluto === 'jugador' ? (estado.miLado === 'jugador' ? 'jugador' : 'rival') : (estado.miLado === 'jugador' ? 'rival' : 'jugador');
+                    }
+                    if (partida.juego.penalUsado !== undefined) estado.juego.penalUsado = partida.juego.penalUsado;
+                    if (partida.juego.penalCantadoPor !== undefined) estado.juego.penalCantadoPor = partida.juego.penalCantadoPor;
+                    if (partida.juego.penalActivo !== undefined) estado.juego.penalActivo = partida.juego.penalActivo;
+                    if (partida.juego.penalAtacante !== undefined) {
+                        const atacanteAbsoluto = partida.juego.penalAtacante;
+                        estado.juego.penalAtacante = atacanteAbsoluto === 'jugador' ? (estado.miLado === 'jugador' ? 'jugador' : 'rival') : (estado.miLado === 'jugador' ? 'rival' : 'jugador');
+                    }
+                    if (partida.juego.golUsado !== undefined) estado.juego.golUsado = partida.juego.golUsado;
+                    if (partida.juego.golActivo !== undefined) estado.juego.golActivo = partida.juego.golActivo;
+                    if (partida.juego.golAtacante !== undefined) {
+                        const atacanteAbsoluto = partida.juego.golAtacante;
+                        estado.juego.golAtacante = atacanteAbsoluto === 'jugador' ? (estado.miLado === 'jugador' ? 'jugador' : 'rival') : (estado.miLado === 'jugador' ? 'rival' : 'jugador');
+                    }
+                    if (partida.juego.golazoUsado !== undefined) estado.juego.golazoUsado = partida.juego.golazoUsado;
+                    if (partida.juego.varPedidoPor !== undefined) {
+                        const varAbsoluto = partida.juego.varPedidoPor;
+                        estado.juego.varPedidoPor = varAbsoluto === 'jugador' ? (estado.miLado === 'jugador' ? 'jugador' : 'rival') : (estado.miLado === 'jugador' ? 'rival' : 'jugador');
+                    }
+                    if (partida.juego.varTurnoDeclarar !== undefined) {
+                        const varTurnoAbsoluto = partida.juego.varTurnoDeclarar;
+                        estado.juego.varTurnoDeclarar = varTurnoAbsoluto === 'jugador' ? (estado.miLado === 'jugador' ? 'jugador' : 'rival') : (estado.miLado === 'jugador' ? 'rival' : 'jugador');
+                    }
+                    if (partida.juego.varDeclaraciones !== undefined) {
+                        const declAbsoluto = partida.juego.varDeclaraciones;
+                        estado.juego.varDeclaraciones = {
+                            jugador: estado.miLado === 'jugador' ? declAbsoluto.jugador : declAbsoluto.rival,
+                            rival: estado.miLado === 'jugador' ? declAbsoluto.rival : declAbsoluto.jugador
+                        };
+                    }
+                    if (partida.juego.golEnMano !== undefined) estado.juego.golEnMano = partida.juego.golEnMano;
+                    if (partida.juego.puntosManoJugador !== undefined) {
+                        estado.juego.puntosManoJugador = estado.miLado === 'jugador' ? partida.juego.puntosManoJugador : partida.juego.puntosManoRival;
+                        estado.juego.puntosManoRival = estado.miLado === 'jugador' ? partida.juego.puntosManoRival : partida.juego.puntosManoJugador;
+                    }
+                    if (partida.juego.ganadorManoAnterior !== undefined) {
+                        const ganadorAbsoluto = partida.juego.ganadorManoAnterior;
+                        estado.juego.ganadorManoAnterior = ganadorAbsoluto === 'jugador' ? (estado.miLado === 'jugador' ? 'jugador' : 'rival') : (estado.miLado === 'jugador' ? 'rival' : 'jugador');
+                    }
+                    if (partida.juego.turnoInicial !== undefined) {
+                        const turnoInicialAbsoluto = partida.juego.turnoInicial;
+                        estado.juego.turnoInicial = turnoInicialAbsoluto === 'jugador' ? (estado.miLado === 'jugador' ? 'jugador' : 'rival') : (estado.miLado === 'jugador' ? 'rival' : 'jugador');
+                    }
+                    if (partida.juego.inicioRonda !== undefined) estado.juego.inicioRonda = partida.juego.inicioRonda;
+                    if (partida.juego.historialManos !== undefined) estado.juego.historialManos = partida.juego.historialManos || [];
+
+                    renderizarTodo();
+                }
+
+                // Si la partida terminó
+                if (partida.estado === 'terminada' && partida.resultado) {
+                    mostrarFinPartido(partida.resultado);
+                }
+
+                // Si el rival se desconectó
+                if (partida.rivalDesconectado && estado.fase === 'jugando') {
+                    mostrarMensaje('Tu rival se desconectó');
+                    // Marcar como ganador al jugador que sigue conectado
+                    const resultado = {
+                        ganador: estado.miLado === 'jugador' ? 'jugador' : 'rival',
+                        golesJugador: estado.juego.golesJugador,
+                        golesRival: estado.juego.golesRival,
+                        abandono: true
+                    };
+                    mostrarFinPartido(resultado);
+                }
+
+            }, (error) => {
+                console.error('Error escuchando partida:', error);
+            });
+        }
+
+        // ============ INICIAR JUEGO ONLINE ============
+        async function iniciarJuegoOnline() {
+            estado.fase = 'jugando';
+            estado.enPartida = true;
+
+            // Configurar nombres
+            dom.nombreJugadorEtiqueta.textContent = estado.nickname || 'Jugador';
+            dom.nombreEnTurno.textContent = estado.nickname || 'Jugador';
+
+            // Si soy el creador, inicializar el mazo y repartir cartas
+            if (estado.miRol === 'creador') {
+                const mazo = mezclarMazo(crearMazo());
+                const { manoJ, manoR } = repartir(mazo);
+                const manoJugadorOrdenada = ordenarMano(manoJ);
+                const manoRivalOrdenada = ordenarMano(manoR);
+
+                // Guardar el estado inicial del juego en Firebase
+                const partidaRef = ref(db, 'partidas/' + estado.partidaId);
+                await update(partidaRef, {
+                    juego: {
+                        manoJugador: manoJugadorOrdenada,
+                        manoRival: manoRivalOrdenada,
+                        golesJugador: 0,
+                        golesRival: 0,
+                        puntosJugador: 0,
+                        puntosRival: 0,
+                        manoActual: 0,
+                        rondaActual: 0,
+                        turnoInicial: 'jugador',
+                        turnoActual: 'jugador',
+                        cartasEnMesa: [],
+                        fase: 'esperando_seleccion',
+                        penalUsado: false,
+                        penalCantadoPor: null,
+                        penalActivo: false,
+                        penalAtacante: null,
+                        penalCartas: [],
+                        golActivo: false,
+                        golAtacante: null,
+                        golCartas: [],
+                        golUsado: false,
+                        golazoUsado: false,
+                        cantoActual: null,
+                        cantoPedidoPor: null,
+                        cantoPendiente: null,
+                        varPedidoPor: null,
+                        varDeclaraciones: { jugador: null, rival: null },
+                        varTurnoDeclarar: null,
+                        esperandoRespuestaDe: null,
+                        historialManos: [],
+                        inicioRonda: 0,
+                        ganadorManoAnterior: null,
+                        golEnMano: false,
+                        puntosManoJugador: 0,
+                        puntosManoRival: 0,
+                        golesInicioManoJugador: 0,
+                        golesInicioManoRival: 0,
+                    },
+                    ultimaActividad: Date.now()
+                });
+
+                // Actualizar estado local
+                estado.juego.manoJugador = manoJugadorOrdenada;
+                estado.juego.manoRival = manoRivalOrdenada;
+                estado.juego.turnoActual = 'jugador';
+                estado.juego.fase = 'esperando_seleccion';
+            }
+
+            // Reproducir audio de fondo
+            reproducirAudioFondo();
+
+            renderizarTodo();
+            mostrarMensaje('¡Partida comenzada!');
+        }
+
+        // ============ MOSTRAR FIN DE PARTIDA ============
+        function mostrarFinPartido(resultado) {
+            estado.fase = 'fin';
+            estado.enPartida = false;
+            dom.overlayFin.classList.remove('oculto');
+
+            const gJ = resultado.golesJugador || 0;
+            const gR = resultado.golesRival || 0;
+
+            // Determinar si gané, perdí o empaté
+            const ganador = resultado.ganador;
+            const yoGane = (estado.miLado === 'jugador' && ganador === 'jugador') || (estado.miLado === 'rival' && ganador === 'rival');
+
+            if (resultado.abandono) {
+                if (yoGane) {
+                    dom.resultadoTitulo.textContent = '¡GANASTE!';
+                    dom.resultadoTitulo.className = 'resultado-titulo ganaste';
+                    dom.resultadoMarcador.textContent = 'Tu rival abandonó la partida';
+                } else {
+                    dom.resultadoTitulo.textContent = 'PERDISTE';
+                    dom.resultadoTitulo.className = 'resultado-titulo perdiste';
+                    dom.resultadoMarcador.textContent = 'Abandonaste la partida';
+                }
+            } else {
+                if (gJ > gR) {
+                    if (yoGane) {
+                        dom.resultadoTitulo.textContent = '¡GANASTE!';
+                        dom.resultadoTitulo.className = 'resultado-titulo ganaste';
+                    } else {
+                        dom.resultadoTitulo.textContent = 'PERDISTE';
+                        dom.resultadoTitulo.className = 'resultado-titulo perdiste';
+                    }
+                } else if (gR > gJ) {
+                    if (yoGane) {
+                        dom.resultadoTitulo.textContent = '¡GANASTE!';
+                        dom.resultadoTitulo.className = 'resultado-titulo ganaste';
+                    } else {
+                        dom.resultadoTitulo.textContent = 'PERDISTE';
+                        dom.resultadoTitulo.className = 'resultado-titulo perdiste';
+                    }
+                } else {
+                    dom.resultadoTitulo.textContent = 'EMPATE';
+                    dom.resultadoTitulo.className = 'resultado-titulo empate';
+                }
+                dom.resultadoMarcador.textContent = `${estado.nickname || 'Jugador'} ${gJ} - ${gR} ${estado.rivalNombre}`;
+            }
+
+            detenerAudioFondo();
+        }
+
+        // ============ ABANDONAR PARTIDA ============
+        async function abandonarPartida() {
+            if (estado.partidaId && estado.enPartida) {
+                try {
+                    const partidaRef = ref(db, 'partidas/' + estado.partidaId);
+                    const snap = await get(partidaRef);
+                    if (snap.exists()) {
+                        const partida = snap.val();
+                        // Marcar al rival como ganador por abandono
+                        const ganador = estado.miLado === 'jugador' ? 'rival' : 'jugador';
+                        await update(partidaRef, {
+                            estado: 'terminada',
+                            resultado: {
+                                ganador: ganador,
+                                golesJugador: partida.juego ? partida.juego.golesJugador : 0,
+                                golesRival: partida.juego ? partida.juego.golesRival : 0,
+                                abandono: true
+                            },
+                            ultimaActividad: Date.now()
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error abandonando partida:', error);
+                }
+            }
+            window.location.href = 'index.html';
+        }
+
+        // ============ CANCELAR ESPERA ============
+        async function cancelarEspera() {
+            if (estado.partidaId && estado.miRol === 'creador') {
+                try {
+                    await remove(ref(db, 'partidas/' + estado.partidaId));
+                } catch (error) {
+                    console.error('Error cancelando partida:', error);
+                }
+            }
+            estado.partidaId = null;
+            estado.miRol = null;
+            estado.fase = 'lobby';
+            dom.overlayEsperando.classList.add('oculto');
+            dom.overlayLobby.classList.remove('oculto');
+            dom.btnCrearPartida.disabled = false;
+            dom.btnUnirsePartida.disabled = false;
+        }
+
+        // ============ INICIALIZACIÓN ============
+        function inicializar() {
+            cacheDom();
+            actualizarEscalado();
+
+            // Escuchar autenticación
+            onAuthStateChanged(auth, (user) => {
+                estado.usuario = user;
+                if (user) {
+                    // Obtener nickname del usuario
+                    const userRef = ref(db, 'usuarios/' + user.uid + '/nickname');
+                    onValue(userRef, (snap) => {
+                        const nick = snap.val() || '';
+                        estado.nickname = nick && nick.length >= 3 ? nick : (user.displayName || 'Jugador');
+                        estado.fotoURL = user.photoURL || '';
+                        dom.lobbySubtitulo.textContent = 'Jugando como: ' + estado.nickname;
+                        dom.btnCrearPartida.disabled = false;
+                        dom.inputCodigo.disabled = false;
+                        dom.btnUnirsePartida.disabled = false;
+                    }, (error) => {
+                        console.error('Error obteniendo nickname:', error);
+                        estado.nickname = user.displayName || 'Jugador';
+                        estado.fotoURL = user.photoURL || '';
+                        dom.lobbySubtitulo.textContent = 'Jugando como: ' + estado.nickname;
+                        dom.btnCrearPartida.disabled = false;
+                        dom.inputCodigo.disabled = false;
+                        dom.btnUnirsePartida.disabled = false;
+                    });
+                } else {
+                    dom.lobbySubtitulo.textContent = 'Necesitás iniciar sesión para jugar online';
+                    dom.btnCrearPartida.disabled = true;
+                    dom.inputCodigo.disabled = true;
+                    dom.btnUnirsePartida.disabled = true;
+                    mostrarLobbyMensaje('Volvé al inicio e iniciá sesión con Google.', true);
+                }
+            });
+
+            // Event listeners del lobby
+            dom.btnCrearPartida.addEventListener('click', crearPartida);
+            dom.btnUnirsePartida.addEventListener('click', unirsePartida);
+            dom.btnVolverInicio.addEventListener('click', () => {
+                window.location.href = 'index.html';
+            });
+            dom.btnCancelarEspera.addEventListener('click', cancelarEspera);
+
+            // Input código: permitir solo mayúsculas y números
+            dom.inputCodigo.addEventListener('input', () => {
+                dom.inputCodigo.value = dom.inputCodigo.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, CODIGO_LENGTH);
+            });
+
+            dom.inputCodigo.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    unirsePartida();
+                }
+            });
+
+            // Botones de sonido
+            dom.btnSonido.addEventListener('click', (e) => {
+                e.stopPropagation();
+                estado.sonidosActivados = !estado.sonidosActivados;
+                dom.btnSonido.classList.toggle('activo', estado.sonidosActivados);
+                dom.btnSonido.classList.toggle('desactivado', !estado.sonidosActivados);
+                dom.btnSonido.textContent = estado.sonidosActivados ? '🔊' : '🔇';
+            });
+
+            dom.btnMusica.addEventListener('click', (e) => {
+                e.stopPropagation();
+                estado.musicaActivada = !estado.musicaActivada;
+                dom.btnMusica.classList.toggle('activo', estado.musicaActivada);
+                dom.btnMusica.classList.toggle('desactivado', !estado.musicaActivada);
+                dom.btnMusica.textContent = estado.musicaActivada ? '🎵' : '🎵';
+                if (!estado.musicaActivada) {
+                    detenerAudioFondo();
+                } else {
+                    reproducirAudioFondo();
+                }
+            });
+
+            // Botones de acción (por ahora solo envían a Firebase, la lógica completa se implementará después)
+            dom.btnPenal.addEventListener('click', () => {
+                if (!dom.btnPenal.disabled) {
+                    mostrarMensaje('🥅 Penal - Próximamente');
+                }
+            });
+            dom.btnQuieroIzq.addEventListener('click', () => {
+                if (!dom.btnQuieroIzq.disabled) {
+                    mostrarMensaje('✓ Quiero - Próximamente');
+                }
+            });
+            dom.btnNoQuieroIzq.addEventListener('click', () => {
+                if (!dom.btnNoQuieroIzq.disabled) {
+                    mostrarMensaje('✗ No quiero - Próximamente');
+                }
+            });
+            dom.btnVar.addEventListener('click', () => {
+                if (!dom.btnVar.disabled) {
+                    mostrarMensaje('📺 VAR - Próximamente');
+                }
+            });
+            dom.btnGol.addEventListener('click', () => {
+                if (!dom.btnGol.disabled) {
+                    mostrarMensaje('⚽ Gol - Próximamente');
+                }
+            });
+            dom.btnQuieroDer.addEventListener('click', () => {
+                if (!dom.btnQuieroDer.disabled) {
+                    mostrarMensaje('✓ Quiero - Próximamente');
+                }
+            });
+            dom.btnNoQuieroDer.addEventListener('click', () => {
+                if (!dom.btnNoQuieroDer.disabled) {
+                    mostrarMensaje('✗ No quiero - Próximamente');
+                }
+            });
+            dom.btnGolazo.addEventListener('click', () => {
+                if (!dom.btnGolazo.disabled) {
+                    mostrarMensaje('💥 Golazo - Próximamente');
+                }
+            });
+
+            // Overlay de salida
+            dom.btnCancelarSalida.addEventListener('click', () => {
+                dom.overlaySalida.classList.remove('visible');
+            });
+            dom.btnConfirmarSalida.addEventListener('click', () => {
+                dom.overlaySalida.classList.remove('visible');
+                abandonarPartida();
+            });
+
+            // Botones de fin de partida
+            dom.btnRevancha.addEventListener('click', () => {
+                window.location.reload();
+            });
+            dom.btnInicio.addEventListener('click', () => {
+                window.location.href = 'index.html';
+            });
+
+            // Interceptar salida
+            window.addEventListener('beforeunload', (e) => {
+                if (estado.enPartida) {
+                    e.preventDefault();
+                    e.returnValue = '';
+                }
+            });
+
+            window.addEventListener('resize', () => {
+                if (estado.fase === 'jugando') renderizarTodo();
+            });
+
+            // Render inicial
+            renderizarTodo();
+        }
+
+        document.addEventListener('DOMContentLoaded', inicializar);
+    </script>
+</body>
+</html>
