@@ -1866,7 +1866,12 @@
             const manoRivalAbsoluta = estado.miLado === 'jugador' ? estado.juego.manoRival : estado.juego.manoJugador;
 
             // El turno actual en Firebase es absoluto: 'jugador' = creador, 'rival' = unido
-            const turnoAbsoluto = estado.juego.turnoActual === 'jugador' ? (estado.miLado === 'jugador' ? 'jugador' : 'rival') : (estado.miLado === 'jugador' ? 'rival' : 'jugador');
+            // Después de que yo juego, el turno es del rival
+            const turnoAbsoluto = estado.miLado === 'jugador' ? 'rival' : 'jugador';
+
+            // La fase en Firebase debe ser 'esperando_seleccion' para que el rival pueda jugar
+            // (el rival ve la fase como 'esperando_seleccion' porque es su turno)
+            const faseAbsoluta = 'esperando_seleccion';
 
             // Actualizar el nodo juego en Firebase
             update(juegoRef, {
@@ -1874,7 +1879,7 @@
                 manoRival: manoRivalAbsoluta,
                 cartasEnMesa: estado.juego.cartasEnMesa,
                 turnoActual: turnoAbsoluto,
-                fase: estado.juego.fase,
+                fase: faseAbsoluta,
                 ultimaActividad: Date.now()
             }).catch((error) => {
                 console.error('Error actualizando juego en Firebase:', error);
@@ -2078,6 +2083,19 @@
 
                 // Si la partida está en estado jugando y hay datos de juego
                 if (partida.estado === 'jugando' && partida.juego) {
+                    // Asegurar que estamos en fase jugando
+                    if (estado.fase !== 'jugando') {
+                        estado.fase = 'jugando';
+                        estado.enPartida = true;
+                        dom.overlayEsperando.classList.add('oculto');
+                        dom.overlayLobby.classList.add('oculto');
+                        dom.nombreJugadorEtiqueta.textContent = estado.nickname || 'Jugador';
+                        dom.nombreEnTurno.textContent = estado.nickname || 'Jugador';
+                        dom.etiquetaCpu.textContent = 'Turno de ' + estado.rivalNombre;
+                        dom.etiquetaJugador.textContent = 'Turno de ' + (estado.nickname || 'Jugador');
+                        reproducirAudioFondo();
+                    }
+
                     // Actualizar estado del juego desde Firebase
                     if (partida.juego.manoJugador && partida.juego.manoRival) {
                         // Determinar qué mano es la mía según mi lado
@@ -2191,6 +2209,8 @@
             // Configurar nombres
             dom.nombreJugadorEtiqueta.textContent = estado.nickname || 'Jugador';
             dom.nombreEnTurno.textContent = estado.nickname || 'Jugador';
+            dom.etiquetaCpu.textContent = 'Turno de ' + estado.rivalNombre;
+            dom.etiquetaJugador.textContent = 'Turno de ' + (estado.nickname || 'Jugador');
 
             // Si soy el creador, inicializar el mazo y repartir cartas
             if (estado.miRol === 'creador') {
