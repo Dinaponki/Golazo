@@ -1932,7 +1932,16 @@
 
             } catch (error) {
                 console.error('Error creando partida:', error);
-                mostrarLobbyMensaje('Error al crear la partida. Revisá tu conexión.', true);
+                const codigoError = error.code || '';
+                let mensaje = 'Error al crear la partida. Revisá tu conexión.';
+                if (codigoError === 'PERMISSION_DENIED') {
+                    mensaje = '⚠ Permiso denegado. Necesitás agregar las reglas de "partidas" en Firebase Console → Realtime Database → Rules.';
+                } else if (codigoError === 'NETWORK_ERROR' || codigoError === 'UNAVAILABLE') {
+                    mensaje = '⚠ Error de red. Revisá tu conexión a internet.';
+                } else if (error.message) {
+                    mensaje = '⚠ ' + error.message;
+                }
+                mostrarLobbyMensaje(mensaje, true);
                 dom.btnCrearPartida.disabled = false;
             }
         }
@@ -2013,7 +2022,16 @@
 
             } catch (error) {
                 console.error('Error uniéndose a partida:', error);
-                mostrarLobbyMensaje('Error al unirse. Revisá tu conexión.', true);
+                const codigoError = error.code || '';
+                let mensaje = 'Error al unirse. Revisá tu conexión.';
+                if (codigoError === 'PERMISSION_DENIED') {
+                    mensaje = '⚠ Permiso denegado. Necesitás agregar las reglas de "partidas" en Firebase Console → Realtime Database → Rules.';
+                } else if (codigoError === 'NETWORK_ERROR' || codigoError === 'UNAVAILABLE') {
+                    mensaje = '⚠ Error de red. Revisá tu conexión a internet.';
+                } else if (error.message) {
+                    mensaje = '⚠ ' + error.message;
+                }
+                mostrarLobbyMensaje(mensaje, true);
                 dom.btnUnirsePartida.disabled = false;
             }
         }

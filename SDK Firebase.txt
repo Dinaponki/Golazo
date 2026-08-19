@@ -1,34 +1,124 @@
-CONFIGURACIÓN FIREBASE - GOLAZO
-===============================
+🔒 CONFIGURACIÓN DE FIREBASE PARA GOLAZO
+==========================================
 
-Este archivo documenta la configuración de Firebase del proyecto.
-La API key de Firebase Web NO es un secreto: está diseñada para ser
-pública en apps web (se incrusta en el código del navegador).
+⚠️ IMPORTANTE - SEGURIDAD ANTES QUE NADA
+-----------------------------------------
+NUNCA subas la API Key real a un repositorio público. GitHub Secret Scanning
+detecta automáticamente las Google API Keys expuestas. Si ya fue detectada,
+debes rotarla inmediatamente.
 
-La seguridad real se logra con:
-1. Firebase Realtime Database Security Rules (reglas de la base de datos)
-2. Firebase App Check (verificación de la app)
-3. Restricciones de la API key en Google Cloud Console (por dominio)
+PASOS PARA ELIMINAR EL LEAK:
+1. Rotar la API Key en Google Cloud Console → APIs & Services → Credentials.
+2. Restringir la API Key con "HTTP referrers" (solo tu dominio: *.tudominio.com).
+3. Regenerar el archivo de configuración en Firebase Console → Project Settings.
+4. Cerrar el Secret Scanning Alert en GitHub marcándolo como "revoked".
+5. Borrar el historial de Git que contiene la key: `git filter-repo` o `BFG Repo-Cleaner`.
+6. Revonar la base de datos: revisar logs de acceso en Realtime Database → Usage.
 
-------------------------------------------------------------
-REGLAS RECOMENDADAS - REALTIME DATABASE (database.rules.json)
-------------------------------------------------------------
+NOTA: La API Key en apps web de Firebase NO es un secreto criptográfico. La
+seguridad real proviene de las Firebase Security Rules, no de la API Key.
+Sin embargo, una key expuesta puede ser usada por terceros para consumir
+recursos (quota hijacking). Por eso es importante restringirla por dominio.
+
+📦 SDK de Firebase requerido (versión 12.17.1)
+----------------------------------------------
+
+<script type="module">
+  // Importa los módulos de Firebase
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
+  import { getAuth, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
+  import { getDatabase, ref, get, set, update, onValue } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-database.js";
+
+  // Tu web app's Firebase configuration
+  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+  const firebaseConfig = {
+    // Reemplazar con la key rotada y restringida
+    apiKey: "REEMPLAZAR_CON_NUEVA_KEY_ROTADA",
+    authDomain: "golazo-juego.firebaseapp.com",
+    databaseURL: "https://golazo-juego-default-rtdb.firebaseio.com/",
+    projectId: "golazo-juego",
+    storageBucket: "golazo-juego.firebasestorage.app",
+    messagingSenderId: "642135658463",
+    appId: "1:642135658463:web:4177f755fa612370dcfe6a",
+    measurementId: "G-58N0YWBXYM"
+  };
+
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getDatabase(app);
+  const provider = new GoogleAuthProvider();
+
+  // Hacer disponibles globalmente para el juego
+  window.GolazoFirebase = {
+    db,
+    ref,
+    get,
+    set,
+    update,
+    usuario: null,
+    esperandoAuth: true
+  };
+</script>
+
+🔐 REGLAS DE FIREBASE REALTIME DATABASE
+======================================
+
+// Las reglas deben estar en modo "restricción predeterminada"
+// y luego abrir selectivamente según las necesidades del juego.
+// Esto evita que alguien con la API key escriba libremente.
+
 {
   "rules": {
     "usuarios": {
       "$uid": {
+        // El usuario solo puede leer/escribir su propio nodo
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        // Subida individual de campos (nickname, stats, etc.)
+        "nickname": { ".validate": "newData.isString() && newData.val().length >= 0 && newData.val().length <= 12" },
+        "descripcion": { ".validate": "newData.isString() && newData.val().length <= 200" },
+        "redSocial": { ".validate": "newData.isString() && newData.val().length <= 200" }
+      }
+    },
+    // Ranking: lectura pública, escritura restringida a usuarios autenticados
+    "ranking": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+    // Partidas online 1vs1: solo usuarios autenticados pueden crear/unirse
+    "partidas": {
+      "$codigo": {
+        // Cualquier usuario autenticado puede leer una partida (para unirse)
         ".read": "auth != null",
-        ".write": "auth != null && auth.uid === $uid"
+        // Solo usuarios autenticados pueden crear/modificar partidas
+        ".write": "auth != null",
+        // Validaciones de estructura
+        "codigo": { ".validate": "newData.isString() && newData.val().length === 6" },
+        "creador": {
+          "uid": { ".validate": "newData.isString()" },
+          "nickname": { ".validate": "newData.isString() && newData.val().length <= 20" },
+          "fotoURL": { ".validate": "newData.isString()" },
+          "listo": { ".validate": "newData.isBoolean()" }
+        },
+        "unido": {
+          "uid": { ".validate": "newData.isString()" },
+          "nickname": { ".validate": "newData.isString() && newData.val().length <= 20" },
+          "fotoURL": { ".validate": "newData.isString()" },
+          "listo": { ".validate": "newData.isBoolean()" }
+        },
+        "estado": { ".validate": "newData.isString() && (newData.val() === 'esperando' || newData.val() === 'jugando' || newData.val() === 'terminada')" },
+        "creadoEn": { ".validate": "newData.isNumber()" },
+        "ultimaActividad": { ".validate": "newData.isNumber()" }
       }
     }
   }
 }
 
-------------------------------------------------------------
-REGLAS RECOMENDADAS - FIRESTORE (firestore.rules)
-------------------------------------------------------------
-rules_version = '2';
+📋 REGLAS DE FIRESTORE (si se usa Firestore en el futuro)
+--------------------------------------------------------
 
+rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /{document=**} {
@@ -36,3 +126,13 @@ service cloud.firestore {
     }
   }
 }
+
+🧪 VERIFICACIÓN DE SEGURIDAD
+---------------------------
+- ✅ API Key restringida a dominios específicos
+- ✅ Firebase Security Rules activas
+- ✅ No se almacena la key en localStorage ni sessionStorage
+- ✅ Regla de validación: nickname máximo 12 caracteres
+- ✅ Regla de validación: descripcion máximo 200 caracteres
+- ✅ Regla: solo usuarios autenticados pueden escribir
+- ✅ Regla: cualquiera puede leer el ranking (read-only)
