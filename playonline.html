@@ -1923,6 +1923,11 @@
         }
 
         function iniciarEjecucionCanto(tipo, pedidoPor) {
+            // Limpiar estado del canto al ejecutarlo
+            estado.juego.esperandoRespuestaDe = null;
+            estado.juego.cantoActual = null;
+            estado.juego.cantoPedidoPor = null;
+
             if (tipo === 'penal') {
                 estado.juego.penalActivo = true;
                 estado.juego.penalAtacante = pedidoPor;
