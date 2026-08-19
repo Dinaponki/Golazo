@@ -46,45 +46,32 @@
             --btn-pad-x: clamp(12px, 3vmin, 28px);
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
             font-family: 'Segoe UI', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
             background: var(--verde-fondo);
             color: var(--blanco);
-            height: 100vh;
-            height: 100dvh;
+            height: 100vh; height: 100dvh;
             overflow: hidden;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
-            user-select: none;
-            -webkit-user-select: none;
+            user-select: none; -webkit-user-select: none;
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
         }
 
         .juego {
             display: grid;
-            height: 100dvh;
-            max-height: 100dvh;
-            width: 100vw;
-            max-width: 100vw;
+            height: 100dvh; max-height: 100dvh;
+            width: 100vw; max-width: 100vw;
             overflow: hidden;
             position: relative;
             gap: clamp(3px, 0.8vh, 10px);
             padding: clamp(4px, 1vh, 10px);
             grid-template-rows: auto minmax(0, 1fr) auto auto auto;
             grid-template-columns: 1fr;
-            grid-template-areas:
-                "cpu"
-                "mesa"
-                "botones"
-                "jugador"
-                "marcador";
+            grid-template-areas: "cpu" "mesa" "botones" "jugador" "marcador";
         }
 
         .zona-cpu { grid-area: cpu; }
@@ -93,110 +80,72 @@
         .zona-jugador { grid-area: jugador; }
         .panel-marcador { grid-area: marcador; }
 
-        /* Zona CPU (Rival Online) */
         .zona-cpu {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            display: flex; flex-direction: column; align-items: center;
             gap: clamp(2px, 0.5vh, 6px);
-            padding: 0 4px 0;
-            flex-shrink: 0;
+            padding: 0 4px 0; flex-shrink: 0;
         }
 
         .etiqueta-turno {
             font-size: clamp(13px, 2.8vmin, 17px);
-            font-weight: 700;
-            letter-spacing: 0.06em;
+            font-weight: 700; letter-spacing: 0.06em;
             color: rgba(255, 255, 255, 0.6);
             text-transform: uppercase;
             transition: color 0.3s, transform 0.3s;
         }
 
-        @keyframes latido {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.12); }
-        }
+        @keyframes latido { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
 
-        .etiqueta-turno.activo {
-            color: var(--dorado);
-            animation: latido 0.9s ease-in-out infinite;
-        }
+        .etiqueta-turno.activo { color: var(--dorado); animation: latido 0.9s ease-in-out infinite; }
 
         .mano-cpu {
-            display: flex;
-            gap: clamp(4px, 1vmin, 8px);
-            justify-content: center;
-            flex-wrap: nowrap;
+            display: flex; gap: clamp(4px, 1vmin, 8px);
+            justify-content: center; flex-wrap: nowrap;
             margin-top: calc(-1 * clamp(4px, 1vh, 10px));
             overflow: hidden;
             height: calc(var(--carta-cpu-max-h) * 0.6);
             align-items: flex-end;
         }
 
-        /* Zona mesa */
         .zona-mesa {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            min-height: 0;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            position: relative; min-height: 0;
             background: radial-gradient(ellipse at center, rgba(30, 68, 48, 0.7) 0%, transparent 70%);
             border-radius: var(--borde-redondo);
-            margin: 0 2px;
-            overflow: visible;
+            margin: 0 2px; overflow: visible;
         }
 
         .indicador-canto {
             font-size: clamp(14px, 3.2vmin, 19px);
-            font-weight: 800;
-            letter-spacing: 0.06em;
-            color: var(--dorado);
-            text-align: center;
+            font-weight: 800; letter-spacing: 0.06em;
+            color: var(--dorado); text-align: center;
             min-height: 0;
             padding: clamp(3px, 0.6vh, 5px) clamp(10px, 2.5vmin, 15px);
-            flex-shrink: 0;
-            border-radius: 20px;
+            flex-shrink: 0; border-radius: 20px;
             background: rgba(0,0,0,0.3);
             margin-bottom: 8px;
-            transition: opacity 0.3s;
-            opacity: 0;
+            transition: opacity 0.3s; opacity: 0;
         }
 
-        .indicador-canto.visible {
-            opacity: 1;
-        }
+        .indicador-canto.visible { opacity: 1; }
 
         .mesa-cartas {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 100%;
-            height: 100%;
-            position: relative;
-            min-height: 0;
-            padding: 12px;
-            overflow: visible;
+            display: flex; align-items: center; justify-content: center;
+            width: 100%; height: 100%;
+            position: relative; min-height: 0;
+            padding: 12px; overflow: visible;
         }
 
         .mesa-fila {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            position: relative;
-            width: auto;
-            min-height: 0;
+            display: flex; justify-content: center; align-items: center;
+            position: relative; width: auto; min-height: 0;
         }
 
         .mesa-cartas .carta-contenedor {
-            position: absolute;
-            top: 50%;
-            left: 50%;
+            position: absolute; top: 50%; left: 50%;
             transform: translate(-50%, -50%);
             transition: var(--transicion);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            display: flex; flex-direction: column; align-items: center;
             margin: 0;
         }
 
@@ -219,38 +168,26 @@
             filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.4));
         }
 
-        /* Botones */
         .zona-botones {
-            display: flex;
-            flex-direction: row;
-            justify-content: center;
-            align-items: center;
+            display: flex; flex-direction: row;
+            justify-content: center; align-items: center;
             gap: clamp(6px, 1.5vmin, 12px);
             padding: clamp(2px, 0.5vh, 6px) 4px;
             flex-shrink: 0;
         }
 
         .botones-laterales {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: stretch;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: stretch;
             gap: clamp(4px, 1vmin, 8px);
             padding: 0;
-        }
-
-        .grupo-botones {
-            display: flex;
-            gap: clamp(4px, 1vmin, 8px);
-            justify-content: center;
         }
 
         .btn-accion {
             padding: var(--btn-pad-y) var(--btn-pad-x);
             border-radius: 50px;
             font-size: var(--btn-font);
-            font-weight: 800;
-            letter-spacing: 0.04em;
+            font-weight: 800; letter-spacing: 0.04em;
             text-transform: uppercase;
             cursor: pointer;
             border: 2px solid transparent;
@@ -263,101 +200,31 @@
             text-align: center;
         }
 
-        .btn-accion:active:not(:disabled) {
-            transform: scale(0.95);
-        }
+        .btn-accion:active:not(:disabled) { transform: scale(0.95); }
+        .btn-accion:disabled { opacity: 0.3; cursor: not-allowed; filter: grayscale(0.5); }
 
-        .btn-accion:disabled {
-            opacity: 0.3;
-            cursor: not-allowed;
-            filter: grayscale(0.5);
-        }
+        .btn-penal { background: var(--rojo); border-color: var(--rojo-oscuro); }
+        .btn-penal:not(:disabled):hover { background: #d44235; box-shadow: 0 4px 16px rgba(192, 57, 43, 0.4); }
+        .btn-gol { background: var(--dorado); border-color: #a8883a; color: #1a2a10; }
+        .btn-gol:not(:disabled):hover { background: var(--dorado-claro); box-shadow: 0 4px 16px rgba(200, 168, 78, 0.5); }
+        .btn-golazo { background: #e67e22; border-color: #c0651f; color: #fff; }
+        .btn-golazo:not(:disabled):hover { background: #f08c34; box-shadow: 0 4px 16px rgba(230, 126, 34, 0.5); }
+        .btn-quiero { background: #27ae60; border-color: #1e8449; }
+        .btn-quiero:not(:disabled):hover { background: #2ecc71; box-shadow: 0 4px 16px rgba(39, 174, 96, 0.4); }
+        .btn-no-quiero { background: #7f8c8d; border-color: #6c7a7a; }
+        .btn-no-quiero:not(:disabled):hover { background: #95a5a6; }
+        .btn-var { background: #2980b9; border-color: #1f6da0; }
+        .btn-var:not(:disabled):hover { background: #3498db; box-shadow: 0 4px 16px rgba(41, 128, 185, 0.4); }
 
-        .btn-penal {
-            background: var(--rojo);
-            border-color: var(--rojo-oscuro);
-        }
-
-        .btn-penal:not(:disabled):hover {
-            background: #d44235;
-            box-shadow: 0 4px 16px rgba(192, 57, 43, 0.4);
-        }
-
-        .btn-gol {
-            background: var(--dorado);
-            border-color: #a8883a;
-            color: #1a2a10;
-        }
-
-        .btn-gol:not(:disabled):hover {
-            background: var(--dorado-claro);
-            box-shadow: 0 4px 16px rgba(200, 168, 78, 0.5);
-        }
-
-        .btn-golazo {
-            background: #e67e22;
-            border-color: #c0651f;
-            color: #fff;
-        }
-
-        .btn-golazo:not(:disabled):hover {
-            background: #f08c34;
-            box-shadow: 0 4px 16px rgba(230, 126, 34, 0.5);
-        }
-
-        .btn-quiero {
-            background: #27ae60;
-            border-color: #1e8449;
-        }
-
-        .btn-quiero:not(:disabled):hover {
-            background: #2ecc71;
-            box-shadow: 0 4px 16px rgba(39, 174, 96, 0.4);
-        }
-
-        .btn-no-quiero {
-            background: #7f8c8d;
-            border-color: #6c7a7a;
-        }
-
-        .btn-no-quiero:not(:disabled):hover {
-            background: #95a5a6;
-        }
-
-        .btn-var {
-            background: #2980b9;
-            border-color: #1f6da0;
-        }
-
-        .btn-jugar-carta {
-            background: #8e44ad;
-            border-color: #6c3483;
-        }
-
-        .btn-jugar-carta:not(:disabled):hover {
-            background: #9b59b6;
-            box-shadow: 0 4px 16px rgba(142, 68, 173, 0.4);
-        }
-
-        .btn-var:not(:disabled):hover {
-            background: #3498db;
-            box-shadow: 0 4px 16px rgba(41, 128, 185, 0.4);
-        }
-
-        /* Zona jugador */
         .zona-jugador {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            display: flex; flex-direction: column; align-items: center;
             gap: clamp(2px, 0.5vh, 6px);
             padding: 0 4px clamp(2px, 0.5vh, 6px);
             flex-shrink: 0;
         }
 
         .mano-jugador {
-            display: flex;
-            justify-content: center;
-            align-items: flex-end;
+            display: flex; justify-content: center; align-items: flex-end;
             position: relative;
             height: var(--mano-altura);
             min-height: 0;
@@ -380,14 +247,11 @@
             filter: brightness(1.1);
         }
 
-        /* Panel marcador */
         .panel-marcador {
             background: var(--gris-oscuro);
             border-radius: var(--borde-redondo);
             padding: clamp(6px, 1.2vh, 10px) clamp(10px, 2.5vw, 16px);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+            display: flex; align-items: center; justify-content: space-between;
             gap: clamp(6px, 1.5vw, 12px);
             margin: 0;
             box-shadow: var(--sombra-suave);
@@ -396,19 +260,13 @@
             flex-shrink: 0;
         }
 
-        /* Botones de sonido */
-        .botones-sonido {
-            display: flex;
-            gap: clamp(6px, 1vmin, 10px);
-            flex-shrink: 0;
-        }
+        .botones-sonido { display: flex; gap: clamp(6px, 1vmin, 10px); flex-shrink: 0; }
 
         .btn-sonido {
             padding: clamp(6px, 1.2vh, 10px) clamp(10px, 2vw, 14px);
             border-radius: 50px;
             font-size: clamp(12px, 2.8vmin, 16px);
-            font-weight: 700;
-            cursor: pointer;
+            font-weight: 700; cursor: pointer;
             border: 2px solid transparent;
             transition: var(--transicion-rapida);
             background: var(--gris-medio);
@@ -418,180 +276,90 @@
             text-align: center;
         }
 
-        .btn-sonido:hover {
-            background: #444;
-            transform: scale(1.05);
-        }
+        .btn-sonido:hover { background: #444; transform: scale(1.05); }
+        .btn-sonido:active { transform: scale(0.95); }
+        .btn-sonido.desactivado { opacity: 0.4; background: var(--gris-oscuro); border-color: var(--gris-medio); }
+        .btn-sonido.activo { background: #27ae60; border-color: #1e8449; }
 
-        .btn-sonido:active {
-            transform: scale(0.95);
-        }
-
-        .btn-sonido.desactivado {
-            opacity: 0.4;
-            background: var(--gris-oscuro);
-            border-color: var(--gris-medio);
-        }
-
-        .btn-sonido.activo {
-            background: #27ae60;
-            border-color: #1e8449;
-        }
-
-        .panel-marcador:hover {
-            background: #222;
-        }
-
-        .panel-marcador:active {
-            transform: scale(0.98);
-        }
+        .panel-marcador:hover { background: #222; }
+        .panel-marcador:active { transform: scale(0.98); }
 
         .panel-marcador .jugador-info,
         .panel-marcador .cpu-info {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 2px;
-            min-width: 60px;
+            display: flex; flex-direction: column; align-items: center;
+            gap: 2px; min-width: 60px;
         }
 
         .panel-marcador .nombre {
             font-size: clamp(12px, 2.6vmin, 15px);
-            font-weight: 800;
-            letter-spacing: 0.04em;
+            font-weight: 800; letter-spacing: 0.04em;
             color: rgba(255, 255, 255, 0.8);
             max-width: 100px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
 
         .panel-marcador .goles-numero {
             font-size: clamp(26px, 6.5vmin, 44px);
-            font-weight: 900;
-            color: var(--blanco);
+            font-weight: 900; color: var(--blanco);
             line-height: 1;
         }
 
-        .panel-marcador .estrellas {
-            display: flex;
-            gap: 5px;
-            font-size: clamp(15px, 3.8vmin, 20px);
-        }
-
-        .panel-marcador .estrellas .estrella {
-            color: rgba(255, 255, 255, 0.2);
-            transition: var(--transicion);
-        }
-
-        .panel-marcador .estrellas .estrella.encendida {
-            color: var(--dorado);
-            text-shadow: 0 0 8px rgba(200, 168, 78, 0.5);
-        }
+        .panel-marcador .estrellas { display: flex; gap: 5px; font-size: clamp(15px, 3.8vmin, 20px); }
+        .panel-marcador .estrellas .estrella { color: rgba(255, 255, 255, 0.2); transition: var(--transicion); }
+        .panel-marcador .estrellas .estrella.encendida { color: var(--dorado); text-shadow: 0 0 8px rgba(200, 168, 78, 0.5); }
 
         .panel-marcador .centro-marcador {
             font-size: clamp(14px, 3.2vmin, 18px);
-            font-weight: 800;
-            letter-spacing: 0.06em;
+            font-weight: 800; letter-spacing: 0.06em;
             color: rgba(255, 255, 255, 0.5);
             text-align: center;
         }
 
-        .panel-marcador .minuto {
-            font-size: clamp(13px, 2.8vmin, 16px);
-            color: var(--dorado);
-        }
+        .panel-marcador .minuto { font-size: clamp(13px, 2.8vmin, 16px); color: var(--dorado); }
 
-        /* Cartas */
-        .carta-img {
-            display: block;
-            background: transparent;
-            object-fit: contain;
-            transition: var(--transicion);
-        }
-
-        .mano-cpu .carta-img {
-            width: var(--carta-cpu);
-            height: auto;
-            max-height: var(--carta-cpu-max-h);
-        }
-
+        .carta-img { display: block; background: transparent; object-fit: contain; transition: var(--transicion); }
+        .mano-cpu .carta-img { width: var(--carta-cpu); height: auto; max-height: var(--carta-cpu-max-h); }
         .mano-jugador .carta-img {
-            width: var(--carta-mano);
-            height: auto;
+            width: var(--carta-mano); height: auto;
             max-height: var(--carta-mano-max-h);
             background: transparent;
             filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.35));
         }
 
-        /* ============ OVERLAY LOBBY / CONEXIÓN ============ */
+        /* ============ OVERLAY LOBBY ============ */
         .overlay-lobby {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0, 0, 0, 0.95);
             z-index: 300;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
             padding: 20px;
             animation: fadeIn 0.4s ease;
         }
-
-        .overlay-lobby.oculto {
-            display: none;
-        }
+        .overlay-lobby.oculto { display: none; }
 
         .lobby-contenedor {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 16px;
-            width: 100%;
-            max-width: 400px;
+            display: flex; flex-direction: column; align-items: center; gap: 16px;
+            width: 100%; max-width: 400px;
             background: var(--gris-oscuro);
             border-radius: var(--borde-redondo);
             padding: 32px 24px;
             box-shadow: var(--sombra-carta);
         }
 
-        .lobby-titulo {
-            font-size: clamp(28px, 7vw, 40px);
-            font-weight: 900;
-            letter-spacing: -0.02em;
-            color: var(--dorado);
-            text-align: center;
-        }
-
-        .lobby-subtitulo {
-            font-size: clamp(14px, 3.5vmin, 18px);
-            font-weight: 600;
-            color: rgba(255, 255, 255, 0.7);
-            text-align: center;
-        }
-
-        .lobby-estado {
-            font-size: clamp(13px, 3vmin, 15px);
-            color: rgba(255, 255, 255, 0.5);
-            text-align: center;
-            min-height: 20px;
-        }
+        .lobby-titulo { font-size: clamp(28px, 7vw, 40px); font-weight: 900; letter-spacing: -0.02em; color: var(--dorado); text-align: center; }
+        .lobby-subtitulo { font-size: clamp(14px, 3.5vmin, 18px); font-weight: 600; color: rgba(255, 255, 255, 0.7); text-align: center; }
+        .lobby-estado { font-size: clamp(13px, 3vmin, 15px); color: rgba(255, 255, 255, 0.5); text-align: center; min-height: 20px; }
 
         .lobby-codigo {
             font-size: clamp(24px, 6vmin, 36px);
-            font-weight: 900;
-            letter-spacing: 0.15em;
+            font-weight: 900; letter-spacing: 0.15em;
             color: var(--blanco);
             background: rgba(255, 255, 255, 0.08);
             border: 2px dashed rgba(200, 168, 78, 0.4);
             border-radius: 12px;
             padding: 12px 24px;
             text-align: center;
-            user-select: all;
-            -webkit-user-select: all;
+            user-select: all; -webkit-user-select: all;
         }
 
         .lobby-input {
@@ -610,33 +378,17 @@
             letter-spacing: 0.1em;
             text-transform: uppercase;
         }
+        .lobby-input:focus { border-color: var(--dorado); background: #3a3a3a; }
+        .lobby-input::placeholder { color: rgba(255, 255, 255, 0.3); font-weight: 400; letter-spacing: 0.05em; text-transform: none; }
 
-        .lobby-input:focus {
-            border-color: var(--dorado);
-            background: #3a3a3a;
-        }
-
-        .lobby-input::placeholder {
-            color: rgba(255, 255, 255, 0.3);
-            font-weight: 400;
-            letter-spacing: 0.05em;
-            text-transform: none;
-        }
-
-        .lobby-botones {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            width: 100%;
-        }
+        .lobby-botones { display: flex; flex-direction: column; gap: 10px; width: 100%; }
 
         .btn-lobby {
             width: 100%;
             padding: 14px 24px;
             border-radius: 50px;
             font-size: clamp(15px, 3.5vmin, 18px);
-            font-weight: 800;
-            letter-spacing: 0.06em;
+            font-weight: 800; letter-spacing: 0.06em;
             text-transform: uppercase;
             cursor: pointer;
             border: none;
@@ -644,68 +396,21 @@
             font-family: inherit;
         }
 
-        .btn-crear {
-            background: var(--dorado);
-            color: #1a2a10;
-        }
+        .btn-crear { background: var(--dorado); color: #1a2a10; }
+        .btn-crear:hover { background: var(--dorado-claro); box-shadow: 0 4px 20px rgba(200, 168, 78, 0.4); }
+        .btn-unirse { background: #27ae60; color: #fff; }
+        .btn-unirse:hover { background: #2ecc71; box-shadow: 0 4px 20px rgba(39, 174, 96, 0.4); }
+        .btn-unirse:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-volver-lobby { background: transparent; color: var(--blanco); border: 2px solid rgba(255, 255, 255, 0.3); }
+        .btn-volver-lobby:hover { border-color: var(--dorado); color: var(--dorado); background: rgba(200, 168, 78, 0.08); }
 
-        .btn-crear:hover {
-            background: var(--dorado-claro);
-            box-shadow: 0 4px 20px rgba(200, 168, 78, 0.4);
-        }
+        .lobby-mensaje { font-size: clamp(12px, 2.8vmin, 14px); text-align: center; line-height: 1.4; min-height: 20px; color: #e74c3c; }
+        .lobby-mensaje.ok { color: #2ecc71; }
 
-        .btn-unirse {
-            background: #27ae60;
-            color: #fff;
-        }
-
-        .btn-unirse:hover {
-            background: #2ecc71;
-            box-shadow: 0 4px 20px rgba(39, 174, 96, 0.4);
-        }
-
-        .btn-unirse:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
-
-        .btn-volver-lobby {
-            background: transparent;
-            color: var(--blanco);
-            border: 2px solid rgba(255, 255, 255, 0.3);
-        }
-
-        .btn-volver-lobby:hover {
-            border-color: var(--dorado);
-            color: var(--dorado);
-            background: rgba(200, 168, 78, 0.08);
-        }
-
-        .lobby-mensaje {
-            font-size: clamp(12px, 2.8vmin, 14px);
-            text-align: center;
-            line-height: 1.4;
-            min-height: 20px;
-            color: #e74c3c;
-        }
-
-        .lobby-mensaje.ok {
-            color: #2ecc71;
-        }
-
-        .lobby-jugadores {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            width: 100%;
-            padding: 8px 0;
-        }
+        .lobby-jugadores { display: flex; justify-content: center; gap: 20px; width: 100%; padding: 8px 0; }
 
         .lobby-jugador {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 4px;
+            display: flex; flex-direction: column; align-items: center; gap: 4px;
             padding: 10px 16px;
             border-radius: 12px;
             background: rgba(255, 255, 255, 0.05);
@@ -713,200 +418,67 @@
             min-width: 100px;
         }
 
-        .lobby-jugador .jugador-nombre {
-            font-size: clamp(13px, 3vmin, 15px);
-            font-weight: 700;
-            color: var(--blanco);
-            max-width: 120px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .lobby-jugador .jugador-estado {
-            font-size: clamp(10px, 2.4vmin, 12px);
-            color: rgba(255, 255, 255, 0.5);
-        }
-
-        .lobby-jugador .jugador-estado.listo {
-            color: #2ecc71;
-        }
-
-        .lobby-jugador .jugador-estado.esperando {
-            color: var(--dorado);
-        }
-
-        .lobby-jugador .jugador-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 2px solid var(--dorado);
-        }
-
-        .lobby-jugador .jugador-avatar.placeholder {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: var(--gris-medio);
-            font-size: 20px;
-            border-color: rgba(255, 255, 255, 0.2);
-        }
-
-        .lobby-vs {
-            font-size: clamp(20px, 5vmin, 28px);
-            font-weight: 900;
-            color: var(--dorado);
-            align-self: center;
-        }
+        .lobby-jugador .jugador-nombre { font-size: clamp(13px, 3vmin, 15px); font-weight: 700; color: var(--blanco); max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .lobby-jugador .jugador-estado { font-size: clamp(10px, 2.4vmin, 12px); color: rgba(255, 255, 255, 0.5); }
+        .lobby-jugador .jugador-estado.listo { color: #2ecc71; }
+        .lobby-jugador .jugador-estado.esperando { color: var(--dorado); }
+        .lobby-jugador .jugador-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--dorado); }
+        .lobby-jugador .jugador-avatar.placeholder { display: flex; align-items: center; justify-content: center; background: var(--gris-medio); font-size: 20px; border-color: rgba(255, 255, 255, 0.2); }
+        .lobby-vs { font-size: clamp(20px, 5vmin, 28px); font-weight: 900; color: var(--dorado); align-self: center; }
 
         /* Overlay esperando rival */
         .overlay-esperando {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0, 0, 0, 0.9);
             z-index: 250;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 20px;
-            padding: 20px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 20px; padding: 20px;
             animation: fadeIn 0.3s ease;
         }
+        .overlay-esperando.oculto { display: none; }
+        .esperando-titulo { font-size: clamp(24px, 6vw, 36px); font-weight: 900; color: var(--dorado); text-align: center; }
+        .esperando-subtitulo { font-size: clamp(14px, 3.5vmin, 18px); color: rgba(255, 255, 255, 0.7); text-align: center; }
 
-        .overlay-esperando.oculto {
-            display: none;
-        }
-
-        .esperando-titulo {
-            font-size: clamp(24px, 6vw, 36px);
-            font-weight: 900;
-            color: var(--dorado);
-            text-align: center;
-        }
-
-        .esperando-subtitulo {
-            font-size: clamp(14px, 3.5vmin, 18px);
-            color: rgba(255, 255, 255, 0.7);
-            text-align: center;
-        }
-
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 4px solid rgba(255, 255, 255, 0.1);
-            border-top-color: var(--dorado);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
+        .spinner { width: 50px; height: 50px; border: 4px solid rgba(255, 255, 255, 0.1); border-top-color: var(--dorado); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
         /* Overlay fin */
         .overlay-fin {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0, 0, 0, 0.9);
             z-index: 200;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 20px;
-            padding: 20px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 20px; padding: 20px;
             animation: fadeIn 0.5s ease;
         }
-
-        .overlay-fin.oculto {
-            display: none;
-        }
-
-        .overlay-fin .resultado-titulo {
-            font-size: clamp(36px, 8vw, 60px);
-            font-weight: 900;
-            letter-spacing: -0.02em;
-            text-align: center;
-        }
-
+        .overlay-fin.oculto { display: none; }
+        .overlay-fin .resultado-titulo { font-size: clamp(36px, 8vw, 60px); font-weight: 900; letter-spacing: -0.02em; text-align: center; }
         .overlay-fin .resultado-titulo.ganaste { color: #2ecc71; }
         .overlay-fin .resultado-titulo.perdiste { color: #e74c3c; }
         .overlay-fin .resultado-titulo.empate { color: var(--dorado); }
-
-        .overlay-fin .resultado-marcador {
-            font-size: 28px;
-            font-weight: 700;
-            color: var(--blanco);
-        }
-
-        .overlay-fin .botones-fin {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-
-        .overlay-fin .btn-fin {
-            padding: 14px 32px;
-            border-radius: 50px;
-            font-size: 15px;
-            font-weight: 700;
-            letter-spacing: 0.04em;
-            cursor: pointer;
-            border: none;
-            transition: var(--transicion);
-        }
-
-        .btn-revancha {
-            background: var(--dorado);
-            color: #1a2a10;
-        }
-
-        .btn-revancha:hover {
-            background: var(--dorado-claro);
-            box-shadow: 0 4px 20px rgba(200, 168, 78, 0.4);
-        }
-
-        .btn-inicio {
-            background: transparent;
-            color: var(--blanco);
-            border: 2px solid rgba(255, 255, 255, 0.3);
-        }
-
-        .btn-inicio:hover {
-            border-color: var(--blanco);
-        }
+        .overlay-fin .resultado-marcador { font-size: 28px; font-weight: 700; color: var(--blanco); }
+        .overlay-fin .botones-fin { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+        .overlay-fin .btn-fin { padding: 14px 32px; border-radius: 50px; font-size: 15px; font-weight: 700; letter-spacing: 0.04em; cursor: pointer; border: none; transition: var(--transicion); }
+        .btn-revancha { background: var(--dorado); color: #1a2a10; }
+        .btn-revancha:hover { background: var(--dorado-claro); box-shadow: 0 4px 20px rgba(200, 168, 78, 0.4); }
+        .btn-inicio { background: transparent; color: var(--blanco); border: 2px solid rgba(255, 255, 255, 0.3); }
+        .btn-inicio:hover { border-color: var(--blanco); }
 
         /* Mensaje flotante */
         .mensaje-flotante {
-            position: fixed;
-            top: 50%;
-            left: 50%;
+            position: fixed; top: 50%; left: 50%;
             transform: translate(-50%, -50%) scale(0);
             background: rgba(0, 0, 0, 0.9);
             color: var(--dorado);
             padding: 20px 36px;
             border-radius: 50px;
-            font-size: 22px;
-            font-weight: 800;
-            letter-spacing: 0.04em;
+            font-size: 22px; font-weight: 800; letter-spacing: 0.04em;
             z-index: 150;
             pointer-events: none;
             transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             text-align: center;
         }
-
-        .mensaje-flotante.mostrar {
-            transform: translate(-50%, -50%) scale(1);
-        }
+        .mensaje-flotante.mostrar { transform: translate(-50%, -50%) scale(1); }
 
         /* Panel VAR */
         .var-panel {
@@ -916,8 +488,7 @@
             padding: 8px 12px;
             border-radius: 10px;
             font-size: clamp(12px, 2.6vmin, 16px);
-            font-weight: 800;
-            letter-spacing: 0.03em;
+            font-weight: 800; letter-spacing: 0.03em;
             text-align: center;
             opacity: 0;
             transition: opacity 0.3s;
@@ -925,242 +496,81 @@
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
             pointer-events: none;
         }
+        .var-panel.visible { opacity: 1; }
+        .var-panel .var-titulo { display: block; font-size: clamp(10px, 2.2vmin, 13px); color: rgba(255, 255, 255, 0.7); margin-bottom: 3px; }
 
-        .var-panel.visible {
-            opacity: 1;
-        }
-
-        .var-panel .var-titulo {
-            display: block;
-            font-size: clamp(10px, 2.2vmin, 13px);
-            color: rgba(255, 255, 255, 0.7);
-            margin-bottom: 3px;
-        }
-
-        /* Overlay de advertencia al salir */
+        /* Overlay salida */
         .overlay-salida {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0, 0, 0, 0.92);
             z-index: 400;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
             padding: 20px;
-            opacity: 0;
-            visibility: hidden;
+            opacity: 0; visibility: hidden;
             transition: opacity 0.3s ease;
             animation: fadeIn 0.3s ease;
         }
-
-        .overlay-salida.visible {
-            opacity: 1;
-            visibility: visible;
-        }
+        .overlay-salida.visible { opacity: 1; visibility: visible; }
 
         .salida-contenedor {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 16px;
-            width: 100%;
-            max-width: 380px;
+            display: flex; flex-direction: column; align-items: center; gap: 16px;
+            width: 100%; max-width: 380px;
             background: var(--gris-oscuro);
             border-radius: var(--borde-redondo);
             padding: 32px 24px;
             box-shadow: var(--sombra-carta);
             text-align: center;
         }
+        .salida-titulo { font-size: clamp(24px, 6vw, 32px); font-weight: 800; color: var(--blanco); text-align: center; display: flex; align-items: center; gap: 8px; }
+        .salida-titulo .icono-advertencia { color: var(--rojo); }
+        .salida-mensaje { font-size: clamp(14px, 3vmin, 16px); color: rgba(255, 255, 255, 0.7); text-align: center; line-height: 1.5; }
+        .salida-mensaje .destacado-salida { color: var(--dorado); font-weight: 700; }
+        .botones-salida { display: flex; gap: 12px; width: 100%; margin-top: 8px; }
+        .btn-salida { flex: 1; padding: 14px 20px; border-radius: 50px; font-size: clamp(14px, 3vmin, 16px); font-weight: 700; letter-spacing: 0.04em; cursor: pointer; border: none; transition: var(--transicion); font-family: inherit; text-align: center; }
+        .btn-cancelar-salida { background: transparent; color: var(--blanco); border: 2px solid rgba(255, 255, 255, 0.3); }
+        .btn-cancelar-salida:hover { border-color: var(--blanco); background: rgba(255, 255, 255, 0.08); }
+        .btn-salir-salida { background: var(--rojo); border-color: var(--rojo-oscuro); color: var(--blanco); }
+        .btn-salir-salida:hover { background: #d44235; box-shadow: 0 4px 16px rgba(192, 57, 43, 0.4); }
 
-        .salida-titulo {
-            font-size: clamp(24px, 6vw, 32px);
-            font-weight: 800;
-            color: var(--blanco);
-            text-align: center;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-        .salida-titulo .icono-advertencia {
-            color: var(--rojo);
-        }
-
-        .salida-mensaje {
-            font-size: clamp(14px, 3vmin, 16px);
-            color: rgba(255, 255, 255, 0.7);
-            text-align: center;
-            line-height: 1.5;
-        }
-
-        .salida-mensaje .destacado-salida {
-            color: var(--dorado);
-            font-weight: 700;
-        }
-
-        .botones-salida {
-            display: flex;
-            gap: 12px;
-            width: 100%;
-            margin-top: 8px;
-        }
-
-        .btn-salida {
-            flex: 1;
-            padding: 14px 20px;
-            border-radius: 50px;
-            font-size: clamp(14px, 3vmin, 16px);
-            font-weight: 700;
-            letter-spacing: 0.04em;
-            cursor: pointer;
-            border: none;
-            transition: var(--transicion);
-            font-family: inherit;
-            text-align: center;
-        }
-
-        .btn-cancelar-salida {
-            background: transparent;
-            color: var(--blanco);
-            border: 2px solid rgba(255, 255, 255, 0.3);
-        }
-
-        .btn-cancelar-salida:hover {
-            border-color: var(--blanco);
-            background: rgba(255, 255, 255, 0.08);
-        }
-
-        .btn-salir-salida {
-            background: var(--rojo);
-            border-color: var(--rojo-oscuro);
-            color: var(--blanco);
-        }
-
-        .btn-salir-salida:hover {
-            background: #d44235;
-            box-shadow: 0 4px 16px rgba(192, 57, 43, 0.4);
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        /* Responsive - móviles */
+        /* Responsive */
         @media (max-width: 767px) {
-            .mesa-fila {
-                height: 100%;
-                width: 100%;
-            }
-
-            .indicador-canto {
-                margin-bottom: 4px;
-            }
-
-            .mesa-cartas .carta-contenedor {
-                top: 95%;
-                left: 50%;
-            }
-
-            .zona-jugador .etiqueta-turno {
-                margin-top: clamp(4px, 0.8vh, 8px);
-            }
-
-            .zona-botones {
-                justify-content: space-between;
-                align-items: flex-start;
-                padding: 0;
-                gap: 0;
-            }
-
-            .botones-laterales {
-                flex: 0 0 auto;
-                max-width: 28%;
-                flex-direction: column;
-                gap: clamp(4px, 0.8vmin, 6px);
-                padding: 0;
-            }
-
-            .botones-laterales.izquierda {
-                grid-area: auto;
-                justify-content: flex-start;
-                align-items: stretch;
-                align-self: flex-start;
-            }
-
-            .botones-laterales.derecha {
-                justify-content: flex-end;
-                align-items: stretch;
-                align-self: flex-start;
-            }
-
-            .btn-accion {
-                min-width: 0;
-                width: 100%;
-                flex: 0 0 auto;
-                height: clamp(28px, 6vmin, 34px);
-                font-size: clamp(10px, 2.4vmin, 14px);
-                padding: var(--btn-pad-y) clamp(8px, 2vmin, 12px);
-                white-space: nowrap;
-                text-align: center;
-                line-height: 1.2;
-                letter-spacing: 0.01em;
-            }
+            .mesa-fila { height: 100%; width: 100%; }
+            .indicador-canto { margin-bottom: 4px; }
+            .mesa-cartas .carta-contenedor { top: 95%; left: 50%; }
+            .zona-jugador .etiqueta-turno { margin-top: clamp(4px, 0.8vh, 8px); }
+            .zona-botones { justify-content: space-between; align-items: flex-start; padding: 0; gap: 0; }
+            .botones-laterales { flex: 0 0 auto; max-width: 28%; flex-direction: column; gap: clamp(4px, 0.8vmin, 6px); padding: 0; }
+            .botones-laterales.izquierda { grid-area: auto; justify-content: flex-start; align-items: stretch; align-self: flex-start; }
+            .botones-laterales.derecha { justify-content: flex-end; align-items: stretch; align-self: flex-start; }
+            .btn-accion { min-width: 0; width: 100%; flex: 0 0 auto; height: clamp(28px, 6vmin, 34px); font-size: clamp(10px, 2.4vmin, 14px); padding: var(--btn-pad-y) clamp(8px, 2vmin, 12px); white-space: nowrap; text-align: center; line-height: 1.2; letter-spacing: 0.01em; }
         }
 
         @media (min-width: 768px) {
-            .mano-cpu {
-                margin-top: calc(-1 * clamp(8px, 1.5vh, 14px));
-            }
-
+            .mano-cpu { margin-top: calc(-1 * clamp(8px, 1.5vh, 14px)); }
             .juego {
                 grid-template-rows: auto minmax(0, 1fr) auto auto;
                 grid-template-columns: minmax(120px, 13vw) 1fr minmax(120px, 13vw);
-                grid-template-areas:
-                    "cpu cpu cpu"
-                    "botones-izq mesa botones-der"
-                    "jugador jugador jugador"
-                    "marcador marcador marcador";
+                grid-template-areas: "cpu cpu cpu" "botones-izq mesa botones-der" "jugador jugador jugador" "marcador marcador marcador";
                 gap: clamp(6px, 1.2vh, 14px);
                 padding: clamp(8px, 1.5vh, 14px) clamp(10px, 2vw, 18px);
                 max-width: 1400px;
                 margin: 0 auto;
             }
-
-            .zona-botones {
-                display: contents;
-            }
-
-            .botones-laterales.izquierda {
-                grid-area: botones-izq;
-                gap: clamp(6px, 1.2vh, 12px);
-            }
-
-            .botones-laterales.derecha {
-                grid-area: botones-der;
-                gap: clamp(6px, 1.2vh, 12px);
-            }
-
-            .btn-accion {
-                min-width: clamp(140px, 16vw, 200px);
-                width: 100%;
-            }
+            .zona-botones { display: contents; }
+            .botones-laterales.izquierda { grid-area: botones-izq; gap: clamp(6px, 1.2vh, 12px); }
+            .botones-laterales.derecha { grid-area: botones-der; gap: clamp(6px, 1.2vh, 12px); }
+            .btn-accion { min-width: clamp(140px, 16vw, 200px); width: 100%; }
         }
 
         @media (min-width: 1024px) {
-            .juego {
-                grid-template-columns: minmax(140px, 14vw) 1fr minmax(140px, 14vw);
-                max-width: 1500px;
-            }
+            .juego { grid-template-columns: minmax(140px, 14vw) 1fr minmax(140px, 14vw); max-width: 1500px; }
         }
     </style>
 </head>
 <body>
-    <!-- ============ OVERLAY LOBBY (Crear/Unirse a partida) ============ -->
+    <!-- ============ OVERLAY LOBBY ============ -->
     <div class="overlay-lobby" id="overlayLobby">
         <div class="lobby-contenedor">
             <div class="lobby-titulo">🌐 GOLAZO ONLINE</div>
@@ -1188,7 +598,7 @@
         <button class="btn-lobby btn-volver-lobby" id="btnCancelarEspera">✕ Cancelar</button>
     </div>
 
-    <!-- ============ OVERLAY FIN DE PARTIDA ============ -->
+    <!-- ============ OVERLAY FIN ============ -->
     <div class="overlay-fin oculto" id="overlayFin">
         <div class="resultado-titulo" id="resultadoTitulo"></div>
         <div class="resultado-marcador" id="resultadoMarcador"></div>
@@ -1198,7 +608,7 @@
         </div>
     </div>
 
-    <!-- ============ OVERLAY ADVERTENCIA SALIDA ============ -->
+    <!-- ============ OVERLAY SALIDA ============ -->
     <div class="overlay-salida" id="overlaySalida">
         <div class="salida-contenedor">
             <div class="salida-titulo"><span class="icono-advertencia">⚠️</span> ¿Abandonar partida?</div>
@@ -1213,12 +623,8 @@
     <!-- Mensaje flotante -->
     <div class="mensaje-flotante" id="mensajeFlotante"></div>
 
-    <!-- Audio de fondo -->
-    <audio id="audioFondo" loop preload="auto">
-        <source src="sounds/background.mp3" type="audio/mpeg">
-    </audio>
-
-    <!-- Elementos de audio estáticos para móviles -->
+    <!-- Audio -->
+    <audio id="audioFondo" loop preload="auto"><source src="sounds/background.mp3" type="audio/mpeg"></audio>
     <audio id="sndCarta" preload="auto"><source src="sounds/carta.mp3" type="audio/mpeg"></audio>
     <audio id="sndGol" preload="auto"><source src="sounds/gol.mp3" type="audio/mpeg"></audio>
     <audio id="sndGolazo" preload="auto"><source src="sounds/golazo.mp3" type="audio/mpeg"></audio>
@@ -1235,21 +641,18 @@
     <audio id="sndEmpate" preload="auto"><source src="sounds/empate.mp3" type="audio/mpeg"></audio>
     <audio id="sndPerder" preload="auto"><source src="sounds/perder.mp3" type="audio/mpeg"></audio>
 
-    <!-- ============ CONTENEDOR DEL JUEGO ============ -->
+    <!-- ============ JUEGO ============ -->
     <div class="juego" id="juego">
-        <!-- Zona Rival Online -->
         <div class="zona-cpu">
             <div class="mano-cpu" id="manoCpu"></div>
             <span class="etiqueta-turno" id="etiquetaCpu">Esperando rival...</span>
         </div>
 
-        <!-- Zona mesa -->
         <div class="zona-mesa">
             <div class="indicador-canto" id="indicadorCanto"></div>
             <div class="mesa-cartas" id="mesaCartas"></div>
         </div>
 
-        <!-- Botones -->
         <div class="zona-botones">
             <div class="botones-laterales izquierda" id="botonesIzquierda">
                 <button class="btn-accion btn-penal" id="btnPenal" disabled>🥅 Penal</button>
@@ -1270,13 +673,11 @@
             </div>
         </div>
 
-        <!-- Zona jugador -->
         <div class="zona-jugador">
             <span class="etiqueta-turno" id="etiquetaJugador">Turno de <span id="nombreEnTurno">Jugador</span></span>
             <div class="mano-jugador" id="manoJugador"></div>
         </div>
 
-        <!-- Panel marcador -->
         <div class="panel-marcador" id="panelMarcador">
             <div class="jugador-info">
                 <span class="nombre" id="nombreJugadorEtiqueta">Jugador</span>
@@ -1305,11 +706,11 @@
 
     <script type="module">
         // ============================================================
-        // GOLAZO ONLINE - CONEXIÓN Y ESTRUCTURA DE PARTIDA 1vs1
+        // GOLAZO ONLINE - JUEGO COMPLETO 1vs1
         // ============================================================
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
-        import { getDatabase, ref, get, set, update, onValue, remove, push, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-database.js";
+        import { getDatabase, ref, get, set, update, onValue, remove, push } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDsgQ2dwokGq3umlptHtMCVgFISLe8ySM0",
@@ -1326,7 +727,7 @@
         const auth = getAuth(app);
         const db = getDatabase(app);
 
-        // ============ CONSTANTES DEL JUEGO ============
+        // ============ CONSTANTES ============
         const POSICIONES = ['Arq', 'Def', 'Vol', 'Del'];
         const NUMEROS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
         const CARTAS_POR_JUGADOR = 4;
@@ -1337,65 +738,39 @@
         const RUTA_DORSO = 'img/Dorso.png';
         const CODIGO_LENGTH = 6;
 
-        // ============ ESTADO GLOBAL ============
+        // ============ ESTADO ============
         const estado = {
-            usuario: null,
-            nickname: '',
-            fotoURL: '',
-            partidaId: null,
-            miRol: null, // 'creador' o 'unido'
-            miLado: null, // 'jugador' o 'rival' (lado en la mesa)
-            rivalNombre: 'Rival',
-            rivalFoto: '',
-            enPartida: false,
-            fase: 'lobby', // lobby, esperando, jugando, fin
-            sonidosActivados: true,
-            musicaActivada: true,
-            // Estado del juego (se sincronizará con Firebase)
+            usuario: null, nickname: '', fotoURL: '',
+            partidaId: null, miRol: null, miLado: null,
+            rivalNombre: 'Rival', rivalFoto: '',
+            enPartida: false, fase: 'lobby',
+            sonidosActivados: true, musicaActivada: true,
             juego: {
-                mazo: [],
-                manoJugador: [],
-                manoRival: [],
-                golesJugador: 0,
-                golesRival: 0,
-                puntosJugador: 0,
-                puntosRival: 0,
-                manoActual: 0,
-                rondaActual: 0,
-                turnoInicial: 'jugador',
-                turnoActual: 'jugador',
-                cartasEnMesa: [],
-                cartaSeleccionada: null,
+                manoJugador: [], manoRival: [],
+                golesJugador: 0, golesRival: 0,
+                puntosJugador: 0, puntosRival: 0,
+                puntosManoJugador: 0, puntosManoRival: 0,
+                manoActual: 0, rondaActual: 0,
+                turnoInicial: 'jugador', turnoActual: 'jugador',
+                cartasEnMesa: [], cartaSeleccionada: null,
                 fase: 'esperando_seleccion',
-                penalUsado: false,
-                penalCantadoPor: null,
-                penalActivo: false,
-                penalAtacante: null,
-                penalCartas: [],
-                golActivo: false,
-                golAtacante: null,
-                golCartas: [],
-                golUsado: false,
-                golazoUsado: false,
-                cantoActual: null,
-                cantoPedidoPor: null,
-                cantoPendiente: null,
+                penalUsado: false, penalCantadoPor: null,
+                penalActivo: false, penalAtacante: null, penalCartas: [],
+                golActivo: false, golAtacante: null, golCartas: [],
+                golUsado: false, golazoUsado: false,
+                cantoActual: null, cantoPedidoPor: null, cantoPendiente: null,
                 varPedidoPor: null,
                 varDeclaraciones: { jugador: null, rival: null },
                 varTurnoDeclarar: null,
                 esperandoRespuestaDe: null,
-                historialManos: [],
-                inicioRonda: 0,
+                historialManos: [], inicioRonda: 0,
                 ganadorManoAnterior: null,
                 golEnMano: false,
-                puntosManoJugador: 0,
-                puntosManoRival: 0,
-                golesInicioManoJugador: 0,
-                golesInicioManoRival: 0,
+                golesInicioManoJugador: 0, golesInicioManoRival: 0,
             }
         };
 
-        // ============ REFERENCIAS DOM ============
+        // ============ DOM ============
         const dom = {};
 
         function cacheDom() {
@@ -1466,21 +841,13 @@
             dom.audioPerder = document.getElementById('sndPerder');
 
             dom.sonidos = {
-                'carta': dom.audioCarta,
-                'gol': dom.audioGol,
-                'golazo': dom.audioGolazo,
-                'golcpu': dom.audioGolcpu,
-                'golplayer': dom.audioGolplayer,
-                'quiero': dom.audioQuiero,
-                'mmmquiero': dom.audioMmmquiero,
-                'noquiero': dom.audioNoquiero,
-                'penal': dom.audioPenal,
-                'puntocpu': dom.audioPuntocpu,
-                'puntoplayer': dom.audioPuntoplayer,
-                'var': dom.audioVar,
-                'ganar': dom.audioGanar,
-                'empate': dom.audioEmpate,
-                'perder': dom.audioPerder,
+                'carta': dom.audioCarta, 'gol': dom.audioGol, 'golazo': dom.audioGolazo,
+                'golcpu': dom.audioGolcpu, 'golplayer': dom.audioGolplayer,
+                'quiero': dom.audioQuiero, 'mmmquiero': dom.audioMmmquiero,
+                'noquiero': dom.audioNoquiero, 'penal': dom.audioPenal,
+                'puntocpu': dom.audioPuntocpu, 'puntoplayer': dom.audioPuntoplayer,
+                'var': dom.audioVar, 'ganar': dom.audioGanar,
+                'empate': dom.audioEmpate, 'perder': dom.audioPerder,
             };
         }
 
@@ -1488,30 +855,18 @@
         function generarCodigoPartida() {
             const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
             let codigo = '';
-            for (let i = 0; i < CODIGO_LENGTH; i++) {
-                codigo += chars.charAt(Math.floor(Math.random() * chars.length));
-            }
+            for (let i = 0; i < CODIGO_LENGTH; i++) codigo += chars.charAt(Math.floor(Math.random() * chars.length));
             return codigo;
         }
 
         function crearCarta(posicion, numero) {
             const nombresPos = { Arq: 'Arquero', Def: 'Defensor', Vol: 'Volante', Del: 'Delantero' };
-            return {
-                id: `${posicion}${numero}`,
-                posicion,
-                numero,
-                nombre: `${nombresPos[posicion]} ${numero}`,
-                imagen: `${RUTA_IMAGENES}${nombresPos[posicion]}${numero}.png`,
-            };
+            return { id: `${posicion}${numero}`, posicion, numero, nombre: `${nombresPos[posicion]} ${numero}`, imagen: `${RUTA_IMAGENES}${nombresPos[posicion]}${numero}.png` };
         }
 
         function crearMazo() {
             const mazo = [];
-            for (const pos of POSICIONES) {
-                for (const num of NUMEROS) {
-                    mazo.push(crearCarta(pos, num));
-                }
-            }
+            for (const pos of POSICIONES) for (const num of NUMEROS) mazo.push(crearCarta(pos, num));
             return mazo;
         }
 
@@ -1526,16 +881,31 @@
 
         function repartir(mazo) {
             const manoJ = [], manoR = [], restante = [...mazo];
-            for (let i = 0; i < CARTAS_POR_JUGADOR; i++) {
-                manoJ.push(restante.pop());
-                manoR.push(restante.pop());
-            }
+            for (let i = 0; i < CARTAS_POR_JUGADOR; i++) { manoJ.push(restante.pop()); manoR.push(restante.pop()); }
             return { manoJ, manoR, mazoRestante: restante };
         }
 
         function ordenarMano(mano) {
             const orden = { Arq: 0, Def: 1, Vol: 2, Del: 3 };
             return [...mano].sort((a, b) => orden[a.posicion] - orden[b.posicion] || b.numero - a.numero);
+        }
+
+        function mejorCartaDe(mano, pos) {
+            const cartas = mano.filter(c => c.posicion === pos);
+            return cartas.length ? cartas.reduce((a, b) => a.numero > b.numero ? a : b) : null;
+        }
+
+        function mejorCartaDeVarias(mano, posiciones) {
+            let mejor = null;
+            for (const p of posiciones) {
+                const c = mejorCartaDe(mano, p);
+                if (c && (!mejor || c.numero > mejor.numero)) mejor = c;
+            }
+            return mejor;
+        }
+
+        function numeroMasAltoArqDel(mano) {
+            return Math.max(mejorCartaDe(mano, 'Arq')?.numero || 0, mejorCartaDe(mano, 'Del')?.numero || 0);
         }
 
         function reproducirSonido(nombre) {
@@ -1549,17 +919,11 @@
 
         function reproducirAudioFondo() {
             if (!estado.musicaActivada) return;
-            if (dom.audioFondo) {
-                dom.audioFondo.volume = 0.3;
-                dom.audioFondo.play().catch(() => {});
-            }
+            if (dom.audioFondo) { dom.audioFondo.volume = 0.3; dom.audioFondo.play().catch(() => {}); }
         }
 
         function detenerAudioFondo() {
-            if (dom.audioFondo) {
-                dom.audioFondo.pause();
-                dom.audioFondo.currentTime = 0;
-            }
+            if (dom.audioFondo) { dom.audioFondo.pause(); dom.audioFondo.currentTime = 0; }
         }
 
         let timeoutMensaje;
@@ -1575,35 +939,28 @@
             dom.lobbyMensaje.className = 'lobby-mensaje' + (esError ? '' : ' ok');
         }
 
-        // ============ ESCALADO DINÁMICO ============
+        // ============ ESCALADO ============
         function actualizarEscalado() {
-            const vh = window.innerHeight;
-            const vw = window.innerWidth;
+            const vh = window.innerHeight, vw = window.innerWidth;
             const vmin = Math.min(vh, vw);
             const isWide = vw >= 768;
             const aspectRatio = 1039 / 744;
-
             const zonaCpu = vh * (isWide ? 0.055 : 0.09);
             const zonaBotones = isWide ? 0 : vh * 0.12;
             const zonaJugador = vh * (isWide ? 0.19 : 0.18);
             const zonaMarcador = vh * 0.08;
             const gaps = vh * 0.035;
             const espacioMesa = vh - zonaCpu - zonaBotones - zonaJugador - zonaMarcador - gaps;
-
             let cartaMesa = Math.min(espacioMesa * 0.52, vw * (isWide ? 0.24 : 0.42), vmin * 0.36, 210);
             cartaMesa = Math.max(cartaMesa, vmin * 0.15);
-
             let cartaMano = Math.min(zonaJugador * 0.95, vw * 0.34, cartaMesa * 1.25, vmin * 0.31, 200);
             cartaMano = Math.max(cartaMano, vmin * 0.16);
-
             let cartaCpu = Math.min(cartaMano * 0.8, vw * 0.2, vmin * 0.21, 140) * 0.8;
             cartaCpu = Math.max(cartaCpu, vmin * 0.13);
-
             const btnFont = Math.max(15, Math.min(24, vmin * 0.05));
             const btnPadY = Math.max(10, Math.min(20, vmin * 0.028));
             const btnPadX = Math.max(14, Math.min(32, vmin * 0.04));
             const manoAltura = cartaMano * aspectRatio + (isWide ? 18 : 14);
-
             const root = document.documentElement;
             root.style.setProperty('--carta-mesa', cartaMesa + 'px');
             root.style.setProperty('--carta-mesa-max-h', (cartaMesa * aspectRatio) + 'px');
@@ -1639,12 +996,7 @@
             const style = getComputedStyle(document.documentElement);
             const anchoCarta = parseFloat(style.getPropertyValue('--carta-mano')) || 100;
             const manoAltura = parseFloat(style.getPropertyValue('--mano-altura')) || 130;
-
-            if (!mano.length) {
-                dom.manoJugador.style.height = manoAltura + 'px';
-                return;
-            }
-
+            if (!mano.length) { dom.manoJugador.style.height = manoAltura + 'px'; return; }
             const anchoDisponible = Math.min(window.innerWidth - 32, 920);
             let anchoCartaJugador = anchoCarta * 1.25;
             const factorSuperp = 0.85;
@@ -1654,10 +1006,7 @@
                 anchoCartaJugador = anchoDisponible / (1 + (mano.length - 1) * factorSuperp);
                 superp = anchoCartaJugador * factorSuperp;
             }
-            if (anchoCartaJugador > anchoDisponible) {
-                anchoCartaJugador = anchoDisponible;
-                superp = anchoCartaJugador * factorSuperp;
-            }
+            if (anchoCartaJugador > anchoDisponible) { anchoCartaJugador = anchoDisponible; superp = anchoCartaJugador * factorSuperp; }
             const offsetBase = (anchoDisponible - ((mano.length - 1) * superp + anchoCartaJugador)) / 2;
             dom.manoJugador.style.height = manoAltura + 'px';
             mano.forEach((carta, i) => {
@@ -1666,10 +1015,7 @@
                 cont.dataset.index = i;
                 cont.style.zIndex = i;
                 cont.style.left = `${offsetBase + i * superp}px`;
-                if (estado.juego.cartaSeleccionada === i) {
-                    cont.classList.add('seleccionada');
-                    cont.style.zIndex = 20;
-                }
+                if (estado.juego.cartaSeleccionada === i) { cont.classList.add('seleccionada'); cont.style.zIndex = 20; }
                 const img = document.createElement('img');
                 img.src = carta.imagen;
                 img.className = 'carta-img';
@@ -1681,12 +1027,8 @@
                     if (estado.fase !== 'jugando') return;
                     if (estado.juego.fase !== 'esperando_seleccion') return;
                     if (estado.juego.turnoActual !== 'jugador') return;
-                    if (estado.juego.cartaSeleccionada === i) {
-                        jugarCartaSeleccionada();
-                    } else {
-                        estado.juego.cartaSeleccionada = i;
-                        renderizarManoJugador();
-                    }
+                    if (estado.juego.cartaSeleccionada === i) { jugarCartaSeleccionada(); }
+                    else { estado.juego.cartaSeleccionada = i; renderizarManoJugador(); }
                 });
                 dom.manoJugador.appendChild(cont);
             });
@@ -1695,10 +1037,8 @@
         function renderizarMesa() {
             dom.mesaCartas.innerHTML = '';
             if (!estado.juego.cartasEnMesa.length) return;
-
             const filaMesa = document.createElement('div');
             filaMesa.className = 'mesa-fila';
-
             const esMovil = window.innerWidth < 768;
             estado.juego.cartasEnMesa.forEach((item, index) => {
                 const cont = document.createElement('div');
@@ -1716,19 +1056,14 @@
                 }
                 filaMesa.appendChild(cont);
             });
-
             dom.mesaCartas.appendChild(filaMesa);
         }
 
         function renderizarEstrellas() {
             const pJ = estado.juego.puntosJugador;
             const pR = estado.juego.puntosRival;
-            dom.estrellasJugador.querySelectorAll('.estrella').forEach((el, i) => {
-                el.classList.toggle('encendida', i < pJ);
-            });
-            dom.estrellasCpu.querySelectorAll('.estrella').forEach((el, i) => {
-                el.classList.toggle('encendida', i < pR);
-            });
+            dom.estrellasJugador.querySelectorAll('.estrella').forEach((el, i) => el.classList.toggle('encendida', i < pJ));
+            dom.estrellasCpu.querySelectorAll('.estrella').forEach((el, i) => el.classList.toggle('encendida', i < pR));
         }
 
         function renderizarMarcador() {
@@ -1743,9 +1078,7 @@
                 const textos = { penal: '🥅 PENAL', gol: '⚽ GOL', golazo: '💥 GOLAZO' };
                 dom.indicadorCanto.textContent = textos[estado.juego.cantoActual] || '';
                 dom.indicadorCanto.classList.add('visible');
-            } else {
-                dom.indicadorCanto.classList.remove('visible');
-            }
+            } else { dom.indicadorCanto.classList.remove('visible'); }
         }
 
         function actualizarEtiquetasTurno() {
@@ -1764,66 +1097,37 @@
         }
 
         function actualizarBotones() {
-            const todos = [
-                dom.btnPenal, dom.btnQuieroIzq, dom.btnNoQuieroIzq, dom.btnVar,
-                dom.btnGol, dom.btnQuieroDer, dom.btnNoQuieroDer, dom.btnGolazo
-            ];
+            const todos = [dom.btnPenal, dom.btnQuieroIzq, dom.btnNoQuieroIzq, dom.btnVar, dom.btnGol, dom.btnQuieroDer, dom.btnNoQuieroDer, dom.btnGolazo];
             todos.forEach(b => b.disabled = true);
-
             if (estado.fase !== 'jugando') return;
-
             const fase = estado.juego.fase;
             const esMiTurno = estado.juego.turnoActual === 'jugador';
             const quedan = estado.juego.manoJugador.length > 0;
             const rivalTieneCartas = estado.juego.manoRival.length > 0;
-
             switch (fase) {
                 case 'esperando_seleccion':
                     if (esMiTurno && quedan) {
-                        if (estado.juego.rondaActual === 0 && !estado.juego.penalUsado && !estado.juego.penalCantadoPor && !estado.juego.penalActivo && !estado.juego.golActivo) {
-                            dom.btnPenal.disabled = false;
-                        }
-                        if (estado.juego.rondaActual >= 1 && !estado.juego.golUsado && !estado.juego.penalActivo && !estado.juego.golActivo && rivalTieneCartas) {
-                            dom.btnGol.disabled = false;
-                        }
+                        if (estado.juego.rondaActual === 0 && !estado.juego.penalUsado && !estado.juego.penalCantadoPor && !estado.juego.penalActivo && !estado.juego.golActivo) dom.btnPenal.disabled = false;
+                        if (estado.juego.rondaActual >= 1 && !estado.juego.golUsado && !estado.juego.penalActivo && !estado.juego.golActivo && rivalTieneCartas) dom.btnGol.disabled = false;
                     }
                     break;
                 case 'penal_pedido':
-                    if (estado.juego.esperandoRespuestaDe === 'jugador') {
-                        dom.btnQuieroIzq.disabled = false;
-                        dom.btnNoQuieroIzq.disabled = false;
-                        dom.btnVar.disabled = false;
-                    }
+                    if (estado.juego.esperandoRespuestaDe === 'jugador') { dom.btnQuieroIzq.disabled = false; dom.btnNoQuieroIzq.disabled = false; dom.btnVar.disabled = false; }
                     break;
                 case 'gol_pedido':
-                    if (estado.juego.esperandoRespuestaDe === 'jugador') {
-                        dom.btnQuieroDer.disabled = false;
-                        dom.btnNoQuieroDer.disabled = false;
-                        dom.btnGolazo.disabled = false;
-                    }
+                    if (estado.juego.esperandoRespuestaDe === 'jugador') { dom.btnQuieroDer.disabled = false; dom.btnNoQuieroDer.disabled = false; dom.btnGolazo.disabled = false; }
                     break;
                 case 'golazo_pedido':
-                    if (estado.juego.esperandoRespuestaDe === 'jugador') {
-                        dom.btnQuieroDer.disabled = false;
-                        dom.btnNoQuieroDer.disabled = false;
-                    }
+                    if (estado.juego.esperandoRespuestaDe === 'jugador') { dom.btnQuieroDer.disabled = false; dom.btnNoQuieroDer.disabled = false; }
                     break;
                 case 'var_decision':
-                    if (estado.juego.esperandoRespuestaDe === 'jugador') {
-                        dom.btnQuieroIzq.disabled = false;
-                        dom.btnNoQuieroIzq.disabled = false;
-                    }
+                    if (estado.juego.esperandoRespuestaDe === 'jugador') { dom.btnQuieroIzq.disabled = false; dom.btnNoQuieroIzq.disabled = false; }
                     break;
                 case 'var_pedido':
-                    if (estado.juego.varTurnoDeclarar === 'jugador') {
-                        dom.btnVar.disabled = false;
-                        dom.btnVar.textContent = '📢 DECLARAR';
-                    } else {
-                        dom.btnVar.textContent = '📺 VAR';
-                    }
+                    if (estado.juego.varTurnoDeclarar === 'jugador') { dom.btnVar.disabled = false; dom.btnVar.textContent = '📢 DECLARAR'; }
+                    else { dom.btnVar.textContent = '📺 VAR'; }
                     break;
-                default:
-                    dom.btnVar.textContent = '📺 VAR';
+                default: dom.btnVar.textContent = '📺 VAR';
             }
         }
 
@@ -1838,7 +1142,81 @@
             actualizarBotones();
         }
 
-        // ============ ACCIONES DE JUEGO (se envían a Firebase) ============
+        // ============ SINCRONIZACIÓN FIREBASE ============
+        function convertirAbsoluto(valor) {
+            if (valor === null || valor === undefined) return null;
+            if (valor === 'jugador') return estado.miLado === 'jugador' ? 'jugador' : 'rival';
+            if (valor === 'rival') return estado.miLado === 'jugador' ? 'rival' : 'jugador';
+            return valor;
+        }
+
+        function convertirRelativo(valor) {
+            if (valor === null || valor === undefined) return null;
+            if (valor === 'jugador') return estado.miLado === 'jugador' ? 'jugador' : 'rival';
+            if (valor === 'rival') return estado.miLado === 'jugador' ? 'rival' : 'jugador';
+            return valor;
+        }
+
+        function sincronizarJuego() {
+            const juegoRef = ref(db, 'partidas/' + estado.partidaId + '/juego');
+            const manoJugadorAbsoluta = estado.miLado === 'jugador' ? estado.juego.manoJugador : estado.juego.manoRival;
+            const manoRivalAbsoluta = estado.miLado === 'jugador' ? estado.juego.manoRival : estado.juego.manoJugador;
+            const turnoAbsoluto = estado.juego.turnoActual === 'jugador' ? (estado.miLado === 'jugador' ? 'jugador' : 'rival') : (estado.miLado === 'jugador' ? 'rival' : 'jugador');
+            const cantoPedidoAbsoluto = estado.juego.cantoPedidoPor === 'jugador' ? (estado.miLado === 'jugador' ? 'jugador' : 'rival') : (estado.miLado === 'jugador' ? 'rival' : 'jugador');
+            const esperandoAbsoluto = estado.juego.esperandoRespuestaDe === 'jugador' ? (estado.miLado === 'jugador' ? 'jugador' : 'rival') : (estado.miLado === 'jugador' ? 'rival' : 'jugador');
+            const penalAtacanteAbsoluto = estado.juego.penalAtacante === 'jugador' ? (estado.miLado === 'jugador' ? 'jugador' : 'rival') : (estado.miLado === 'jugador' ? 'rival' : 'jugador');
+            const golAtacanteAbsoluto = estado.juego.golAtacante === 'jugador' ? (estado.miLado === 'jugador' ? 'jugador' : 'rival') : (estado.miLado === 'jugador' ? 'rival' : 'jugador');
+            const varPedidoAbsoluto = estado.juego.varPedidoPor === 'jugador' ? (estado.miLado === 'jugador' ? 'jugador' : 'rival') : (estado.miLado === 'jugador' ? 'rival' : 'jugador');
+            const varTurnoAbsoluto = estado.juego.varTurnoDeclarar === 'jugador' ? (estado.miLado === 'jugador' ? 'jugador' : 'rival') : (estado.miLado === 'jugador' ? 'rival' : 'jugador');
+            const ganadorAbsoluto = estado.juego.ganadorManoAnterior === 'jugador' ? (estado.miLado === 'jugador' ? 'jugador' : 'rival') : (estado.miLado === 'jugador' ? 'rival' : 'jugador');
+            const turnoInicialAbsoluto = estado.juego.turnoInicial === 'jugador' ? (estado.miLado === 'jugador' ? 'jugador' : 'rival') : (estado.miLado === 'jugador' ? 'rival' : 'jugador');
+
+            update(juegoRef, {
+                manoJugador: manoJugadorAbsoluta,
+                manoRival: manoRivalAbsoluta,
+                golesJugador: estado.miLado === 'jugador' ? estado.juego.golesJugador : estado.juego.golesRival,
+                golesRival: estado.miLado === 'jugador' ? estado.juego.golesRival : estado.juego.golesJugador,
+                puntosJugador: estado.miLado === 'jugador' ? estado.juego.puntosJugador : estado.juego.puntosRival,
+                puntosRival: estado.miLado === 'jugador' ? estado.juego.puntosRival : estado.juego.puntosJugador,
+                puntosManoJugador: estado.miLado === 'jugador' ? estado.juego.puntosManoJugador : estado.juego.puntosManoRival,
+                puntosManoRival: estado.miLado === 'jugador' ? estado.juego.puntosManoRival : estado.juego.puntosManoJugador,
+                manoActual: estado.juego.manoActual,
+                rondaActual: estado.juego.rondaActual,
+                turnoInicial: turnoInicialAbsoluto,
+                turnoActual: turnoAbsoluto,
+                cartasEnMesa: estado.juego.cartasEnMesa,
+                fase: estado.juego.fase,
+                penalUsado: estado.juego.penalUsado,
+                penalCantadoPor: estado.juego.penalCantadoPor === 'jugador' ? (estado.miLado === 'jugador' ? 'jugador' : 'rival') : (estado.miLado === 'jugador' ? 'rival' : 'jugador'),
+                penalActivo: estado.juego.penalActivo,
+                penalAtacante: penalAtacanteAbsoluto,
+                penalCartas: estado.juego.penalCartas,
+                golActivo: estado.juego.golActivo,
+                golAtacante: golAtacanteAbsoluto,
+                golCartas: estado.juego.golCartas,
+                golUsado: estado.juego.golUsado,
+                golazoUsado: estado.juego.golazoUsado,
+                cantoActual: estado.juego.cantoActual,
+                cantoPedidoPor: cantoPedidoAbsoluto,
+                cantoPendiente: estado.juego.cantoPendiente,
+                varPedidoPor: varPedidoAbsoluto,
+                varDeclaraciones: {
+                    jugador: estado.miLado === 'jugador' ? estado.juego.varDeclaraciones.jugador : estado.juego.varDeclaraciones.rival,
+                    rival: estado.miLado === 'jugador' ? estado.juego.varDeclaraciones.rival : estado.juego.varDeclaraciones.jugador
+                },
+                varTurnoDeclarar: varTurnoAbsoluto,
+                esperandoRespuestaDe: esperandoAbsoluto,
+                historialManos: estado.juego.historialManos,
+                inicioRonda: estado.juego.inicioRonda,
+                ganadorManoAnterior: ganadorAbsoluto,
+                golEnMano: estado.juego.golEnMano,
+                golesInicioManoJugador: estado.miLado === 'jugador' ? estado.juego.golesInicioManoJugador : estado.juego.golesInicioManoRival,
+                golesInicioManoRival: estado.miLado === 'jugador' ? estado.juego.golesInicioManoRival : estado.juego.golesInicioManoJugador,
+                ultimaActividad: Date.now()
+            }).catch((error) => console.error('Error sincronizando juego:', error));
+        }
+
+        // ============ ACCIONES DE JUEGO ============
         function jugarCartaSeleccionada() {
             if (estado.fase !== 'jugando') return;
             if (estado.juego.fase !== 'esperando_seleccion') return;
@@ -1849,230 +1227,143 @@
             const carta = estado.juego.manoJugador[idx];
             if (!carta) return;
 
-            // Actualizar localmente
             estado.juego.manoJugador.splice(idx, 1);
             estado.juego.cartaSeleccionada = null;
             estado.juego.cartasEnMesa.push({ carta, origen: 'jugador' });
-            estado.juego.fase = 'esperando_rival';
-            estado.juego.turnoActual = 'rival';
 
-            // Actualizar el estado del juego en Firebase para que el rival lo vea
-            const partidaRef = ref(db, 'partidas/' + estado.partidaId);
-            const juegoRef = ref(db, 'partidas/' + estado.partidaId + '/juego');
+            // Si hay penal activo
+            if (estado.juego.penalActivo) {
+                estado.juego.penalCartas.push({ carta, origen: 'jugador' });
+                if (estado.juego.penalCartas.some(c => c.origen === 'rival')) {
+                    estado.juego.fase = 'resolviendo';
+                    sincronizarJuego();
+                    renderizarTodo();
+                    setTimeout(resolverRonda, 500);
+                } else {
+                    estado.juego.fase = 'esperando_rival';
+                    estado.juego.turnoActual = 'rival';
+                    sincronizarJuego();
+                    renderizarTodo();
+                }
+                return;
+            }
 
-            // Determinar las manos según el lado del jugador
-            // El creador es 'jugador' y el unido es 'rival' en Firebase
-            const manoJugadorAbsoluta = estado.miLado === 'jugador' ? estado.juego.manoJugador : estado.juego.manoRival;
-            const manoRivalAbsoluta = estado.miLado === 'jugador' ? estado.juego.manoRival : estado.juego.manoJugador;
+            // Si hay gol activo
+            if (estado.juego.golActivo) {
+                estado.juego.golCartas.push({ carta, origen: 'jugador' });
+                if (estado.juego.golCartas.some(c => c.origen === 'rival')) {
+                    estado.juego.fase = 'resolviendo';
+                    sincronizarJuego();
+                    renderizarTodo();
+                    setTimeout(resolverRonda, 500);
+                } else {
+                    estado.juego.fase = 'esperando_rival';
+                    estado.juego.turnoActual = 'rival';
+                    sincronizarJuego();
+                    renderizarTodo();
+                }
+                return;
+            }
 
-            // El turno actual en Firebase es absoluto: 'jugador' = creador, 'rival' = unido
-            // Después de que yo juego, el turno es del rival
-            const turnoAbsoluto = estado.miLado === 'jugador' ? 'rival' : 'jugador';
-
-            // La fase en Firebase debe ser 'esperando_seleccion' para que el rival pueda jugar
-            // (el rival ve la fase como 'esperando_seleccion' porque es su turno)
-            const faseAbsoluta = 'esperando_seleccion';
-
-            // Actualizar el nodo juego en Firebase
-            update(juegoRef, {
-                manoJugador: manoJugadorAbsoluta,
-                manoRival: manoRivalAbsoluta,
-                cartasEnMesa: estado.juego.cartasEnMesa,
-                turnoActual: turnoAbsoluto,
-                fase: faseAbsoluta,
-                ultimaActividad: Date.now()
-            }).catch((error) => {
-                console.error('Error actualizando juego en Firebase:', error);
-            });
+            // Juego normal
+            if (rivalJugoEstaRonda()) {
+                estado.juego.fase = 'resolviendo';
+                sincronizarJuego();
+                renderizarTodo();
+                setTimeout(resolverRonda, 500);
+            } else {
+                estado.juego.fase = 'esperando_rival';
+                estado.juego.turnoActual = 'rival';
+                sincronizarJuego();
+                renderizarTodo();
+            }
 
             reproducirSonido('carta');
-            renderizarTodo();
         }
 
         // ============ FIREBASE: CREAR PARTIDA ============
         async function crearPartida() {
             if (!estado.usuario) return;
-
             mostrarLobbyMensaje('Creando partida...', false);
             dom.btnCrearPartida.disabled = true;
-
             try {
-                // Generar código único
                 let codigo = generarCodigoPartida();
                 let existe = true;
                 let intentos = 0;
-
                 while (existe && intentos < 10) {
                     const snap = await get(ref(db, 'partidas/' + codigo));
                     existe = snap.exists();
-                    if (existe) {
-                        codigo = generarCodigoPartida();
-                        intentos++;
-                    }
+                    if (existe) { codigo = generarCodigoPartida(); intentos++; }
                 }
-
-                if (existe) {
-                    mostrarLobbyMensaje('Error generando código. Intentá de nuevo.', true);
-                    dom.btnCrearPartida.disabled = false;
-                    return;
-                }
-
+                if (existe) { mostrarLobbyMensaje('Error generando código. Intentá de nuevo.', true); dom.btnCrearPartida.disabled = false; return; }
                 const partidaRef = ref(db, 'partidas/' + codigo);
                 await set(partidaRef, {
-                    codigo: codigo,
-                    creador: {
-                        uid: estado.usuario.uid,
-                        nickname: estado.nickname || 'Jugador',
-                        fotoURL: estado.fotoURL || '',
-                        listo: true
-                    },
-                    unido: null,
-                    estado: 'esperando', // esperando, jugando, terminada
-                    creadoEn: Date.now(),
-                    ultimaActividad: Date.now()
+                    codigo, creador: { uid: estado.usuario.uid, nickname: estado.nickname || 'Jugador', fotoURL: estado.fotoURL || '', listo: true },
+                    unido: null, estado: 'esperando', creadoEn: Date.now(), ultimaActividad: Date.now()
                 });
-
                 estado.partidaId = codigo;
                 estado.miRol = 'creador';
                 estado.miLado = 'jugador';
                 estado.fase = 'esperando';
-
-                // Mostrar overlay de espera
                 dom.overlayLobby.classList.add('oculto');
                 dom.overlayEsperando.classList.remove('oculto');
                 dom.codigoPartida.textContent = codigo;
                 dom.esperandoTitulo.textContent = 'Esperando rival...';
                 dom.esperandoSubtitulo.textContent = 'Compartí este código con tu rival';
-
-                // Escuchar cambios en la partida
                 escucharPartida(codigo);
-
             } catch (error) {
                 console.error('Error creando partida:', error);
-                const codigoError = error.code || '';
-                let mensaje = 'Error al crear la partida. Revisá tu conexión.';
-                if (codigoError === 'PERMISSION_DENIED') {
-                    mensaje = '⚠ Permiso denegado. Necesitás agregar las reglas de "partidas" en Firebase Console → Realtime Database → Rules.';
-                } else if (codigoError === 'NETWORK_ERROR' || codigoError === 'UNAVAILABLE') {
-                    mensaje = '⚠ Error de red. Revisá tu conexión a internet.';
-                } else if (error.message) {
-                    mensaje = '⚠ ' + error.message;
-                }
-                mostrarLobbyMensaje(mensaje, true);
+                mostrarLobbyMensaje('Error al crear la partida. Revisá tu conexión.', true);
                 dom.btnCrearPartida.disabled = false;
             }
         }
 
-        // ============ FIREBASE: UNIRSE A PARTIDA ============
+        // ============ FIREBASE: UNIRSE ============
         async function unirsePartida() {
             if (!estado.usuario) return;
-
             const codigo = dom.inputCodigo.value.trim().toUpperCase();
-            if (codigo.length !== CODIGO_LENGTH) {
-                mostrarLobbyMensaje('El código debe tener ' + CODIGO_LENGTH + ' caracteres.', true);
-                return;
-            }
-
+            if (codigo.length !== CODIGO_LENGTH) { mostrarLobbyMensaje('El código debe tener ' + CODIGO_LENGTH + ' caracteres.', true); return; }
             mostrarLobbyMensaje('Buscando partida...', false);
             dom.btnUnirsePartida.disabled = true;
-
             try {
                 const partidaRef = ref(db, 'partidas/' + codigo);
                 const snap = await get(partidaRef);
-
-                if (!snap.exists()) {
-                    mostrarLobbyMensaje('No se encontró ninguna partida con ese código.', true);
-                    dom.btnUnirsePartida.disabled = false;
-                    return;
-                }
-
+                if (!snap.exists()) { mostrarLobbyMensaje('No se encontró ninguna partida con ese código.', true); dom.btnUnirsePartida.disabled = false; return; }
                 const partida = snap.val();
-
-                if (partida.estado !== 'esperando') {
-                    mostrarLobbyMensaje('Esa partida ya comenzó o terminó.', true);
-                    dom.btnUnirsePartida.disabled = false;
-                    return;
-                }
-
-                if (partida.unido) {
-                    mostrarLobbyMensaje('Esa partida ya tiene 2 jugadores.', true);
-                    dom.btnUnirsePartida.disabled = false;
-                    return;
-                }
-
-                if (partida.creador.uid === estado.usuario.uid) {
-                    mostrarLobbyMensaje('Ya sos el creador de esa partida.', true);
-                    dom.btnUnirsePartida.disabled = false;
-                    return;
-                }
-
-                // Unirse a la partida
+                if (partida.estado !== 'esperando') { mostrarLobbyMensaje('Esa partida ya comenzó o terminó.', true); dom.btnUnirsePartida.disabled = false; return; }
+                if (partida.unido) { mostrarLobbyMensaje('Esa partida ya tiene 2 jugadores.', true); dom.btnUnirsePartida.disabled = false; return; }
+                if (partida.creador.uid === estado.usuario.uid) { mostrarLobbyMensaje('Ya sos el creador de esa partida.', true); dom.btnUnirsePartida.disabled = false; return; }
                 await update(partidaRef, {
-                    unido: {
-                        uid: estado.usuario.uid,
-                        nickname: estado.nickname || 'Jugador',
-                        fotoURL: estado.fotoURL || '',
-                        listo: true
-                    },
-                    estado: 'jugando',
-                    ultimaActividad: Date.now()
+                    unido: { uid: estado.usuario.uid, nickname: estado.nickname || 'Jugador', fotoURL: estado.fotoURL || '', listo: true },
+                    estado: 'jugando', ultimaActividad: Date.now()
                 });
-
                 estado.partidaId = codigo;
                 estado.miRol = 'unido';
                 estado.miLado = 'rival';
                 estado.fase = 'jugando';
-
-                // Ocultar lobby
                 dom.overlayLobby.classList.add('oculto');
                 dom.overlayEsperando.classList.add('oculto');
-
-                // Configurar nombres
                 dom.nombreRivalEtiqueta.textContent = partida.creador.nickname || 'Rival';
                 estado.rivalNombre = partida.creador.nickname || 'Rival';
-
-                // Escuchar cambios en la partida
                 escucharPartida(codigo);
-
-                // Inicializar el juego
                 iniciarJuegoOnline();
-
             } catch (error) {
                 console.error('Error uniéndose a partida:', error);
-                const codigoError = error.code || '';
-                let mensaje = 'Error al unirse. Revisá tu conexión.';
-                if (codigoError === 'PERMISSION_DENIED') {
-                    mensaje = '⚠ Permiso denegado. Necesitás agregar las reglas de "partidas" en Firebase Console → Realtime Database → Rules.';
-                } else if (codigoError === 'NETWORK_ERROR' || codigoError === 'UNAVAILABLE') {
-                    mensaje = '⚠ Error de red. Revisá tu conexión a internet.';
-                } else if (error.message) {
-                    mensaje = '⚠ ' + error.message;
-                }
-                mostrarLobbyMensaje(mensaje, true);
+                mostrarLobbyMensaje('Error al unirse. Revisá tu conexión.', true);
                 dom.btnUnirsePartida.disabled = false;
             }
         }
 
-        // ============ FIREBASE: ESCUCHAR PARTIDA ============
+        // ============ FIREBASE: ESCUCHAR ============
         let partidaListener = null;
 
         function escucharPartida(codigo) {
-            if (partidaListener) {
-                partidaListener();
-                partidaListener = null;
-            }
-
+            if (partidaListener) { partidaListener(); partidaListener = null; }
             const partidaRef = ref(db, 'partidas/' + codigo);
             partidaListener = onValue(partidaRef, (snap) => {
-                if (!snap.exists()) {
-                    // La partida fue eliminada
-                    mostrarMensaje('La partida terminó');
-                    return;
-                }
-
+                if (!snap.exists()) { mostrarMensaje('La partida terminó'); return; }
                 const partida = snap.val();
 
-                // Si soy el creador y alguien se unió
                 if (estado.miRol === 'creador' && partida.unido && estado.fase === 'esperando') {
                     estado.fase = 'jugando';
                     dom.overlayEsperando.classList.add('oculto');
@@ -2081,9 +1372,7 @@
                     iniciarJuegoOnline();
                 }
 
-                // Si la partida está en estado jugando y hay datos de juego
                 if (partida.estado === 'jugando' && partida.juego) {
-                    // Asegurar que estamos en fase jugando
                     if (estado.fase !== 'jugando') {
                         estado.fase = 'jugando';
                         estado.enPartida = true;
@@ -2096,198 +1385,689 @@
                         reproducirAudioFondo();
                     }
 
-                    // Actualizar estado del juego desde Firebase
-                    if (partida.juego.manoJugador && partida.juego.manoRival) {
-                        // Determinar qué mano es la mía según mi lado
-                        const miMano = estado.miLado === 'jugador' ? partida.juego.manoJugador : partida.juego.manoRival;
-                        const rivalMano = estado.miLado === 'jugador' ? partida.juego.manoRival : partida.juego.manoJugador;
-
-                        estado.juego.manoJugador = miMano || [];
-                        estado.juego.manoRival = rivalMano || [];
+                    const j = partida.juego;
+                    if (j.manoJugador && j.manoRival) {
+                        estado.juego.manoJugador = estado.miLado === 'jugador' ? j.manoJugador : j.manoRival;
+                        estado.juego.manoRival = estado.miLado === 'jugador' ? j.manoRival : j.manoJugador;
                     }
-
-                    // Sincronizar otros campos del juego
-                    if (partida.juego.golesJugador !== undefined) {
-                        estado.juego.golesJugador = estado.miLado === 'jugador' ? partida.juego.golesJugador : partida.juego.golesRival;
-                        estado.juego.golesRival = estado.miLado === 'jugador' ? partida.juego.golesRival : partida.juego.golesJugador;
+                    if (j.golesJugador !== undefined) {
+                        estado.juego.golesJugador = estado.miLado === 'jugador' ? j.golesJugador : j.golesRival;
+                        estado.juego.golesRival = estado.miLado === 'jugador' ? j.golesRival : j.golesJugador;
                     }
-                    if (partida.juego.puntosJugador !== undefined) {
-                        estado.juego.puntosJugador = estado.miLado === 'jugador' ? partida.juego.puntosJugador : partida.juego.puntosRival;
-                        estado.juego.puntosRival = estado.miLado === 'jugador' ? partida.juego.puntosRival : partida.juego.puntosJugador;
+                    if (j.puntosJugador !== undefined) {
+                        estado.juego.puntosJugador = estado.miLado === 'jugador' ? j.puntosJugador : j.puntosRival;
+                        estado.juego.puntosRival = estado.miLado === 'jugador' ? j.puntosRival : j.puntosJugador;
                     }
-                    if (partida.juego.manoActual !== undefined) estado.juego.manoActual = partida.juego.manoActual;
-                    if (partida.juego.rondaActual !== undefined) estado.juego.rondaActual = partida.juego.rondaActual;
-                    if (partida.juego.turnoActual !== undefined) {
-                        // Convertir turno según mi lado
-                        const turnoAbsoluto = partida.juego.turnoActual;
-                        estado.juego.turnoActual = turnoAbsoluto === 'jugador' ? (estado.miLado === 'jugador' ? 'jugador' : 'rival') : (estado.miLado === 'jugador' ? 'rival' : 'jugador');
+                    if (j.puntosManoJugador !== undefined) {
+                        estado.juego.puntosManoJugador = estado.miLado === 'jugador' ? j.puntosManoJugador : j.puntosManoRival;
+                        estado.juego.puntosManoRival = estado.miLado === 'jugador' ? j.puntosManoRival : j.puntosManoJugador;
                     }
-                    if (partida.juego.cartasEnMesa !== undefined) estado.juego.cartasEnMesa = partida.juego.cartasEnMesa || [];
-                    if (partida.juego.fase !== undefined) estado.juego.fase = partida.juego.fase;
-                    if (partida.juego.cantoActual !== undefined) estado.juego.cantoActual = partida.juego.cantoActual;
-                    if (partida.juego.cantoPedidoPor !== undefined) estado.juego.cantoPedidoPor = partida.juego.cantoPedidoPor;
-                    if (partida.juego.esperandoRespuestaDe !== undefined) {
-                        const respAbsoluto = partida.juego.esperandoRespuestaDe;
-                        estado.juego.esperandoRespuestaDe = respAbsoluto === 'jugador' ? (estado.miLado === 'jugador' ? 'jugador' : 'rival') : (estado.miLado === 'jugador' ? 'rival' : 'jugador');
-                    }
-                    if (partida.juego.penalUsado !== undefined) estado.juego.penalUsado = partida.juego.penalUsado;
-                    if (partida.juego.penalCantadoPor !== undefined) estado.juego.penalCantadoPor = partida.juego.penalCantadoPor;
-                    if (partida.juego.penalActivo !== undefined) estado.juego.penalActivo = partida.juego.penalActivo;
-                    if (partida.juego.penalAtacante !== undefined) {
-                        const atacanteAbsoluto = partida.juego.penalAtacante;
-                        estado.juego.penalAtacante = atacanteAbsoluto === 'jugador' ? (estado.miLado === 'jugador' ? 'jugador' : 'rival') : (estado.miLado === 'jugador' ? 'rival' : 'jugador');
-                    }
-                    if (partida.juego.golUsado !== undefined) estado.juego.golUsado = partida.juego.golUsado;
-                    if (partida.juego.golActivo !== undefined) estado.juego.golActivo = partida.juego.golActivo;
-                    if (partida.juego.golAtacante !== undefined) {
-                        const atacanteAbsoluto = partida.juego.golAtacante;
-                        estado.juego.golAtacante = atacanteAbsoluto === 'jugador' ? (estado.miLado === 'jugador' ? 'jugador' : 'rival') : (estado.miLado === 'jugador' ? 'rival' : 'jugador');
-                    }
-                    if (partida.juego.golazoUsado !== undefined) estado.juego.golazoUsado = partida.juego.golazoUsado;
-                    if (partida.juego.varPedidoPor !== undefined) {
-                        const varAbsoluto = partida.juego.varPedidoPor;
-                        estado.juego.varPedidoPor = varAbsoluto === 'jugador' ? (estado.miLado === 'jugador' ? 'jugador' : 'rival') : (estado.miLado === 'jugador' ? 'rival' : 'jugador');
-                    }
-                    if (partida.juego.varTurnoDeclarar !== undefined) {
-                        const varTurnoAbsoluto = partida.juego.varTurnoDeclarar;
-                        estado.juego.varTurnoDeclarar = varTurnoAbsoluto === 'jugador' ? (estado.miLado === 'jugador' ? 'jugador' : 'rival') : (estado.miLado === 'jugador' ? 'rival' : 'jugador');
-                    }
-                    if (partida.juego.varDeclaraciones !== undefined) {
-                        const declAbsoluto = partida.juego.varDeclaraciones;
+                    if (j.manoActual !== undefined) estado.juego.manoActual = j.manoActual;
+                    if (j.rondaActual !== undefined) estado.juego.rondaActual = j.rondaActual;
+                    if (j.turnoActual !== undefined) estado.juego.turnoActual = convertirRelativo(j.turnoActual);
+                    if (j.turnoInicial !== undefined) estado.juego.turnoInicial = convertirRelativo(j.turnoInicial);
+                    if (j.cartasEnMesa !== undefined) estado.juego.cartasEnMesa = j.cartasEnMesa || [];
+                    if (j.fase !== undefined) estado.juego.fase = j.fase;
+                    if (j.cantoActual !== undefined) estado.juego.cantoActual = j.cantoActual;
+                    if (j.cantoPedidoPor !== undefined) estado.juego.cantoPedidoPor = convertirRelativo(j.cantoPedidoPor);
+                    if (j.esperandoRespuestaDe !== undefined) estado.juego.esperandoRespuestaDe = convertirRelativo(j.esperandoRespuestaDe);
+                    if (j.penalUsado !== undefined) estado.juego.penalUsado = j.penalUsado;
+                    if (j.penalCantadoPor !== undefined) estado.juego.penalCantadoPor = convertirRelativo(j.penalCantadoPor);
+                    if (j.penalActivo !== undefined) estado.juego.penalActivo = j.penalActivo;
+                    if (j.penalAtacante !== undefined) estado.juego.penalAtacante = convertirRelativo(j.penalAtacante);
+                    if (j.penalCartas !== undefined) estado.juego.penalCartas = j.penalCartas || [];
+                    if (j.golUsado !== undefined) estado.juego.golUsado = j.golUsado;
+                    if (j.golActivo !== undefined) estado.juego.golActivo = j.golActivo;
+                    if (j.golAtacante !== undefined) estado.juego.golAtacante = convertirRelativo(j.golAtacante);
+                    if (j.golCartas !== undefined) estado.juego.golCartas = j.golCartas || [];
+                    if (j.golazoUsado !== undefined) estado.juego.golazoUsado = j.golazoUsado;
+                    if (j.varPedidoPor !== undefined) estado.juego.varPedidoPor = convertirRelativo(j.varPedidoPor);
+                    if (j.varTurnoDeclarar !== undefined) estado.juego.varTurnoDeclarar = convertirRelativo(j.varTurnoDeclarar);
+                    if (j.varDeclaraciones !== undefined) {
                         estado.juego.varDeclaraciones = {
-                            jugador: estado.miLado === 'jugador' ? declAbsoluto.jugador : declAbsoluto.rival,
-                            rival: estado.miLado === 'jugador' ? declAbsoluto.rival : declAbsoluto.jugador
+                            jugador: estado.miLado === 'jugador' ? j.varDeclaraciones.jugador : j.varDeclaraciones.rival,
+                            rival: estado.miLado === 'jugador' ? j.varDeclaraciones.rival : j.varDeclaraciones.jugador
                         };
                     }
-                    if (partida.juego.golEnMano !== undefined) estado.juego.golEnMano = partida.juego.golEnMano;
-                    if (partida.juego.puntosManoJugador !== undefined) {
-                        estado.juego.puntosManoJugador = estado.miLado === 'jugador' ? partida.juego.puntosManoJugador : partida.juego.puntosManoRival;
-                        estado.juego.puntosManoRival = estado.miLado === 'jugador' ? partida.juego.puntosManoRival : partida.juego.puntosManoJugador;
+                    if (j.golEnMano !== undefined) estado.juego.golEnMano = j.golEnMano;
+                    if (j.ganadorManoAnterior !== undefined) estado.juego.ganadorManoAnterior = convertirRelativo(j.ganadorManoAnterior);
+                    if (j.inicioRonda !== undefined) estado.juego.inicioRonda = j.inicioRonda;
+                    if (j.historialManos !== undefined) estado.juego.historialManos = j.historialManos || [];
+                    if (j.golesInicioManoJugador !== undefined) {
+                        estado.juego.golesInicioManoJugador = estado.miLado === 'jugador' ? j.golesInicioManoJugador : j.golesInicioManoRival;
+                        estado.juego.golesInicioManoRival = estado.miLado === 'jugador' ? j.golesInicioManoRival : j.golesInicioManoJugador;
                     }
-                    if (partida.juego.ganadorManoAnterior !== undefined) {
-                        const ganadorAbsoluto = partida.juego.ganadorManoAnterior;
-                        estado.juego.ganadorManoAnterior = ganadorAbsoluto === 'jugador' ? (estado.miLado === 'jugador' ? 'jugador' : 'rival') : (estado.miLado === 'jugador' ? 'rival' : 'jugador');
+
+                    // Si la fase es resolviendo, resolver
+                    if (estado.juego.fase === 'resolviendo') {
+                        setTimeout(resolverRonda, 300);
                     }
-                    if (partida.juego.turnoInicial !== undefined) {
-                        const turnoInicialAbsoluto = partida.juego.turnoInicial;
-                        estado.juego.turnoInicial = turnoInicialAbsoluto === 'jugador' ? (estado.miLado === 'jugador' ? 'jugador' : 'rival') : (estado.miLado === 'jugador' ? 'rival' : 'jugador');
-                    }
-                    if (partida.juego.inicioRonda !== undefined) estado.juego.inicioRonda = partida.juego.inicioRonda;
-                    if (partida.juego.historialManos !== undefined) estado.juego.historialManos = partida.juego.historialManos || [];
 
                     renderizarTodo();
                 }
 
-                // Si la partida terminó
                 if (partida.estado === 'terminada' && partida.resultado) {
                     mostrarFinPartido(partida.resultado);
                 }
-
-                // Si el rival se desconectó
-                if (partida.rivalDesconectado && estado.fase === 'jugando') {
-                    mostrarMensaje('Tu rival se desconectó');
-                    // Marcar como ganador al jugador que sigue conectado
-                    const resultado = {
-                        ganador: estado.miLado === 'jugador' ? 'jugador' : 'rival',
-                        golesJugador: estado.juego.golesJugador,
-                        golesRival: estado.juego.golesRival,
-                        abandono: true
-                    };
-                    mostrarFinPartido(resultado);
-                }
-
-            }, (error) => {
-                console.error('Error escuchando partida:', error);
-            });
+            }, (error) => console.error('Error escuchando partida:', error));
         }
 
-        // ============ INICIAR JUEGO ONLINE ============
+        // ============ INICIAR JUEGO ============
         async function iniciarJuegoOnline() {
             estado.fase = 'jugando';
             estado.enPartida = true;
-
-            // Configurar nombres
             dom.nombreJugadorEtiqueta.textContent = estado.nickname || 'Jugador';
             dom.nombreEnTurno.textContent = estado.nickname || 'Jugador';
             dom.etiquetaCpu.textContent = 'Turno de ' + estado.rivalNombre;
             dom.etiquetaJugador.textContent = 'Turno de ' + (estado.nickname || 'Jugador');
 
-            // Si soy el creador, inicializar el mazo y repartir cartas
             if (estado.miRol === 'creador') {
                 const mazo = mezclarMazo(crearMazo());
                 const { manoJ, manoR } = repartir(mazo);
                 const manoJugadorOrdenada = ordenarMano(manoJ);
                 const manoRivalOrdenada = ordenarMano(manoR);
-
-                // Guardar el estado inicial del juego en Firebase
                 const partidaRef = ref(db, 'partidas/' + estado.partidaId);
                 await update(partidaRef, {
                     juego: {
-                        manoJugador: manoJugadorOrdenada,
-                        manoRival: manoRivalOrdenada,
-                        golesJugador: 0,
-                        golesRival: 0,
-                        puntosJugador: 0,
-                        puntosRival: 0,
-                        manoActual: 0,
-                        rondaActual: 0,
-                        turnoInicial: 'jugador',
-                        turnoActual: 'jugador',
-                        cartasEnMesa: [],
-                        fase: 'esperando_seleccion',
-                        penalUsado: false,
-                        penalCantadoPor: null,
-                        penalActivo: false,
-                        penalAtacante: null,
-                        penalCartas: [],
-                        golActivo: false,
-                        golAtacante: null,
-                        golCartas: [],
-                        golUsado: false,
-                        golazoUsado: false,
-                        cantoActual: null,
-                        cantoPedidoPor: null,
-                        cantoPendiente: null,
+                        manoJugador: manoJugadorOrdenada, manoRival: manoRivalOrdenada,
+                        golesJugador: 0, golesRival: 0,
+                        puntosJugador: 0, puntosRival: 0,
+                        puntosManoJugador: 0, puntosManoRival: 0,
+                        manoActual: 0, rondaActual: 0,
+                        turnoInicial: 'jugador', turnoActual: 'jugador',
+                        cartasEnMesa: [], fase: 'esperando_seleccion',
+                        penalUsado: false, penalCantadoPor: null,
+                        penalActivo: false, penalAtacante: null, penalCartas: [],
+                        golActivo: false, golAtacante: null, golCartas: [],
+                        golUsado: false, golazoUsado: false,
+                        cantoActual: null, cantoPedidoPor: null, cantoPendiente: null,
                         varPedidoPor: null,
                         varDeclaraciones: { jugador: null, rival: null },
-                        varTurnoDeclarar: null,
-                        esperandoRespuestaDe: null,
-                        historialManos: [],
-                        inicioRonda: 0,
-                        ganadorManoAnterior: null,
-                        golEnMano: false,
-                        puntosManoJugador: 0,
-                        puntosManoRival: 0,
-                        golesInicioManoJugador: 0,
-                        golesInicioManoRival: 0,
+                        varTurnoDeclarar: null, esperandoRespuestaDe: null,
+                        historialManos: [], inicioRonda: 0,
+                        ganadorManoAnterior: null, golEnMano: false,
+                        golesInicioManoJugador: 0, golesInicioManoRival: 0,
                     },
                     ultimaActividad: Date.now()
                 });
-
-                // Actualizar estado local
                 estado.juego.manoJugador = manoJugadorOrdenada;
                 estado.juego.manoRival = manoRivalOrdenada;
                 estado.juego.turnoActual = 'jugador';
                 estado.juego.fase = 'esperando_seleccion';
             }
 
-            // Reproducir audio de fondo
             reproducirAudioFondo();
-
             renderizarTodo();
             mostrarMensaje('¡Partida comenzada!');
         }
 
-        // ============ MOSTRAR FIN DE PARTIDA ============
+        // ============ RESOLUCIÓN DE RONDA ============
+        function cartasDeRondaActual() {
+            return estado.juego.cartasEnMesa.slice(estado.juego.inicioRonda || 0);
+        }
+
+        function rivalJugoEstaRonda() {
+            return cartasDeRondaActual().some(c => c.origen === 'rival');
+        }
+
+        function jugadorJugoEstaRonda() {
+            return cartasDeRondaActual().some(c => c.origen === 'jugador');
+        }
+
+        function alguienSinCartas() {
+            return estado.juego.manoJugador.length === 0 || estado.juego.manoRival.length === 0;
+        }
+
+        function resolverRonda() {
+            if (estado.juego.penalActivo) { resolverPenal(); return; }
+            if (estado.juego.golActivo) { resolverGol(); return; }
+
+            const cartasRonda = cartasDeRondaActual();
+            const uj = cartasRonda.filter(c => c.origen === 'jugador').pop();
+            const ur = cartasRonda.filter(c => c.origen === 'rival').pop();
+            if (!uj || !ur) return;
+
+            if (uj.carta.numero > ur.carta.numero) {
+                estado.juego.puntosJugador++;
+                estado.juego.turnoInicial = 'jugador';
+                mostrarMensaje('¡Ganaste la ronda!');
+                reproducirSonido('puntoplayer');
+            } else if (ur.carta.numero > uj.carta.numero) {
+                estado.juego.puntosRival++;
+                estado.juego.turnoInicial = 'rival';
+                mostrarMensaje(estado.rivalNombre + ' gana la ronda');
+                reproducirSonido('puntocpu');
+            } else {
+                mostrarMensaje('Empate');
+            }
+            estado.juego.rondaActual++;
+            renderizarMarcador();
+            renderizarTodo();
+
+            if (verificarGolPorPuntos()) {
+                sincronizarJuego();
+                setTimeout(() => finalizarMano(), 2200);
+                return;
+            }
+
+            if (estado.juego.cantoPendiente) {
+                const pendiente = estado.juego.cantoPendiente;
+                estado.juego.cantoPendiente = null;
+                sincronizarJuego();
+                setTimeout(() => iniciarEjecucionCanto(pendiente.tipo, pendiente.pedidoPor), 800);
+                return;
+            }
+
+            sincronizarJuego();
+            setTimeout(continuarFlujo, 800);
+        }
+
+        function resolverPenal() {
+            const cartasPenal = estado.juego.penalCartas;
+            const uj = cartasPenal.filter(c => c.origen === 'jugador').pop();
+            const ur = cartasPenal.filter(c => c.origen === 'rival').pop();
+            if (!uj || !ur) {
+                estado.juego.penalActivo = false;
+                estado.juego.penalAtacante = null;
+                estado.juego.penalCartas = [];
+                finalizarCanto();
+                return;
+            }
+            const atacanteEsJugador = estado.juego.penalAtacante === 'jugador';
+            const cartaAtacante = atacanteEsJugador ? uj : ur;
+            const cartaDefensor = atacanteEsJugador ? ur : uj;
+            const atacanteJugoDel = cartaAtacante.carta.posicion === 'Del';
+            const defensorJugoArq = cartaDefensor.carta.posicion === 'Arq';
+            const quienAtaca = estado.juego.penalAtacante;
+            estado.juego.penalActivo = false;
+            estado.juego.penalAtacante = null;
+            estado.juego.penalCartas = [];
+
+            if (!atacanteJugoDel) {
+                const golPorPuntos = sumarPuntos(atacanteEsJugador ? 'rival' : 'jugador', 2);
+                mostrarMensaje('Atacante sin delantero - +2 defensor');
+                if (golPorPuntos) setTimeout(finalizarMano, 2200);
+                else finalizarCanto();
+            } else if (!defensorJugoArq) {
+                convertirGol(quienAtaca);
+                mostrarMensaje('⚽ ¡GOL! Defensor sin arquero');
+                if (estado.juego.golEnMano) setTimeout(finalizarMano, 2200);
+                else finalizarCanto();
+            } else {
+                if (cartaAtacante.carta.numero > cartaDefensor.carta.numero) {
+                    convertirGol(quienAtaca);
+                    mostrarMensaje('⚽ ¡GOL! Penal exitoso');
+                } else {
+                    sumarPuntos(atacanteEsJugador ? 'rival' : 'jugador', 2);
+                    mostrarMensaje('Arquero ataja el penal');
+                }
+                if (estado.juego.golEnMano) setTimeout(finalizarMano, 2200);
+                else finalizarCanto();
+            }
+        }
+
+        function resolverGol() {
+            const cartasGol = estado.juego.golCartas;
+            const uj = cartasGol.filter(c => c.origen === 'jugador').pop();
+            const ur = cartasGol.filter(c => c.origen === 'rival').pop();
+            if (!uj || !ur) return;
+            const atacanteEsJugador = estado.juego.golAtacante === 'jugador';
+            const cartaAtacante = atacanteEsJugador ? uj : ur;
+            const cartaDefensor = atacanteEsJugador ? ur : uj;
+            const atacanteJugoDel = cartaAtacante.carta.posicion === 'Del';
+            const defensorJugoArqDef = cartaDefensor.carta.posicion === 'Arq' || cartaDefensor.carta.posicion === 'Def';
+            const quienAtaca = estado.juego.golAtacante;
+            estado.juego.golActivo = false;
+            estado.juego.golAtacante = null;
+            estado.juego.golCartas = [];
+
+            if (!atacanteJugoDel) {
+                convertirGol(atacanteEsJugador ? 'rival' : 'jugador');
+                mostrarMensaje('⚽ ¡GOL! Atacante sin delantero');
+                setTimeout(finalizarMano, 2200);
+                return;
+            }
+            if (!defensorJugoArqDef) {
+                convertirGol(quienAtaca);
+                mostrarMensaje('⚽ ¡GOL! Sin defensor');
+                setTimeout(finalizarMano, 2200);
+                return;
+            }
+            if (cartaAtacante.carta.numero > cartaDefensor.carta.numero) {
+                convertirGol(quienAtaca);
+                mostrarMensaje('⚽ ¡GOL!');
+                setTimeout(finalizarMano, 2200);
+            } else {
+                const quienDefiende = atacanteEsJugador ? 'rival' : 'jugador';
+                convertirGol(quienDefiende);
+                mostrarMensaje('⚽ ¡GOL! Defendido');
+                setTimeout(finalizarMano, 2200);
+            }
+        }
+
+        function verificarGolPorPuntos() {
+            if (estado.juego.golEnMano) return false;
+            let gol = false;
+            if (estado.juego.puntosJugador >= PUNTOS_PARA_GOL) {
+                estado.juego.golesJugador++;
+                estado.juego.puntosManoJugador += estado.juego.puntosJugador;
+                estado.juego.puntosManoRival += estado.juego.puntosRival;
+                estado.juego.puntosJugador = 0;
+                estado.juego.puntosRival = 0;
+                estado.juego.golEnMano = true;
+                estado.juego.ganadorManoAnterior = 'jugador';
+                mostrarMensaje('⚽ ¡GOL DE ' + (estado.nickname || 'Jugador').toUpperCase() + '!');
+                reproducirSonido('golplayer');
+                gol = true;
+            }
+            if (estado.juego.puntosRival >= PUNTOS_PARA_GOL) {
+                estado.juego.golesRival++;
+                estado.juego.puntosManoJugador += estado.juego.puntosJugador;
+                estado.juego.puntosManoRival += estado.juego.puntosRival;
+                estado.juego.puntosRival = 0;
+                estado.juego.puntosJugador = 0;
+                estado.juego.golEnMano = true;
+                estado.juego.ganadorManoAnterior = 'rival';
+                mostrarMensaje('⚽ Gol de ' + estado.rivalNombre);
+                reproducirSonido('golcpu');
+                gol = true;
+            }
+            if (gol) { renderizarMarcador(); renderizarTodo(); }
+            return gol;
+        }
+
+        function sumarPuntos(quien, cant) {
+            let gol = false;
+            for (let i = 0; i < cant; i++) {
+                if (quien === 'jugador') {
+                    estado.juego.puntosJugador++;
+                    if (estado.juego.puntosJugador >= PUNTOS_PARA_GOL) {
+                        estado.juego.golesJugador++;
+                        estado.juego.puntosManoJugador += estado.juego.puntosJugador;
+                        estado.juego.puntosManoRival += estado.juego.puntosRival;
+                        estado.juego.puntosJugador = 0;
+                        estado.juego.puntosRival = 0;
+                        estado.juego.golEnMano = true;
+                        estado.juego.ganadorManoAnterior = 'jugador';
+                        mostrarMensaje('⚽ ¡GOL DE ' + (estado.nickname || 'Jugador').toUpperCase() + '!');
+                        reproducirSonido('golplayer');
+                        gol = true;
+                    } else { reproducirSonido('puntoplayer'); }
+                } else {
+                    estado.juego.puntosRival++;
+                    if (estado.juego.puntosRival >= PUNTOS_PARA_GOL) {
+                        estado.juego.golesRival++;
+                        estado.juego.puntosManoJugador += estado.juego.puntosJugador;
+                        estado.juego.puntosManoRival += estado.juego.puntosRival;
+                        estado.juego.puntosRival = 0;
+                        estado.juego.puntosJugador = 0;
+                        estado.juego.golEnMano = true;
+                        estado.juego.ganadorManoAnterior = 'rival';
+                        mostrarMensaje('⚽ Gol de ' + estado.rivalNombre);
+                        reproducirSonido('golcpu');
+                        gol = true;
+                    } else { reproducirSonido('puntocpu'); }
+                }
+            }
+            renderizarMarcador();
+            return gol;
+        }
+
+        function convertirGol(quien) {
+            if (quien === 'jugador') { estado.juego.golesJugador++; reproducirSonido('golplayer'); }
+            else { estado.juego.golesRival++; reproducirSonido('golcpu'); }
+            estado.juego.puntosManoJugador += estado.juego.puntosJugador;
+            estado.juego.puntosManoRival += estado.juego.puntosRival;
+            estado.juego.puntosJugador = 0;
+            estado.juego.puntosRival = 0;
+            estado.juego.golEnMano = true;
+            estado.juego.ganadorManoAnterior = quien;
+            renderizarMarcador();
+        }
+
+        function continuarFlujo() {
+            if (verificarGolPorPuntos()) { sincronizarJuego(); setTimeout(() => finalizarMano(), 2200); return; }
+            if (alguienSinCartas() || estado.juego.rondaActual >= 4) { sincronizarJuego(); setTimeout(finalizarMano, 1000); return; }
+            estado.juego.turnoActual = estado.juego.turnoInicial;
+            estado.juego.fase = 'esperando_seleccion';
+            estado.juego.cartaSeleccionada = null;
+            estado.juego.inicioRonda = estado.juego.cartasEnMesa.length;
+            sincronizarJuego();
+            renderizarTodo();
+        }
+
+        function finalizarMano() {
+            const golesManoJ = estado.juego.golesJugador - estado.juego.golesInicioManoJugador;
+            const golesManoR = estado.juego.golesRival - estado.juego.golesInicioManoRival;
+            estado.juego.puntosManoJugador += estado.juego.puntosJugador;
+            estado.juego.puntosManoRival += estado.juego.puntosRival;
+            estado.juego.historialManos.push({
+                minuto: MINUTOS[estado.juego.manoActual],
+                golesJugador: golesManoJ, golesRival: golesManoR,
+                puntosJugador: estado.juego.puntosManoJugador,
+                puntosRival: estado.juego.puntosManoRival,
+                turnoInicial: estado.juego.turnoInicial,
+            });
+            estado.juego.manoActual++;
+            if (estado.juego.manoActual >= TOTAL_MANOS) {
+                estado.juego.fase = 'fin_partido';
+                sincronizarJuego();
+                renderizarTodo();
+                setTimeout(mostrarFinPartido, 600);
+                return;
+            }
+            iniciarNuevaMano();
+        }
+
+        function iniciarNuevaMano() {
+            const nuevoTurnoInicial = estado.juego.ganadorManoAnterior || estado.juego.turnoInicial;
+            estado.juego.golesInicioManoJugador = estado.juego.golesJugador;
+            estado.juego.golesInicioManoRival = estado.juego.golesRival;
+            estado.juego.golEnMano = false;
+            estado.juego.puntosJugador = 0;
+            estado.juego.puntosRival = 0;
+            estado.juego.puntosManoJugador = 0;
+            estado.juego.puntosManoRival = 0;
+            estado.juego.rondaActual = 0;
+            estado.juego.cartasEnMesa = [];
+            estado.juego.inicioRonda = 0;
+            estado.juego.cartaSeleccionada = null;
+            estado.juego.penalUsado = false;
+            estado.juego.penalCantadoPor = null;
+            estado.juego.penalActivo = false;
+            estado.juego.penalAtacante = null;
+            estado.juego.penalCartas = [];
+            estado.juego.golActivo = false;
+            estado.juego.golAtacante = null;
+            estado.juego.golCartas = [];
+            estado.juego.golUsado = false;
+            estado.juego.golazoUsado = false;
+            estado.juego.cantoActual = null;
+            estado.juego.cantoPedidoPor = null;
+            estado.juego.cantoPendiente = null;
+            estado.juego.esperandoRespuestaDe = null;
+            estado.juego.varDeclaraciones = { jugador: null, rival: null };
+            estado.juego.varPedidoPor = null;
+            estado.juego.ganadorManoAnterior = null;
+            if (dom.varPanel) dom.varPanel.classList.remove('visible');
+
+            const mazo = mezclarMazo(crearMazo());
+            const { manoJ, manoR } = repartir(mazo);
+            estado.juego.manoJugador = ordenarMano(manoJ);
+            estado.juego.manoRival = ordenarMano(manoR);
+            estado.juego.turnoInicial = nuevoTurnoInicial;
+            estado.juego.turnoActual = estado.juego.turnoInicial;
+            estado.juego.fase = 'esperando_seleccion';
+            sincronizarJuego();
+            renderizarTodo();
+        }
+
+        // ============ CANTOS ============
+        function jugadorPidePenal() {
+            if (estado.fase !== 'jugando') return;
+            if (estado.juego.fase !== 'esperando_seleccion') return;
+            if (estado.juego.rondaActual !== 0) return;
+            if (estado.juego.penalUsado || estado.juego.penalCantadoPor) return;
+            if (estado.juego.turnoActual !== 'jugador') return;
+            estado.juego.fase = 'penal_pedido';
+            estado.juego.cantoActual = 'penal';
+            estado.juego.cantoPedidoPor = 'jugador';
+            estado.juego.esperandoRespuestaDe = 'rival';
+            estado.juego.penalUsado = true;
+            estado.juego.penalCantadoPor = 'jugador';
+            sincronizarJuego();
+            renderizarTodo();
+            reproducirSonido('penal');
+        }
+
+        function jugadorPideGol() {
+            if (estado.fase !== 'jugando') return;
+            if (estado.juego.fase !== 'esperando_seleccion') return;
+            if (estado.juego.rondaActual < 1) return;
+            if (estado.juego.golUsado) return;
+            if (estado.juego.manoJugador.length === 0 || estado.juego.manoRival.length === 0) return;
+            if (estado.juego.turnoActual !== 'jugador') return;
+            estado.juego.fase = 'gol_pedido';
+            estado.juego.cantoActual = 'gol';
+            estado.juego.cantoPedidoPor = 'jugador';
+            estado.juego.esperandoRespuestaDe = 'rival';
+            estado.juego.golUsado = true;
+            sincronizarJuego();
+            renderizarTodo();
+            reproducirSonido('gol');
+        }
+
+        function jugadorRespondeQuiero() {
+            if (estado.juego.esperandoRespuestaDe !== 'jugador') return;
+            procesarRespuestaJugador('quiero');
+        }
+
+        function jugadorRespondeNoQuiero() {
+            if (estado.juego.esperandoRespuestaDe !== 'jugador') return;
+            procesarRespuestaJugador('no_quiero');
+        }
+
+        function jugadorRespondeVar() {
+            if (estado.juego.esperandoRespuestaDe !== 'jugador') return;
+            if (estado.juego.cantoActual !== 'penal') return;
+            procesarRespuestaJugador('var');
+        }
+
+        function jugadorRespondeGolazo() {
+            if (estado.juego.esperandoRespuestaDe !== 'jugador') return;
+            if (estado.juego.cantoActual !== 'gol') return;
+            procesarRespuestaJugador('golazo');
+        }
+
+        function procesarRespuestaJugador(resp) {
+            if (estado.juego.fase === 'var_decision') {
+                if (resp === 'no_quiero') {
+                    sumarPuntos(estado.juego.varPedidoPor, 1);
+                    mostrarMensaje('No quiero el VAR');
+                    finalizarCanto();
+                } else {
+                    iniciarVar();
+                }
+                return;
+            }
+
+            const { cantoActual, cantoPedidoPor } = estado.juego;
+            if (resp === 'no_quiero') {
+                const quienCanto = cantoPedidoPor;
+                const puntos = cantoActual === 'golazo' ? 2 : 1;
+                const golPorPuntos = sumarPuntos(quienCanto, puntos);
+                mostrarMensaje('No quiso');
+                if (golPorPuntos) setTimeout(finalizarMano, 2200);
+                else finalizarCanto();
+            } else if (resp === 'var') {
+                estado.juego.fase = 'var_decision';
+                estado.juego.varPedidoPor = 'jugador';
+                estado.juego.esperandoRespuestaDe = 'rival';
+                sincronizarJuego();
+                renderizarTodo();
+            } else if (resp === 'golazo') {
+                estado.juego.fase = 'golazo_pedido';
+                estado.juego.cantoActual = 'golazo';
+                estado.juego.cantoPedidoPor = 'jugador';
+                estado.juego.esperandoRespuestaDe = 'rival';
+                estado.juego.golazoUsado = true;
+                sincronizarJuego();
+                renderizarTodo();
+            } else if (resp === 'quiero') {
+                ejecutarCanto(cantoActual, cantoPedidoPor);
+            }
+        }
+
+        function ejecutarCanto(tipo, pedidoPor) {
+            const jugadorJugo = jugadorJugoEstaRonda();
+            const rivalJugo = rivalJugoEstaRonda();
+
+            if (jugadorJugo && !rivalJugo) {
+                estado.juego.fase = 'esperando_rival';
+                estado.juego.turnoActual = 'rival';
+                estado.juego.cantoPendiente = { tipo, pedidoPor };
+                sincronizarJuego();
+                renderizarTodo();
+                return;
+            }
+            if (rivalJugo && !jugadorJugo) {
+                estado.juego.turnoActual = 'jugador';
+                estado.juego.fase = 'esperando_seleccion';
+                estado.juego.cartaSeleccionada = null;
+                estado.juego.cantoPendiente = { tipo, pedidoPor };
+                sincronizarJuego();
+                renderizarTodo();
+                return;
+            }
+            iniciarEjecucionCanto(tipo, pedidoPor);
+        }
+
+        function iniciarEjecucionCanto(tipo, pedidoPor) {
+            if (tipo === 'penal') {
+                estado.juego.penalActivo = true;
+                estado.juego.penalAtacante = pedidoPor;
+                estado.juego.penalCartas = [];
+                if (estado.juego.turnoInicial === 'rival') {
+                    estado.juego.fase = 'esperando_rival';
+                    estado.juego.turnoActual = 'rival';
+                } else {
+                    estado.juego.fase = 'esperando_seleccion';
+                    estado.juego.turnoActual = 'jugador';
+                    estado.juego.cartaSeleccionada = null;
+                }
+                sincronizarJuego();
+                renderizarTodo();
+                mostrarMensaje('🥅 ¡PENAL!');
+                return;
+            }
+            estado.juego.golActivo = true;
+            estado.juego.golAtacante = pedidoPor;
+            estado.juego.golCartas = [];
+            if (estado.juego.turnoInicial === 'rival') {
+                estado.juego.fase = 'esperando_rival';
+                estado.juego.turnoActual = 'rival';
+            } else {
+                estado.juego.fase = 'esperando_seleccion';
+                estado.juego.turnoActual = 'jugador';
+                estado.juego.cartaSeleccionada = null;
+            }
+            sincronizarJuego();
+            renderizarTodo();
+            mostrarMensaje((tipo === 'golazo' ? '💥' : '⚽') + ' ¡' + (tipo === 'golazo' ? 'Golazo' : 'Gol') + '!');
+        }
+
+        function finalizarCanto() {
+            estado.juego.cantoActual = null;
+            estado.juego.cantoPedidoPor = null;
+            estado.juego.cantoPendiente = null;
+            estado.juego.esperandoRespuestaDe = null;
+            estado.juego.varDeclaraciones = { jugador: null, rival: null };
+            estado.juego.varTurnoDeclarar = null;
+            estado.juego.varPedidoPor = null;
+            estado.juego.penalActivo = false;
+            estado.juego.penalAtacante = null;
+            estado.juego.penalCartas = [];
+            estado.juego.golActivo = false;
+            estado.juego.golAtacante = null;
+            estado.juego.golCartas = [];
+
+            if (estado.juego.golEnMano || alguienSinCartas() || estado.juego.rondaActual >= 4) {
+                sincronizarJuego();
+                setTimeout(finalizarMano, 800);
+                return;
+            }
+
+            const jugadorJugo = jugadorJugoEstaRonda();
+            const rivalJugo = rivalJugoEstaRonda();
+
+            if (jugadorJugo && !rivalJugo) {
+                estado.juego.fase = 'esperando_rival';
+                estado.juego.turnoActual = 'rival';
+                sincronizarJuego();
+                renderizarTodo();
+                return;
+            }
+            if (rivalJugo && !jugadorJugo) {
+                estado.juego.turnoActual = 'jugador';
+                estado.juego.fase = 'esperando_seleccion';
+                estado.juego.cartaSeleccionada = null;
+                sincronizarJuego();
+                renderizarTodo();
+                return;
+            }
+
+            estado.juego.inicioRonda = estado.juego.cartasEnMesa.length;
+            estado.juego.turnoActual = estado.juego.turnoInicial;
+            estado.juego.fase = 'esperando_seleccion';
+            estado.juego.cartaSeleccionada = null;
+            sincronizarJuego();
+            continuarFlujo();
+        }
+
+        // ============ VAR ============
+        function iniciarVar() {
+            estado.juego.fase = 'var_pedido';
+            estado.juego.varTurnoDeclarar = 'jugador';
+            const dj = numeroMasAltoArqDel(estado.juego.manoJugador);
+            estado.juego.varDeclaraciones.jugador = dj;
+            if (dom.varPanel && dom.varPanelTexto) {
+                dom.varPanelTexto.textContent = `${estado.nickname || 'Jugador'} ${dj} vs ${estado.rivalNombre} ?`;
+                dom.varPanel.classList.add('visible');
+            }
+            mostrarMensaje(`📺 VAR: ${estado.nickname || 'Jugador'} ${dj} vs ${estado.rivalNombre} ?`);
+            sincronizarJuego();
+            renderizarTodo();
+        }
+
+        function declararVarJugador() {
+            const real = numeroMasAltoArqDel(estado.juego.manoJugador);
+            estado.juego.varDeclaraciones.jugador = real;
+            const dj = estado.juego.varDeclaraciones.jugador;
+            const dr = estado.juego.varDeclaraciones.rival;
+            const varPedidoPor = estado.juego.varPedidoPor;
+            const cantoPedidoPor = estado.juego.cantoPedidoPor;
+
+            if (dom.varPanel && dom.varPanelTexto) {
+                dom.varPanelTexto.textContent = `${estado.nickname || 'Jugador'} ${dj} vs ${estado.rivalNombre} ${dr}`;
+                dom.varPanel.classList.add('visible');
+            }
+            mostrarMensaje(`📺 VAR: ${estado.nickname || 'Jugador'} ${dj} vs ${estado.rivalNombre} ${dr}`);
+
+            if (dj > dr) {
+                if (varPedidoPor === 'jugador') {
+                    sumarPuntos('jugador', 2);
+                    mostrarMensaje(`📺 VAR: Ganaste. Penal cancelado`);
+                    finalizarCanto();
+                } else {
+                    sumarPuntos('jugador', 2);
+                    mostrarMensaje(`📺 VAR: Ganaste. Se ejecuta el penal`);
+                    if (estado.juego.golEnMano) setTimeout(finalizarMano, 2200);
+                    else ejecutarCanto('penal', cantoPedidoPor);
+                }
+            } else if (dr > dj) {
+                if (varPedidoPor === 'rival') {
+                    sumarPuntos('rival', 2);
+                    mostrarMensaje(`📺 VAR: ${estado.rivalNombre} gana. Penal cancelado`);
+                    finalizarCanto();
+                } else {
+                    sumarPuntos('rival', 2);
+                    mostrarMensaje(`📺 VAR: ${estado.rivalNombre} gana. Se ejecuta el penal`);
+                    if (estado.juego.golEnMano) setTimeout(finalizarMano, 2200);
+                    else ejecutarCanto('penal', cantoPedidoPor);
+                }
+            } else {
+                mostrarMensaje(`📺 VAR: Empate. Se ejecuta el penal`);
+                ejecutarCanto('penal', cantoPedidoPor);
+            }
+        }
+
+        // ============ FIN DE PARTIDA ============
         function mostrarFinPartido(resultado) {
             estado.fase = 'fin';
             estado.enPartida = false;
             dom.overlayFin.classList.remove('oculto');
-
             const gJ = resultado.golesJugador || 0;
             const gR = resultado.golesRival || 0;
-
-            // Determinar si gané, perdí o empaté
             const ganador = resultado.ganador;
             const yoGane = (estado.miLado === 'jugador' && ganador === 'jugador') || (estado.miLado === 'rival' && ganador === 'rival');
 
@@ -2303,32 +2083,21 @@
                 }
             } else {
                 if (gJ > gR) {
-                    if (yoGane) {
-                        dom.resultadoTitulo.textContent = '¡GANASTE!';
-                        dom.resultadoTitulo.className = 'resultado-titulo ganaste';
-                    } else {
-                        dom.resultadoTitulo.textContent = 'PERDISTE';
-                        dom.resultadoTitulo.className = 'resultado-titulo perdiste';
-                    }
+                    if (yoGane) { dom.resultadoTitulo.textContent = '¡GANASTE!'; dom.resultadoTitulo.className = 'resultado-titulo ganaste'; }
+                    else { dom.resultadoTitulo.textContent = 'PERDISTE'; dom.resultadoTitulo.className = 'resultado-titulo perdiste'; }
                 } else if (gR > gJ) {
-                    if (yoGane) {
-                        dom.resultadoTitulo.textContent = '¡GANASTE!';
-                        dom.resultadoTitulo.className = 'resultado-titulo ganaste';
-                    } else {
-                        dom.resultadoTitulo.textContent = 'PERDISTE';
-                        dom.resultadoTitulo.className = 'resultado-titulo perdiste';
-                    }
+                    if (yoGane) { dom.resultadoTitulo.textContent = '¡GANASTE!'; dom.resultadoTitulo.className = 'resultado-titulo ganaste'; }
+                    else { dom.resultadoTitulo.textContent = 'PERDISTE'; dom.resultadoTitulo.className = 'resultado-titulo perdiste'; }
                 } else {
                     dom.resultadoTitulo.textContent = 'EMPATE';
                     dom.resultadoTitulo.className = 'resultado-titulo empate';
                 }
                 dom.resultadoMarcador.textContent = `${estado.nickname || 'Jugador'} ${gJ} - ${gR} ${estado.rivalNombre}`;
             }
-
             detenerAudioFondo();
         }
 
-        // ============ ABANDONAR PARTIDA ============
+        // ============ ABANDONAR ============
         async function abandonarPartida() {
             if (estado.partidaId && estado.enPartida) {
                 try {
@@ -2336,12 +2105,11 @@
                     const snap = await get(partidaRef);
                     if (snap.exists()) {
                         const partida = snap.val();
-                        // Marcar al rival como ganador por abandono
                         const ganador = estado.miLado === 'jugador' ? 'rival' : 'jugador';
                         await update(partidaRef, {
                             estado: 'terminada',
                             resultado: {
-                                ganador: ganador,
+                                ganador,
                                 golesJugador: partida.juego ? partida.juego.golesJugador : 0,
                                 golesRival: partida.juego ? partida.juego.golesRival : 0,
                                 abandono: true
@@ -2349,9 +2117,7 @@
                             ultimaActividad: Date.now()
                         });
                     }
-                } catch (error) {
-                    console.error('Error abandonando partida:', error);
-                }
+                } catch (error) { console.error('Error abandonando partida:', error); }
             }
             window.location.href = 'index.html';
         }
@@ -2359,11 +2125,8 @@
         // ============ CANCELAR ESPERA ============
         async function cancelarEspera() {
             if (estado.partidaId && estado.miRol === 'creador') {
-                try {
-                    await remove(ref(db, 'partidas/' + estado.partidaId));
-                } catch (error) {
-                    console.error('Error cancelando partida:', error);
-                }
+                try { await remove(ref(db, 'partidas/' + estado.partidaId)); }
+                catch (error) { console.error('Error cancelando partida:', error); }
             }
             estado.partidaId = null;
             estado.miRol = null;
@@ -2379,11 +2142,9 @@
             cacheDom();
             actualizarEscalado();
 
-            // Escuchar autenticación
             onAuthStateChanged(auth, (user) => {
                 estado.usuario = user;
                 if (user) {
-                    // Obtener nickname del usuario
                     const userRef = ref(db, 'usuarios/' + user.uid + '/nickname');
                     onValue(userRef, (snap) => {
                         const nick = snap.val() || '';
@@ -2411,26 +2172,16 @@
                 }
             });
 
-            // Event listeners del lobby
             dom.btnCrearPartida.addEventListener('click', crearPartida);
             dom.btnUnirsePartida.addEventListener('click', unirsePartida);
-            dom.btnVolverInicio.addEventListener('click', () => {
-                window.location.href = 'index.html';
-            });
+            dom.btnVolverInicio.addEventListener('click', () => window.location.href = 'index.html');
             dom.btnCancelarEspera.addEventListener('click', cancelarEspera);
 
-            // Input código: permitir solo mayúsculas y números
             dom.inputCodigo.addEventListener('input', () => {
                 dom.inputCodigo.value = dom.inputCodigo.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, CODIGO_LENGTH);
             });
+            dom.inputCodigo.addEventListener('keydown', (e) => { if (e.key === 'Enter') unirsePartida(); });
 
-            dom.inputCodigo.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    unirsePartida();
-                }
-            });
-
-            // Botones de sonido
             dom.btnSonido.addEventListener('click', (e) => {
                 e.stopPropagation();
                 estado.sonidosActivados = !estado.sonidosActivados;
@@ -2445,85 +2196,37 @@
                 dom.btnMusica.classList.toggle('activo', estado.musicaActivada);
                 dom.btnMusica.classList.toggle('desactivado', !estado.musicaActivada);
                 dom.btnMusica.textContent = estado.musicaActivada ? '🎵' : '🎵';
-                if (!estado.musicaActivada) {
-                    detenerAudioFondo();
-                } else {
-                    reproducirAudioFondo();
-                }
+                if (!estado.musicaActivada) detenerAudioFondo();
+                else reproducirAudioFondo();
             });
 
-            // Botones de acción (por ahora solo envían a Firebase, la lógica completa se implementará después)
-            dom.btnPenal.addEventListener('click', () => {
-                if (!dom.btnPenal.disabled) {
-                    mostrarMensaje('🥅 Penal - Próximamente');
-                }
-            });
-            dom.btnQuieroIzq.addEventListener('click', () => {
-                if (!dom.btnQuieroIzq.disabled) {
-                    mostrarMensaje('✓ Quiero - Próximamente');
-                }
-            });
-            dom.btnNoQuieroIzq.addEventListener('click', () => {
-                if (!dom.btnNoQuieroIzq.disabled) {
-                    mostrarMensaje('✗ No quiero - Próximamente');
-                }
-            });
+            // Botones de acción
+            dom.btnPenal.addEventListener('click', () => { if (!dom.btnPenal.disabled) jugadorPidePenal(); });
+            dom.btnQuieroIzq.addEventListener('click', () => { if (!dom.btnQuieroIzq.disabled) jugadorRespondeQuiero(); });
+            dom.btnNoQuieroIzq.addEventListener('click', () => { if (!dom.btnNoQuieroIzq.disabled) jugadorRespondeNoQuiero(); });
             dom.btnVar.addEventListener('click', () => {
                 if (!dom.btnVar.disabled) {
-                    mostrarMensaje('📺 VAR - Próximamente');
+                    if (estado.juego.fase === 'var_pedido' && estado.juego.varTurnoDeclarar === 'jugador') declararVarJugador();
+                    else if (estado.juego.fase === 'penal_pedido') jugadorRespondeVar();
                 }
             });
-            dom.btnGol.addEventListener('click', () => {
-                if (!dom.btnGol.disabled) {
-                    mostrarMensaje('⚽ Gol - Próximamente');
-                }
-            });
-            dom.btnQuieroDer.addEventListener('click', () => {
-                if (!dom.btnQuieroDer.disabled) {
-                    mostrarMensaje('✓ Quiero - Próximamente');
-                }
-            });
-            dom.btnNoQuieroDer.addEventListener('click', () => {
-                if (!dom.btnNoQuieroDer.disabled) {
-                    mostrarMensaje('✗ No quiero - Próximamente');
-                }
-            });
-            dom.btnGolazo.addEventListener('click', () => {
-                if (!dom.btnGolazo.disabled) {
-                    mostrarMensaje('💥 Golazo - Próximamente');
-                }
-            });
+            dom.btnGol.addEventListener('click', () => { if (!dom.btnGol.disabled) jugadorPideGol(); });
+            dom.btnQuieroDer.addEventListener('click', () => { if (!dom.btnQuieroDer.disabled) jugadorRespondeQuiero(); });
+            dom.btnNoQuieroDer.addEventListener('click', () => { if (!dom.btnNoQuieroDer.disabled) jugadorRespondeNoQuiero(); });
+            dom.btnGolazo.addEventListener('click', () => { if (!dom.btnGolazo.disabled) jugadorRespondeGolazo(); });
 
-            // Overlay de salida
-            dom.btnCancelarSalida.addEventListener('click', () => {
-                dom.overlaySalida.classList.remove('visible');
-            });
-            dom.btnConfirmarSalida.addEventListener('click', () => {
-                dom.overlaySalida.classList.remove('visible');
-                abandonarPartida();
-            });
+            dom.btnCancelarSalida.addEventListener('click', () => dom.overlaySalida.classList.remove('visible'));
+            dom.btnConfirmarSalida.addEventListener('click', () => { dom.overlaySalida.classList.remove('visible'); abandonarPartida(); });
 
-            // Botones de fin de partida
-            dom.btnRevancha.addEventListener('click', () => {
-                window.location.reload();
-            });
-            dom.btnInicio.addEventListener('click', () => {
-                window.location.href = 'index.html';
-            });
+            dom.btnRevancha.addEventListener('click', () => window.location.reload());
+            dom.btnInicio.addEventListener('click', () => window.location.href = 'index.html');
 
-            // Interceptar salida
             window.addEventListener('beforeunload', (e) => {
-                if (estado.enPartida) {
-                    e.preventDefault();
-                    e.returnValue = '';
-                }
+                if (estado.enPartida) { e.preventDefault(); e.returnValue = ''; }
             });
 
-            window.addEventListener('resize', () => {
-                if (estado.fase === 'jugando') renderizarTodo();
-            });
+            window.addEventListener('resize', () => { if (estado.fase === 'jugando') renderizarTodo(); });
 
-            // Render inicial
             renderizarTodo();
         }
 
