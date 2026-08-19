@@ -1755,81 +1755,27 @@
 
                 const filaMesa = document.createElement('div');
                 filaMesa.className = 'mesa-fila';
+
                 const esMovil = window.innerWidth < 768;
-                const cartas = estado.cartasEnMesa;
-
-                // Determinar el ganador de cada enfrentamiento (par de cartas)
-                const infoPorCarta = new Map();
-                for (let i = 0; i < cartas.length; i += 2) {
-                    const par = cartas.slice(i, i + 2);
-                    const rondaIndex = Math.floor(i / 2);
-                    const cJug = par.find(c => c.origen === 'jugador');
-                    const cCpu = par.find(c => c.origen === 'cpu');
-
-                    let rolJugador = 'neutral';
-                    let rolCpu = 'neutral';
-                    if (cJug && cCpu) {
-                        if (cJug.carta.numero > cCpu.carta.numero) {
-                            rolJugador = 'ganadora';
-                            rolCpu = 'perdedora';
-                        } else if (cCpu.carta.numero > cJug.carta.numero) {
-                            rolCpu = 'ganadora';
-                            rolJugador = 'perdedora';
-                        }
-                    }
-                    if (cJug) infoPorCarta.set(cJug, { rondaIndex, rol: rolJugador, enfrentado: !!cCpu });
-                    if (cCpu) infoPorCarta.set(cCpu, { rondaIndex, rol: rolCpu, enfrentado: !!cJug });
-                }
-
-                cartas.forEach((item) => {
-                    const info = infoPorCarta.get(item);
-                    const rondaIndex = info ? info.rondaIndex : 0;
-                    const rol = info ? info.rol : 'neutral';
-                    const enfrentado = info ? info.enfrentado : false;
+                estado.cartasEnMesa.forEach((item, index) => {
                     const cont = crearContenedorMesa(item);
-                    const esGanadora = rol === 'ganadora';
-                    const esPerdedora = rol === 'perdedora';
-
-                    if (esGanadora) cont.classList.add('ganadora');
-                    if (esPerdedora) cont.classList.add('perdedora');
-
-                    const yBase = rondaIndex * 8;
-
-                    if (esGanadora) {
-                        // La carta que mató queda POR ENCIMA, superpuesta a la perdedora
-                        cont.style.zIndex = 20;
-                        if (esMovil) {
-                            cont.style.transform = `translate(-50%, 0%) translateX(-10px) translateY(${yBase - 8}px) scale(1.02)`;
-                        } else {
-                            cont.style.transform = `translate(-50%, -42%) translateX(-10px) translateY(${yBase - 10}px) scale(1.02)`;
-                        }
-                    } else if (esPerdedora) {
-                        // La carta que fue matada queda POR DEBAJO, asomando bajo la ganadora
-                        cont.style.zIndex = 10;
-                        if (esMovil) {
-                            cont.style.transform = `translate(-50%, 0%) translateX(10px) translateY(${yBase + 10}px)`;
-                        } else {
-                            cont.style.transform = `translate(-50%, -42%) translateX(10px) translateY(${yBase + 12}px)`;
-                        }
-                    } else if (enfrentado) {
-                        // Empate: ambas lado a lado, ninguna por encima
-                        const lado = item.origen === 'jugador' ? -18 : 18;
-                        cont.style.zIndex = 10;
-                        if (esMovil) {
-                            cont.style.transform = `translate(-50%, 0%) translateX(${lado}px) translateY(${yBase}px)`;
-                        } else {
-                            cont.style.transform = `translate(-50%, -42%) translateX(${lado}px) translateY(${yBase}px)`;
+                    cont.style.zIndex = index + 1;
+                    if (esMovil) {
+                        // En móviles, centrar X con translateX(-50%), pero en Y usar 0% (top define la posición)
+                        cont.style.transform = `translate(-50%, 0%) translateX(${(index % 2) * 12}px) translateY(${Math.floor(index / 2) * 8}px)`;
+                        if (cont.classList.contains('ganadora')) {
+                            cont.style.transform = `translate(-50%, 0%) translateX(${(index % 2) * 12}px) translateY(${Math.floor(index / 2) * 8}px) translateY(-10px) scale(1.02)`;
+                        } else if (cont.classList.contains('perdedora')) {
+                            cont.style.transform = `translate(-50%, 0%) translateX(${(index % 2) * 12}px) translateY(${Math.floor(index / 2) * 8}px) translateY(6px)`;
                         }
                     } else {
-                        // Carta solitaria (ronda en curso): centrada
-                        cont.style.zIndex = 10;
-                        if (esMovil) {
-                            cont.style.transform = `translate(-50%, 0%) translateY(${yBase}px)`;
-                        } else {
-                            cont.style.transform = `translate(-50%, -42%) translateY(${yBase}px)`;
+                        cont.style.transform = `translate(-50%, -42%) translateX(${(index % 2) * 12}px) translateY(${Math.floor(index / 2) * 8}px)`;
+                        if (cont.classList.contains('ganadora')) {
+                            cont.style.transform = `translate(-50%, -42%) translateX(${(index % 2) * 12}px) translateY(${Math.floor(index / 2) * 8}px) translateY(-12px) scale(1.02)`;
+                        } else if (cont.classList.contains('perdedora')) {
+                            cont.style.transform = `translate(-50%, -42%) translateX(${(index % 2) * 12}px) translateY(${Math.floor(index / 2) * 8}px) translateY(8px)`;
                         }
                     }
-
                     filaMesa.appendChild(cont);
                 });
 
@@ -1839,6 +1785,18 @@
             function crearContenedorMesa(item) {
                 const cont = document.createElement('div');
                 cont.className = 'carta-contenedor';
+                const todas = estado.cartasEnMesa;
+                const ucpu = todas.filter(c => c.origen === 'cpu').pop();
+                const ujug = todas.filter(c => c.origen === 'jugador').pop();
+                if (ucpu && ujug && (item.carta === ucpu.carta || item.carta === ujug.carta)) {
+                    if (ucpu.numero > ujug.numero) {
+                        if (item.origen === 'cpu') cont.classList.add('ganadora');
+                        else cont.classList.add('perdedora');
+                    } else if (ujug.numero > ucpu.numero) {
+                        if (item.origen === 'jugador') cont.classList.add('ganadora');
+                        else cont.classList.add('perdedora');
+                    }
+                }
                 const img = document.createElement('img');
                 img.src = item.carta.imagen;
                 img.className = 'carta-img';
@@ -3576,7 +3534,7 @@
                         const datos = snap.exists() ? snap.val() : {};
                         const partidosJugados = (datos.partidosJugados || 0) + 1;
                         const partidosPerdidos = (datos.partidosPerdidos || 0) + 1;
-                        const puntos = (datos.puntos || 0) - 3;
+                        const puntos = (datos.puntos || 0) - 5;
                         const efectividad = partidosJugados > 0 ? Math.round(((datos.partidosGanados || 0) / partidosJugados) * 1000) / 10 : 0;
                         const historialPartidos = datos.historialPartidos || [];
                         historialPartidos.push({
@@ -3598,7 +3556,7 @@
                             historialPartidos: historialLimitado,
                             ultimaActualizacion: Date.now()
                         });
-                        console.log('Abandono registrado: -3 puntos, +1 partido jugado, +1 partido perdido');
+                        console.log('Abandono registrado: -5 puntos, +1 partido jugado, +1 partido perdido');
                     });
                 } catch (error) {
                     console.error('Error registrando abandono:', error);
