@@ -757,12 +757,12 @@
     <script type="module">
         // ============================================================
         // GOLAZO ONLINE - JUEGO COMPLETO 1vs1
-        // Arquitectura: El creador (host) gestiona el estado completo.
-        // El rival envía acciones y lee el estado desde Firebase.
+        // Arquitectura SIMPLE: Ambos jugadores escriben al mismo nodo
+        // usando update() para evitar sobrescribir datos del otro.
         // ============================================================
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
-        import { getDatabase, ref, get, set, update, onValue, remove, push } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-database.js";
+        import { getDatabase, ref, get, set, update, onValue, remove } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDsgQ2dwokGq3umlptHtMCVgFISLe8ySM0",
@@ -793,8 +793,8 @@
         // ============ ESTADO ============
         const estado = {
             usuario: null, nickname: '', fotoURL: '',
-            partidaId: null, miRol: null, miLado: null,
-            rivalNombre: 'Rival', rivalFoto: '',
+            partidaId: null, miLado: null, // 'jugador' o 'rival'
+            rivalNombre: 'Rival',
             enPartida: false, fase: 'lobby',
             sonidosActivados: true, musicaActivada: true,
             juego: {
@@ -1200,8 +1200,8 @@
         }
 
         // ============ CONVERSIÓN DE LADOS ============
-        // 'jugador' = yo, 'rival' = oponente (relativo)
         // En Firebase: 'jugador' = creador, 'rival' = unido (absoluto)
+        // Localmente: 'jugador' = yo, 'rival' = oponente (relativo)
         function aAbsoluto(valor) {
             if (valor === null || valor === undefined) return null;
             if (valor === 'jugador') return estado.miLado === 'jugador' ? 'jugador' : 'rival';
@@ -1216,19 +1216,21 @@
             return valor;
         }
 
-        // ============ SINCRONIZACIÓN (SOLO CREADOR) ============
+        // ============ SINCRONIZACIÓN ============
+        // Ambos jugadores escriben al mismo nodo con update()
+        // Solo actualizan sus propios campos para no pisar al otro
         function sincronizarJuego() {
-            if (estado.miRol !== 'creador') return; // Solo el creador sincroniza
+            if (!estado.partidaId) return;
             const juegoRef = ref(db, 'partidas/' + estado.partidaId + '/juego');
-            update(juegoRef, {
-                manoJugador: estado.juego.manoJugador,
-                manoRival: estado.juego.manoRival,
-                golesJugador: estado.juego.golesJugador,
-                golesRival: estado.juego.golesRival,
-                puntosJugador: estado.juego.puntosJugador,
-                puntosRival: estado.juego.puntosRival,
-                puntosManoJugador: estado.juego.puntosManoJugador,
-                puntosManoRival: estado.juego.puntosManoRival,
+            const datos = {
+                manoJugador: estado.miLado === 'jugador' ? estado.juego.manoJugador : estado.juego.manoRival,
+                manoRival: estado.miLado === 'jugador' ? estado.juego.manoRival : estado.juego.manoJugador,
+                golesJugador: estado.miLado === 'jugador' ? estado.juego.golesJugador : estado.juego.golesRival,
+                golesRival: estado.miLado === 'jugador' ? estado.juego.golesRival : estado.juego.golesJugador,
+                puntosJugador: estado.miLado === 'jugador' ? estado.juego.puntosJugador : estado.juego.puntosRival,
+                puntosRival: estado.miLado === 'jugador' ? estado.juego.puntosRival : estado.juego.puntosJugador,
+                puntosManoJugador: estado.miLado === 'jugador' ? estado.juego.puntosManoJugador : estado.juego.puntosManoRival,
+                puntosManoRival: estado.miLado === 'jugador' ? estado.juego.puntosManoRival : estado.juego.puntosManoJugador,
                 manoActual: estado.juego.manoActual,
                 rondaActual: estado.juego.rondaActual,
                 turnoInicial: aAbsoluto(estado.juego.turnoInicial),
@@ -1250,8 +1252,8 @@
                 cantoPendiente: estado.juego.cantoPendiente,
                 varPedidoPor: aAbsoluto(estado.juego.varPedidoPor),
                 varDeclaraciones: {
-                    jugador: estado.juego.varDeclaraciones.jugador,
-                    rival: estado.juego.varDeclaraciones.rival
+                    jugador: estado.miLado === 'jugador' ? estado.juego.varDeclaraciones.jugador : estado.juego.varDeclaraciones.rival,
+                    rival: estado.miLado === 'jugador' ? estado.juego.varDeclaraciones.rival : estado.juego.varDeclaraciones.jugador
                 },
                 varTurnoDeclarar: aAbsoluto(estado.juego.varTurnoDeclarar),
                 esperandoRespuestaDe: aAbsoluto(estado.juego.esperandoRespuestaDe),
@@ -1259,190 +1261,11 @@
                 inicioRonda: estado.juego.inicioRonda,
                 ganadorManoAnterior: aAbsoluto(estado.juego.ganadorManoAnterior),
                 golEnMano: estado.juego.golEnMano,
-                golesInicioManoJugador: estado.juego.golesInicioManoJugador,
-                golesInicioManoRival: estado.juego.golesInicioManoRival,
+                golesInicioManoJugador: estado.miLado === 'jugador' ? estado.juego.golesInicioManoJugador : estado.juego.golesInicioManoRival,
+                golesInicioManoRival: estado.miLado === 'jugador' ? estado.juego.golesInicioManoRival : estado.juego.golesInicioManoJugador,
                 ultimaActividad: Date.now()
-            }).catch((error) => console.error('Error sincronizando juego:', error));
-        }
-
-        // ============ ACCIONES DEL RIVAL ============
-        function enviarAccion(accion) {
-            if (estado.miRol !== 'unido') return; // Solo el rival envía acciones
-            const accionesRef = ref(db, 'partidas/' + estado.partidaId + '/acciones');
-            push(accionesRef, {
-                ...accion,
-                timestamp: Date.now()
-            }).catch((error) => console.error('Error enviando acción:', error));
-        }
-
-        let accionesListener = null;
-
-        function escucharAcciones() {
-            if (estado.miRol !== 'creador') return; // Solo el creador escucha acciones
-            if (accionesListener) { accionesListener(); accionesListener = null; }
-            const accionesRef = ref(db, 'partidas/' + estado.partidaId + '/acciones');
-            accionesListener = onValue(accionesRef, (snap) => {
-                if (!snap.exists()) return;
-                const acciones = snap.val();
-                Object.keys(acciones).forEach(key => {
-                    const accion = acciones[key];
-                    if (accion && !accion.procesada) {
-                        procesarAccionRival(accion);
-                        update(ref(db, 'partidas/' + estado.partidaId + '/acciones/' + key), { procesada: true })
-                            .catch((error) => console.error('Error marcando acción:', error));
-                    }
-                });
-            }, (error) => console.error('Error escuchando acciones:', error));
-        }
-
-        function procesarAccionRival(accion) {
-            if (!accion || !accion.tipo) return;
-            switch (accion.tipo) {
-                case 'jugar_carta':
-                    procesarCartaRival(accion.carta);
-                    break;
-                case 'canto_penal':
-                    estado.juego.fase = 'penal_pedido';
-                    estado.juego.cantoActual = 'penal';
-                    estado.juego.cantoPedidoPor = 'rival';
-                    estado.juego.esperandoRespuestaDe = 'jugador';
-                    estado.juego.penalUsado = true;
-                    estado.juego.penalCantadoPor = 'rival';
-                    sincronizarJuego();
-                    renderizarTodo();
-                    reproducirSonido('penal');
-                    break;
-                case 'canto_gol':
-                    estado.juego.fase = 'gol_pedido';
-                    estado.juego.cantoActual = 'gol';
-                    estado.juego.cantoPedidoPor = 'rival';
-                    estado.juego.esperandoRespuestaDe = 'jugador';
-                    estado.juego.golUsado = true;
-                    sincronizarJuego();
-                    renderizarTodo();
-                    reproducirSonido('gol');
-                    break;
-                case 'respuesta':
-                    procesarRespuestaRival(accion.respuesta);
-                    break;
-                case 'var_declaracion':
-                    estado.juego.varDeclaraciones.rival = accion.valor;
-                    estado.juego.varTurnoDeclarar = 'jugador';
-                    sincronizarJuego();
-                    renderizarTodo();
-                    break;
-                case 'var_decision':
-                    if (accion.decision === 'no_quiero') {
-                        sumarPuntos(estado.juego.varPedidoPor, 1);
-                        mostrarMensaje(estado.rivalNombre + ': No quiero el VAR');
-                        finalizarCanto();
-                    } else {
-                        iniciarVar();
-                    }
-                    break;
-            }
-        }
-
-        function procesarCartaRival(carta) {
-            if (!carta) return;
-            // Quitar la carta de la mano del rival
-            estado.juego.manoRival = estado.juego.manoRival.filter(c => c.id !== carta.id);
-            // Agregar a la mesa
-            estado.juego.cartasEnMesa.push({ carta, origen: 'rival' });
-
-            // Si hay penal activo
-            if (estado.juego.penalActivo) {
-                estado.juego.penalCartas.push({ carta, origen: 'rival' });
-                if (estado.juego.penalCartas.some(c => c.origen === 'jugador')) {
-                    estado.juego.fase = 'resolviendo';
-                    sincronizarJuego();
-                    renderizarTodo();
-                    setTimeout(resolverRonda, 500);
-                } else {
-                    estado.juego.fase = 'esperando_seleccion';
-                    estado.juego.turnoActual = 'jugador';
-                    estado.juego.cartaSeleccionada = null;
-                    sincronizarJuego();
-                    renderizarTodo();
-                }
-                return;
-            }
-
-            // Si hay gol activo
-            if (estado.juego.golActivo) {
-                estado.juego.golCartas.push({ carta, origen: 'rival' });
-                if (estado.juego.golCartas.some(c => c.origen === 'jugador')) {
-                    estado.juego.fase = 'resolviendo';
-                    sincronizarJuego();
-                    renderizarTodo();
-                    setTimeout(resolverRonda, 500);
-                } else {
-                    estado.juego.fase = 'esperando_seleccion';
-                    estado.juego.turnoActual = 'jugador';
-                    estado.juego.cartaSeleccionada = null;
-                    sincronizarJuego();
-                    renderizarTodo();
-                }
-                return;
-            }
-
-            // Juego normal
-            if (jugadorJugoEstaRonda()) {
-                estado.juego.fase = 'resolviendo';
-                sincronizarJuego();
-                renderizarTodo();
-                setTimeout(resolverRonda, 500);
-            } else {
-                estado.juego.fase = 'esperando_seleccion';
-                estado.juego.turnoActual = 'jugador';
-                estado.juego.cartaSeleccionada = null;
-                sincronizarJuego();
-                renderizarTodo();
-            }
-            reproducirSonido('carta');
-        }
-
-        function procesarRespuestaRival(resp) {
-            if (estado.juego.fase === 'var_decision') {
-                if (resp === 'no_quiero') {
-                    sumarPuntos(estado.juego.varPedidoPor, 1);
-                    mostrarMensaje(estado.rivalNombre + ': No quiero el VAR');
-                    finalizarCanto();
-                } else {
-                    iniciarVar();
-                }
-                return;
-            }
-
-            const { cantoActual, cantoPedidoPor } = estado.juego;
-            if (resp === 'no_quiero') {
-                const quienCanto = cantoPedidoPor;
-                const puntos = cantoActual === 'golazo' ? 2 : 1;
-                const golPorPuntos = sumarPuntos(quienCanto, puntos);
-                mostrarMensaje(estado.rivalNombre + ': No quiero');
-                reproducirSonido('noquiero');
-                if (golPorPuntos) setTimeout(finalizarMano, 2200);
-                else finalizarCanto();
-            } else if (resp === 'quiero') {
-                reproducirSonido('quiero');
-                ejecutarCanto(cantoActual, cantoPedidoPor);
-            } else if (resp === 'var') {
-                estado.juego.fase = 'var_decision';
-                estado.juego.varPedidoPor = 'rival';
-                estado.juego.esperandoRespuestaDe = 'jugador';
-                sincronizarJuego();
-                renderizarTodo();
-                setTimeout(() => reproducirSonido('var'), 300);
-            } else if (resp === 'golazo') {
-                estado.juego.fase = 'golazo_pedido';
-                estado.juego.cantoActual = 'golazo';
-                estado.juego.cantoPedidoPor = 'rival';
-                estado.juego.esperandoRespuestaDe = 'jugador';
-                estado.juego.golazoUsado = true;
-                sincronizarJuego();
-                renderizarTodo();
-                reproducirSonido('golazo');
-            }
+            };
+            update(juegoRef, datos).catch((error) => console.error('Error sincronizando:', error));
         }
 
         // ============ ACCIONES DE JUEGO ============
@@ -1460,15 +1283,7 @@
             estado.juego.cartaSeleccionada = null;
             estado.juego.cartasEnMesa.push({ carta, origen: 'jugador' });
 
-            // Si soy el rival, enviar acción y esperar que el creador procese
-            if (estado.miRol === 'unido') {
-                enviarAccion({ tipo: 'jugar_carta', carta: carta });
-                // No sincronizar - el creador actualizará el estado
-                renderizarTodo();
-                return;
-            }
-
-            // Soy el creador - procesar localmente
+            // Si hay penal activo
             if (estado.juego.penalActivo) {
                 estado.juego.penalCartas.push({ carta, origen: 'jugador' });
                 if (estado.juego.penalCartas.some(c => c.origen === 'rival')) {
@@ -1485,6 +1300,7 @@
                 return;
             }
 
+            // Si hay gol activo
             if (estado.juego.golActivo) {
                 estado.juego.golCartas.push({ carta, origen: 'jugador' });
                 if (estado.juego.golCartas.some(c => c.origen === 'rival')) {
@@ -1501,6 +1317,7 @@
                 return;
             }
 
+            // Juego normal
             if (rivalJugoEstaRonda()) {
                 estado.juego.fase = 'resolviendo';
                 sincronizarJuego();
@@ -1537,7 +1354,6 @@
                     unido: null, estado: 'esperando', creadoEn: Date.now(), ultimaActividad: Date.now()
                 });
                 estado.partidaId = codigo;
-                estado.miRol = 'creador';
                 estado.miLado = 'jugador';
                 estado.fase = 'esperando';
                 dom.overlayLobby.classList.add('oculto');
@@ -1546,7 +1362,6 @@
                 dom.esperandoTitulo.textContent = 'Esperando rival...';
                 dom.esperandoSubtitulo.textContent = 'Compartí este código con tu rival';
                 escucharPartida(codigo);
-                escucharAcciones();
             } catch (error) {
                 console.error('Error creando partida:', error);
                 mostrarLobbyMensaje('Error al crear la partida. Revisá tu conexión.', true);
@@ -1574,7 +1389,6 @@
                     estado: 'jugando', ultimaActividad: Date.now()
                 });
                 estado.partidaId = codigo;
-                estado.miRol = 'unido';
                 estado.miLado = 'rival';
                 estado.fase = 'esperando';
                 dom.overlayLobby.classList.add('oculto');
@@ -1599,8 +1413,10 @@
                 if (!snap.exists()) { mostrarMensaje('La partida terminó'); return; }
                 const partida = snap.val();
 
-                if (estado.miRol === 'creador' && partida.unido && estado.fase === 'esperando') {
+                // El creador detecta que el rival se unió
+                if (estado.miLado === 'jugador' && partida.unido && estado.fase === 'esperando') {
                     estado.fase = 'jugando';
+                    estado.enPartida = true;
                     dom.overlayEsperando.classList.add('oculto');
                     dom.nombreRivalEtiqueta.textContent = partida.unido.nickname || 'Rival';
                     estado.rivalNombre = partida.unido.nickname || 'Rival';
@@ -1621,60 +1437,48 @@
                     }
 
                     const j = partida.juego;
-                    // El creador mantiene su estado local (no lo sobrescribe)
-                    if (estado.miRol === 'unido') {
-                        if (j.manoJugador && j.manoRival) {
-                            estado.juego.manoJugador = j.manoRival; // El rival ve su mano como manoJugador
-                            estado.juego.manoRival = j.manoJugador; // Y la del creador como manoRival
-                        }
-                        if (j.golesJugador !== undefined) {
-                            estado.juego.golesJugador = j.golesRival;
-                            estado.juego.golesRival = j.golesJugador;
-                        }
-                        if (j.puntosJugador !== undefined) {
-                            estado.juego.puntosJugador = j.puntosRival;
-                            estado.juego.puntosRival = j.puntosJugador;
-                        }
-                        if (j.puntosManoJugador !== undefined) {
-                            estado.juego.puntosManoJugador = j.puntosManoRival;
-                            estado.juego.puntosManoRival = j.puntosManoJugador;
-                        }
-                        if (j.manoActual !== undefined) estado.juego.manoActual = j.manoActual;
-                        if (j.rondaActual !== undefined) estado.juego.rondaActual = j.rondaActual;
-                        if (j.turnoActual !== undefined) estado.juego.turnoActual = aRelativo(j.turnoActual);
-                        if (j.turnoInicial !== undefined) estado.juego.turnoInicial = aRelativo(j.turnoInicial);
-                        if (j.cartasEnMesa !== undefined) estado.juego.cartasEnMesa = j.cartasEnMesa || [];
-                        if (j.fase !== undefined) estado.juego.fase = j.fase;
-                        if (j.cantoActual !== undefined) estado.juego.cantoActual = j.cantoActual;
-                        if (j.cantoPedidoPor !== undefined) estado.juego.cantoPedidoPor = aRelativo(j.cantoPedidoPor);
-                        if (j.esperandoRespuestaDe !== undefined) estado.juego.esperandoRespuestaDe = aRelativo(j.esperandoRespuestaDe);
-                        if (j.penalUsado !== undefined) estado.juego.penalUsado = j.penalUsado;
-                        if (j.penalCantadoPor !== undefined) estado.juego.penalCantadoPor = aRelativo(j.penalCantadoPor);
-                        if (j.penalActivo !== undefined) estado.juego.penalActivo = j.penalActivo;
-                        if (j.penalAtacante !== undefined) estado.juego.penalAtacante = aRelativo(j.penalAtacante);
-                        if (j.penalCartas !== undefined) estado.juego.penalCartas = j.penalCartas || [];
-                        if (j.golUsado !== undefined) estado.juego.golUsado = j.golUsado;
-                        if (j.golActivo !== undefined) estado.juego.golActivo = j.golActivo;
-                        if (j.golAtacante !== undefined) estado.juego.golAtacante = aRelativo(j.golAtacante);
-                        if (j.golCartas !== undefined) estado.juego.golCartas = j.golCartas || [];
-                        if (j.golazoUsado !== undefined) estado.juego.golazoUsado = j.golazoUsado;
-                        if (j.varPedidoPor !== undefined) estado.juego.varPedidoPor = aRelativo(j.varPedidoPor);
-                        if (j.varTurnoDeclarar !== undefined) estado.juego.varTurnoDeclarar = aRelativo(j.varTurnoDeclarar);
-                        if (j.varDeclaraciones !== undefined) {
-                            estado.juego.varDeclaraciones = {
-                                jugador: j.varDeclaraciones.rival,
-                                rival: j.varDeclaraciones.jugador
-                            };
-                        }
-                        if (j.golEnMano !== undefined) estado.juego.golEnMano = j.golEnMano;
-                        if (j.ganadorManoAnterior !== undefined) estado.juego.ganadorManoAnterior = aRelativo(j.ganadorManoAnterior);
-                        if (j.inicioRonda !== undefined) estado.juego.inicioRonda = j.inicioRonda;
-                        if (j.historialManos !== undefined) estado.juego.historialManos = j.historialManos || [];
-                        if (j.golesInicioManoJugador !== undefined) {
-                            estado.juego.golesInicioManoJugador = j.golesInicioManoRival;
-                            estado.juego.golesInicioManoRival = j.golesInicioManoJugador;
-                        }
+                    // Convertir datos absolutos a relativos
+                    estado.juego.manoJugador = estado.miLado === 'jugador' ? (j.manoJugador || []) : (j.manoRival || []);
+                    estado.juego.manoRival = estado.miLado === 'jugador' ? (j.manoRival || []) : (j.manoJugador || []);
+                    estado.juego.golesJugador = estado.miLado === 'jugador' ? (j.golesJugador || 0) : (j.golesRival || 0);
+                    estado.juego.golesRival = estado.miLado === 'jugador' ? (j.golesRival || 0) : (j.golesJugador || 0);
+                    estado.juego.puntosJugador = estado.miLado === 'jugador' ? (j.puntosJugador || 0) : (j.puntosRival || 0);
+                    estado.juego.puntosRival = estado.miLado === 'jugador' ? (j.puntosRival || 0) : (j.puntosJugador || 0);
+                    estado.juego.puntosManoJugador = estado.miLado === 'jugador' ? (j.puntosManoJugador || 0) : (j.puntosManoRival || 0);
+                    estado.juego.puntosManoRival = estado.miLado === 'jugador' ? (j.puntosManoRival || 0) : (j.puntosManoJugador || 0);
+                    estado.juego.manoActual = j.manoActual || 0;
+                    estado.juego.rondaActual = j.rondaActual || 0;
+                    estado.juego.turnoActual = aRelativo(j.turnoActual);
+                    estado.juego.turnoInicial = aRelativo(j.turnoInicial);
+                    estado.juego.cartasEnMesa = j.cartasEnMesa || [];
+                    estado.juego.fase = j.fase || 'esperando_seleccion';
+                    estado.juego.cantoActual = j.cantoActual || null;
+                    estado.juego.cantoPedidoPor = aRelativo(j.cantoPedidoPor);
+                    estado.juego.esperandoRespuestaDe = aRelativo(j.esperandoRespuestaDe);
+                    estado.juego.penalUsado = j.penalUsado || false;
+                    estado.juego.penalCantadoPor = aRelativo(j.penalCantadoPor);
+                    estado.juego.penalActivo = j.penalActivo || false;
+                    estado.juego.penalAtacante = aRelativo(j.penalAtacante);
+                    estado.juego.penalCartas = j.penalCartas || [];
+                    estado.juego.golUsado = j.golUsado || false;
+                    estado.juego.golActivo = j.golActivo || false;
+                    estado.juego.golAtacante = aRelativo(j.golAtacante);
+                    estado.juego.golCartas = j.golCartas || [];
+                    estado.juego.golazoUsado = j.golazoUsado || false;
+                    estado.juego.varPedidoPor = aRelativo(j.varPedidoPor);
+                    estado.juego.varTurnoDeclarar = aRelativo(j.varTurnoDeclarar);
+                    if (j.varDeclaraciones) {
+                        estado.juego.varDeclaraciones = {
+                            jugador: estado.miLado === 'jugador' ? j.varDeclaraciones.jugador : j.varDeclaraciones.rival,
+                            rival: estado.miLado === 'jugador' ? j.varDeclaraciones.rival : j.varDeclaraciones.jugador
+                        };
                     }
+                    estado.juego.golEnMano = j.golEnMano || false;
+                    estado.juego.ganadorManoAnterior = aRelativo(j.ganadorManoAnterior);
+                    estado.juego.inicioRonda = j.inicioRonda || 0;
+                    estado.juego.historialManos = j.historialManos || [];
+                    estado.juego.golesInicioManoJugador = estado.miLado === 'jugador' ? (j.golesInicioManoJugador || 0) : (j.golesInicioManoRival || 0);
+                    estado.juego.golesInicioManoRival = estado.miLado === 'jugador' ? (j.golesInicioManoRival || 0) : (j.golesInicioManoJugador || 0);
 
                     renderizarTodo();
                 }
@@ -1694,7 +1498,8 @@
             dom.etiquetaCpu.textContent = 'Turno de ' + estado.rivalNombre;
             dom.etiquetaJugador.textContent = 'Turno de ' + (estado.nickname || 'Jugador');
 
-            if (estado.miRol === 'creador') {
+            // El creador reparte las cartas
+            if (estado.miLado === 'jugador') {
                 const mazo = mezclarMazo(crearMazo());
                 const { manoJ, manoR } = repartir(mazo);
                 const manoJugadorOrdenada = ordenarMano(manoJ);
@@ -2043,11 +1848,6 @@
             if (estado.juego.penalUsado || estado.juego.penalCantadoPor) return;
             if (estado.juego.turnoActual !== 'jugador') return;
 
-            if (estado.miRol === 'unido') {
-                enviarAccion({ tipo: 'canto_penal' });
-                return;
-            }
-
             estado.juego.fase = 'penal_pedido';
             estado.juego.cantoActual = 'penal';
             estado.juego.cantoPedidoPor = 'jugador';
@@ -2066,11 +1866,6 @@
             if (estado.juego.golUsado) return;
             if (estado.juego.manoJugador.length === 0 || estado.juego.manoRival.length === 0) return;
             if (estado.juego.turnoActual !== 'jugador') return;
-
-            if (estado.miRol === 'unido') {
-                enviarAccion({ tipo: 'canto_gol' });
-                return;
-            }
 
             estado.juego.fase = 'gol_pedido';
             estado.juego.cantoActual = 'gol';
@@ -2105,12 +1900,6 @@
         }
 
         function procesarRespuestaJugador(resp) {
-            // Si soy el rival, enviar la respuesta como acción
-            if (estado.miRol === 'unido') {
-                enviarAccion({ tipo: 'respuesta', respuesta: resp });
-                return;
-            }
-
             if (estado.juego.fase === 'var_decision') {
                 if (resp === 'no_quiero') {
                     sumarPuntos(estado.juego.varPedidoPor, 1);
@@ -2277,13 +2066,6 @@
         function declararVarJugador() {
             const real = numeroMasAltoArqDel(estado.juego.manoJugador);
             estado.juego.varDeclaraciones.jugador = real;
-
-            // Si soy el rival, enviar la declaración como acción
-            if (estado.miRol === 'unido') {
-                enviarAccion({ tipo: 'var_declaracion', valor: real });
-                return;
-            }
-
             const dj = estado.juego.varDeclaraciones.jugador;
             const dr = estado.juego.varDeclaraciones.rival;
             const varPedidoPor = estado.juego.varPedidoPor;
@@ -2438,12 +2220,12 @@
 
         // ============ CANCELAR ESPERA ============
         async function cancelarEspera() {
-            if (estado.partidaId && estado.miRol === 'creador') {
+            if (estado.partidaId && estado.miLado === 'jugador') {
                 try { await remove(ref(db, 'partidas/' + estado.partidaId)); }
                 catch (error) { console.error('Error cancelando partida:', error); }
             }
             estado.partidaId = null;
-            estado.miRol = null;
+            estado.miLado = null;
             estado.fase = 'lobby';
             dom.overlayEsperando.classList.add('oculto');
             dom.overlayLobby.classList.remove('oculto');
