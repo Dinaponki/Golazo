@@ -1576,12 +1576,13 @@
                 estado.partidaId = codigo;
                 estado.miRol = 'unido';
                 estado.miLado = 'rival';
-                estado.fase = 'jugando';
+                estado.fase = 'esperando';
                 dom.overlayLobby.classList.add('oculto');
                 dom.overlayEsperando.classList.add('oculto');
                 dom.nombreRivalEtiqueta.textContent = partida.creador.nickname || 'Rival';
                 estado.rivalNombre = partida.creador.nickname || 'Rival';
                 escucharPartida(codigo);
+                iniciarJuegoOnline();
             } catch (error) {
                 console.error('Error uniéndose a partida:', error);
                 mostrarLobbyMensaje('Error al unirse. Revisá tu conexión.', true);
