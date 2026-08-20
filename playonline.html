@@ -1413,57 +1413,52 @@
         }
 
         // ============ FIREBASE: JUGAR RÁPIDO (MATCHMAKING) ============
-        let colaListener = null;
         let buscandoRapido = false;
 
-        function jugarRapido() {
+        async function jugarRapido() {
             if (!estado.usuario || buscandoRapido) return;
             buscandoRapido = true;
             mostrarLobbyMensaje('Buscando rival...', false);
             dom.btnJugarRapido.disabled = true;
             dom.btnCrearPartida.disabled = true;
             dom.btnUnirsePartida.disabled = true;
-
-            // Buscar una partida en cola
-            const colaRef = ref(db, 'cola');
-            get(colaRef).then(async (snap) => {
-                let partidaEncontrada = null;
+            try {
+                // Buscar una partida en espera sin rival (usando el nodo partidas que ya tiene permisos)
+                const partidasRef = ref(db, 'partidas');
+                const snap = await get(partidasRef);
                 let codigoEncontrado = null;
+                let partidaEncontrada = null;
                 if (snap.exists()) {
                     snap.forEach((child) => {
-                        if (partidaEncontrada) return;
+                        if (codigoEncontrado) return;
                         const val = child.val();
-                        if (val && val.uid && val.uid !== estado.usuario.uid) {
-                            partidaEncontrada = val;
+                        if (val && val.estado === 'esperando' && !val.unido && val.creador && val.creador.uid !== estado.usuario.uid) {
                             codigoEncontrado = child.key;
+                            partidaEncontrada = val;
                         }
                     });
                 }
 
                 if (partidaEncontrada && codigoEncontrado) {
                     // Unirse a la partida existente
-                    await remove(ref(db, 'cola/' + codigoEncontrado));
                     const partidaRef = ref(db, 'partidas/' + codigoEncontrado);
-                    const partidaSnap = await get(partidaRef);
-                    if (partidaSnap.exists() && partidaSnap.val().estado === 'esperando') {
-                        await update(partidaRef, {
-                            unido: { uid: estado.usuario.uid, nickname: estado.nickname || 'Jugador', fotoURL: estado.fotoURL || '', listo: true },
-                            estado: 'jugando', ultimaActividad: Date.now()
-                        });
-                        estado.partidaId = codigoEncontrado;
-                        estado.miLado = 'rival';
-                        estado.fase = 'esperando';
-                        dom.overlayLobby.classList.add('oculto');
-                        dom.overlayEsperando.classList.add('oculto');
-                        dom.nombreRivalEtiqueta.textContent = partidaSnap.val().creador.nickname || 'Rival';
-                        estado.rivalNombre = partidaSnap.val().creador.nickname || 'Rival';
-                        escucharPartida(codigoEncontrado);
-                        buscandoRapido = false;
-                        return;
-                    }
+                    await update(partidaRef, {
+                        unido: { uid: estado.usuario.uid, nickname: estado.nickname || 'Jugador', fotoURL: estado.fotoURL || '', listo: true },
+                        estado: 'jugando', ultimaActividad: Date.now()
+                    });
+                    estado.partidaId = codigoEncontrado;
+                    estado.miLado = 'rival';
+                    estado.fase = 'esperando';
+                    dom.overlayLobby.classList.add('oculto');
+                    dom.overlayEsperando.classList.add('oculto');
+                    dom.nombreRivalEtiqueta.textContent = partidaEncontrada.creador.nickname || 'Rival';
+                    estado.rivalNombre = partidaEncontrada.creador.nickname || 'Rival';
+                    escucharPartida(codigoEncontrado);
+                    buscandoRapido = false;
+                    return;
                 }
 
-                // Crear una partida en cola
+                // No hay partida disponible → crear una nueva en espera
                 let codigo = generarCodigoPartida();
                 let existe = true;
                 let intentos = 0;
@@ -1477,7 +1472,6 @@
                     codigo, creador: { uid: estado.usuario.uid, nickname: estado.nickname || 'Jugador', fotoURL: estado.fotoURL || '', listo: true },
                     unido: null, estado: 'esperando', creadoEn: Date.now(), ultimaActividad: Date.now()
                 });
-                await set(ref(db, 'cola/' + codigo), { uid: estado.usuario.uid, creadoEn: Date.now() });
                 estado.partidaId = codigo;
                 estado.miLado = 'jugador';
                 estado.fase = 'esperando';
@@ -1487,20 +1481,15 @@
                 dom.esperandoTitulo.textContent = 'Buscando rival...';
                 dom.esperandoSubtitulo.textContent = 'Esperando a que se una un rival';
                 escucharPartida(codigo);
-                // Limpiar la cola si se cancela
-                const limpiarCola = async () => {
-                    try { await remove(ref(db, 'cola/' + codigo)); } catch (e) {}
-                };
-                window.addEventListener('beforeunload', limpiarCola);
                 buscandoRapido = false;
-            }).catch((error) => {
+            } catch (error) {
                 console.error('Error en búsqueda rápida:', error);
                 mostrarLobbyMensaje('Error en la búsqueda. Intentá de nuevo.', true);
                 buscandoRapido = false;
                 dom.btnJugarRapido.disabled = false;
                 dom.btnCrearPartida.disabled = false;
                 dom.btnUnirsePartida.disabled = false;
-            });
+            }
         }
 
         // ============ FIREBASE: ESCUCHAR ============
