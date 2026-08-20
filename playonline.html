@@ -757,7 +757,7 @@
     <script type="module">
         // ============================================================
         // GOLAZO ONLINE - JUEGO COMPLETO 1vs1
-        // Arquitectura SIMPLE: Ambos jugadores escriben al mismo nodo
+        // Arquitectura: Ambos jugadores escriben al mismo nodo
         // usando update() para evitar sobrescribir datos del otro.
         // ============================================================
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
@@ -1126,7 +1126,7 @@
         function renderizarMarcador() {
             dom.golesJugador.textContent = estado.juego.golesJugador;
             dom.golesCpu.textContent = estado.juego.golesRival;
-            dom.minutoActual.textContent = MINUTOS[estado.juego.manoActual] || '0\' a 10\'';
+            dom.minutoActual.textContent = MINUTOS[estado.juego.manoActual] || "0' a 10'";
             renderizarEstrellas();
         }
 
@@ -1203,19 +1203,13 @@
         // En Firebase: 'jugador' = creador, 'rival' = unido (absoluto)
         // Localmente: 'jugador' = yo, 'rival' = oponente (relativo)
         function aAbsoluto(valor) {
-            // Convierte de relativo (yo/rival) a absoluto (creador/unido)
-            // 'jugador' relativo = yo → absoluto = miLado
-            // 'rival' relativo = el otro → absoluto = el otro lado
             if (valor === null || valor === undefined) return null;
-            if (valor === 'jugador') return estado.miLado; // mi lado relativo = mi lado absoluto
-            if (valor === 'rival') return estado.miLado === 'jugador' ? 'rival' : 'jugador'; // el otro lado
+            if (valor === 'jugador') return estado.miLado;
+            if (valor === 'rival') return estado.miLado === 'jugador' ? 'rival' : 'jugador';
             return valor;
         }
 
         function aRelativo(valor) {
-            // Convierte de absoluto (creador/unido) a relativo (yo/rival)
-            // 'jugador' absoluto = creador → relativo = 'jugador' si soy creador, 'rival' si soy unido
-            // 'rival' absoluto = unido → relativo = 'rival' si soy creador, 'jugador' si soy unido
             if (valor === null || valor === undefined) return null;
             if (valor === 'jugador') return estado.miLado === 'jugador' ? 'jugador' : 'rival';
             if (valor === 'rival') return estado.miLado === 'jugador' ? 'rival' : 'jugador';
@@ -1223,8 +1217,6 @@
         }
 
         // ============ SINCRONIZACIÓN ============
-        // Ambos jugadores escriben al mismo nodo con update()
-        // Solo actualizan sus propios campos para no pisar al otro
         function sincronizarJuego() {
             if (!estado.partidaId) return;
             const juegoRef = ref(db, 'partidas/' + estado.partidaId + '/juego');
@@ -1418,6 +1410,8 @@
 
         // ============ FIREBASE: ESCUCHAR ============
         let partidaListener = null;
+        let ultimoEstadoJuego = null;
+        let varYaResolviendo = false;
 
         function escucharPartida(codigo) {
             if (partidaListener) { partidaListener(); partidaListener = null; }
@@ -1450,6 +1444,9 @@
                     }
 
                     const j = partida.juego;
+                    const jAnterior = ultimoEstadoJuego;
+                    ultimoEstadoJuego = j;
+
                     // Convertir datos absolutos a relativos
                     estado.juego.manoJugador = estado.miLado === 'jugador' ? (j.manoJugador || []) : (j.manoRival || []);
                     estado.juego.manoRival = estado.miLado === 'jugador' ? (j.manoRival || []) : (j.manoJugador || []);
@@ -1464,10 +1461,7 @@
                     estado.juego.turnoActual = aRelativo(j.turnoActual);
                     estado.juego.turnoInicial = aRelativo(j.turnoInicial);
                     estado.juego.cartasEnMesa = (j.cartasEnMesa || []).map(c => ({ ...c, origen: aRelativo(c.origen) }));
-                    // Convertir fase de absoluto a relativo:
-                    // 'esperando_rival' significa "esperando al rival". Quien lo escribió
-                    // está esperando. Si después de convertir el turno resulta que es mi turno,
-                    // entonces soy yo quien debe jugar -> 'esperando_seleccion'.
+                    // Convertir fase: 'esperando_rival' absoluto → relativo
                     if (j.fase === 'esperando_rival') {
                         const turnoRelativo = aRelativo(j.turnoActual);
                         estado.juego.fase = turnoRelativo === 'jugador' ? 'esperando_seleccion' : 'esperando_rival';
@@ -1476,6 +1470,7 @@
                     }
                     estado.juego.cantoActual = j.cantoActual || null;
                     estado.juego.cantoPedidoPor = aRelativo(j.cantoPedidoPor);
+                    estado.juego.cantoPendiente = j.cantoPendiente ? { ...j.cantoPendiente, pedidoPor: aRelativo(j.cantoPendiente.pedidoPor) } : null;
                     estado.juego.esperandoRespuestaDe = aRelativo(j.esperandoRespuestaDe);
                     estado.juego.penalUsado = j.penalUsado || false;
                     estado.juego.penalCantadoPor = aRelativo(j.penalCantadoPor);
@@ -1508,6 +1503,94 @@
                     }));
                     estado.juego.golesInicioManoJugador = estado.miLado === 'jugador' ? (j.golesInicioManoJugador || 0) : (j.golesInicioManoRival || 0);
                     estado.juego.golesInicioManoRival = estado.miLado === 'jugador' ? (j.golesInicioManoRival || 0) : (j.golesInicioManoJugador || 0);
+
+                    // ============ REPRODUCIR SONIDOS DEL RIVAL ============
+                    if (jAnterior) {
+                        // Sonido de carta del rival
+                        const cartasAnteriores = (jAnterior.cartasEnMesa || []).length;
+                        const cartasActuales = (j.cartasEnMesa || []).length;
+                        if (cartasActuales > cartasAnteriores) {
+                            const nuevasCartas = (j.cartasEnMesa || []).slice(cartasAnteriores);
+                            for (const nc of nuevasCartas) {
+                                const origenRel = aRelativo(nc.origen);
+                                if (origenRel === 'rival') {
+                                    reproducirSonido('carta');
+                                }
+                            }
+                        }
+                        // Sonido de penal del rival
+                        if (!jAnterior.penalCantadoPor && j.penalCantadoPor) {
+                            const quienPenal = aRelativo(j.penalCantadoPor);
+                            if (quienPenal === 'rival') reproducirSonido('penal');
+                        }
+                        // Sonido de gol del rival
+                        if (!jAnterior.golUsado && j.golUsado) {
+                            // Quien pidió gol es cantoPedidoPor
+                            if (j.cantoPedidoPor) {
+                                const quienGol = aRelativo(j.cantoPedidoPor);
+                                if (quienGol === 'rival') reproducirSonido('gol');
+                            }
+                        }
+                        // Sonido de golazo del rival
+                        if (!jAnterior.golazoUsado && j.golazoUsado) {
+                            if (j.cantoPedidoPor) {
+                                const quienGolazo = aRelativo(j.cantoPedidoPor);
+                                if (quienGolazo === 'rival') reproducirSonido('golazo');
+                            }
+                        }
+                        // Sonido de quiero/noquiero del rival
+                        if (jAnterior.esperandoRespuestaDe && !j.esperandoRespuestaDe) {
+                            // El rival respondió
+                            if (j.fase === 'penal_pedido' || j.fase === 'gol_pedido' || j.fase === 'golazo_pedido' || j.fase === 'var_decision') {
+                                // El rival respondió algo, pero no sabemos qué exactamente
+                                // Solo reproducimos si el que respondió fue el rival
+                            }
+                        }
+                        // Sonido de VAR del rival
+                        if (!jAnterior.varPedidoPor && j.varPedidoPor) {
+                            const quienVar = aRelativo(j.varPedidoPor);
+                            if (quienVar === 'rival') reproducirSonido('var');
+                        }
+                        // Sonido de gol del rival (cuando se marca un gol)
+                        if (jAnterior.golesJugador !== undefined && j.golesJugador !== undefined) {
+                            const golesJugadorAntes = estado.miLado === 'jugador' ? jAnterior.golesJugador : jAnterior.golesRival;
+                            const golesJugadorAhora = estado.miLado === 'jugador' ? j.golesJugador : j.golesRival;
+                            if (golesJugadorAhora > golesJugadorAntes) {
+                                // Yo metí gol
+                            }
+                            const golesRivalAntes = estado.miLado === 'jugador' ? jAnterior.golesRival : jAnterior.golesJugador;
+                            const golesRivalAhora = estado.miLado === 'jugador' ? j.golesRival : j.golesJugador;
+                            if (golesRivalAhora > golesRivalAntes) {
+                                reproducirSonido('golcpu');
+                            }
+                        }
+                        // Sonido de punto del rival
+                        if (jAnterior.puntosJugador !== undefined && j.puntosJugador !== undefined) {
+                            const puntosRivalAntes = estado.miLado === 'jugador' ? jAnterior.puntosRival : jAnterior.puntosJugador;
+                            const puntosRivalAhora = estado.miLado === 'jugador' ? j.puntosRival : j.puntosJugador;
+                            if (puntosRivalAhora > puntosRivalAntes) {
+                                reproducirSonido('puntocpu');
+                            }
+                        }
+                    }
+
+                    // ============ VAR: DECLARACIÓN Y RESOLUCIÓN AUTOMÁTICA ============
+                    // Si estamos en fase var_pedido
+                    if (estado.juego.fase === 'var_pedido' && !varYaResolviendo) {
+                        const miDeclare = estado.juego.varDeclaraciones.jugador;
+                        const rivalDeclare = estado.juego.varDeclaraciones.rival;
+                        if (rivalDeclare !== null && miDeclare === null) {
+                            // El rival ya declaró pero yo no → declaro automáticamente
+                            varYaResolviendo = true;
+                            declararVarJugador();
+                            varYaResolviendo = false;
+                        } else if (rivalDeclare !== null && miDeclare !== null) {
+                            // Ambos ya declaramos → debemos resolver
+                            varYaResolviendo = true;
+                            declararVarJugador();
+                            varYaResolviendo = false;
+                        }
+                    }
 
                     renderizarTodo();
                 }
@@ -1803,7 +1886,7 @@
             renderizarTodo();
         }
 
-        function finalizarMano() {
+        async function finalizarMano() {
             const golesManoJ = estado.juego.golesJugador - estado.juego.golesInicioManoJugador;
             const golesManoR = estado.juego.golesRival - estado.juego.golesInicioManoRival;
             estado.juego.puntosManoJugador += estado.juego.puntosJugador;
@@ -1818,9 +1901,25 @@
             estado.juego.manoActual++;
             if (estado.juego.manoActual >= TOTAL_MANOS) {
                 estado.juego.fase = 'fin_partido';
+                const gJ = estado.juego.golesJugador;
+                const gR = estado.juego.golesRival;
+                const ganadorRel = gJ > gR ? 'jugador' : (gR > gJ ? 'rival' : 'empate');
+                // Convertir a absoluto para Firebase
+                const ganador = ganadorRel === 'empate' ? 'empate' : aAbsoluto(ganadorRel);
+                const golesJugadorAbs = estado.miLado === 'jugador' ? gJ : gR;
+                const golesRivalAbs = estado.miLado === 'jugador' ? gR : gJ;
+                const resultado = { ganador, golesJugador: golesJugadorAbs, golesRival: golesRivalAbs, abandono: false };
+                try {
+                    const partidaRef = ref(db, 'partidas/' + estado.partidaId);
+                    await update(partidaRef, {
+                        estado: 'terminada',
+                        resultado,
+                        ultimaActividad: Date.now()
+                    });
+                } catch (error) { console.error('Error finalizando partida:', error); }
                 sincronizarJuego();
                 renderizarTodo();
-                setTimeout(mostrarFinPartido, 600);
+                setTimeout(() => mostrarFinPartido(resultado), 600);
                 return;
             }
             iniciarNuevaMano();
@@ -2191,8 +2290,9 @@
             estado.fase = 'fin';
             estado.enPartida = false;
             dom.overlayFin.classList.remove('oculto');
-            const gJ = resultado.golesJugador || 0;
-            const gR = resultado.golesRival || 0;
+            // Convertir goles absolutos a relativos
+            const gJ = estado.miLado === 'jugador' ? (resultado.golesJugador || 0) : (resultado.golesRival || 0);
+            const gR = estado.miLado === 'jugador' ? (resultado.golesRival || 0) : (resultado.golesJugador || 0);
             const ganador = resultado.ganador;
             const yoGane = (estado.miLado === 'jugador' && ganador === 'jugador') || (estado.miLado === 'rival' && ganador === 'rival');
 
