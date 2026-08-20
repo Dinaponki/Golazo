@@ -1203,13 +1203,19 @@
         // En Firebase: 'jugador' = creador, 'rival' = unido (absoluto)
         // Localmente: 'jugador' = yo, 'rival' = oponente (relativo)
         function aAbsoluto(valor) {
+            // Convierte de relativo (yo/rival) a absoluto (creador/unido)
+            // 'jugador' relativo = yo → absoluto = miLado
+            // 'rival' relativo = el otro → absoluto = el otro lado
             if (valor === null || valor === undefined) return null;
-            if (valor === 'jugador') return estado.miLado === 'jugador' ? 'jugador' : 'rival';
-            if (valor === 'rival') return estado.miLado === 'jugador' ? 'rival' : 'jugador';
+            if (valor === 'jugador') return estado.miLado; // mi lado relativo = mi lado absoluto
+            if (valor === 'rival') return estado.miLado === 'jugador' ? 'rival' : 'jugador'; // el otro lado
             return valor;
         }
 
         function aRelativo(valor) {
+            // Convierte de absoluto (creador/unido) a relativo (yo/rival)
+            // 'jugador' absoluto = creador → relativo = 'jugador' si soy creador, 'rival' si soy unido
+            // 'rival' absoluto = unido → relativo = 'rival' si soy creador, 'jugador' si soy unido
             if (valor === null || valor === undefined) return null;
             if (valor === 'jugador') return estado.miLado === 'jugador' ? 'jugador' : 'rival';
             if (valor === 'rival') return estado.miLado === 'jugador' ? 'rival' : 'jugador';
@@ -1458,7 +1464,16 @@
                     estado.juego.turnoActual = aRelativo(j.turnoActual);
                     estado.juego.turnoInicial = aRelativo(j.turnoInicial);
                     estado.juego.cartasEnMesa = (j.cartasEnMesa || []).map(c => ({ ...c, origen: aRelativo(c.origen) }));
-                    estado.juego.fase = j.fase || 'esperando_seleccion';
+                    // Convertir fase de absoluto a relativo:
+                    // 'esperando_rival' significa "esperando al rival". Quien lo escribió
+                    // está esperando. Si después de convertir el turno resulta que es mi turno,
+                    // entonces soy yo quien debe jugar -> 'esperando_seleccion'.
+                    if (j.fase === 'esperando_rival') {
+                        const turnoRelativo = aRelativo(j.turnoActual);
+                        estado.juego.fase = turnoRelativo === 'jugador' ? 'esperando_seleccion' : 'esperando_rival';
+                    } else {
+                        estado.juego.fase = j.fase || 'esperando_seleccion';
+                    }
                     estado.juego.cantoActual = j.cantoActual || null;
                     estado.juego.cantoPedidoPor = aRelativo(j.cantoPedidoPor);
                     estado.juego.esperandoRespuestaDe = aRelativo(j.esperandoRespuestaDe);
