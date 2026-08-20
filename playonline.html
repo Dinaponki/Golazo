@@ -1390,12 +1390,18 @@
                 });
                 estado.partidaId = codigo;
                 estado.miLado = 'rival';
-                estado.fase = 'esperando';
+                estado.fase = 'jugando';
+                estado.enPartida = true;
                 dom.overlayLobby.classList.add('oculto');
                 dom.overlayEsperando.classList.add('oculto');
+                dom.nombreJugadorEtiqueta.textContent = estado.nickname || 'Jugador';
+                dom.nombreEnTurno.textContent = estado.nickname || 'Jugador';
                 dom.nombreRivalEtiqueta.textContent = partida.creador.nickname || 'Rival';
                 estado.rivalNombre = partida.creador.nickname || 'Rival';
+                dom.etiquetaCpu.textContent = 'Turno de ' + estado.rivalNombre;
+                dom.etiquetaJugador.textContent = 'Turno de ' + (estado.nickname || 'Jugador');
                 escucharPartida(codigo);
+                renderizarTodo();
             } catch (error) {
                 console.error('Error uniéndose a partida:', error);
                 mostrarLobbyMensaje('Error al unirse. Revisá tu conexión.', true);
