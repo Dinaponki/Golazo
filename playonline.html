@@ -396,6 +396,8 @@
             font-family: inherit;
         }
 
+        .btn-rapido { background: #e67e22; color: #fff; }
+        .btn-rapido:hover { background: #f08c34; box-shadow: 0 4px 20px rgba(230, 126, 34, 0.4); }
         .btn-crear { background: var(--dorado); color: #1a2a10; }
         .btn-crear:hover { background: var(--dorado-claro); box-shadow: 0 4px 20px rgba(200, 168, 78, 0.4); }
         .btn-unirse { background: #27ae60; color: #fff; }
@@ -612,6 +614,7 @@
             <div class="lobby-estado" id="lobbyEstado"></div>
             <div class="lobby-mensaje" id="lobbyMensaje"></div>
             <div class="lobby-botones">
+                <button class="btn-lobby btn-rapido" id="btnJugarRapido" disabled>⚡ Jugar rápido</button>
                 <button class="btn-lobby btn-crear" id="btnCrearPartida" disabled>➕ Crear partida</button>
                 <div style="display:flex; gap:8px; width:100%;">
                     <input type="text" id="inputCodigo" class="lobby-input" placeholder="Código de partida" maxlength="6" autocomplete="off" disabled>
@@ -830,6 +833,7 @@
             dom.lobbySubtitulo = document.getElementById('lobbySubtitulo');
             dom.lobbyEstado = document.getElementById('lobbyEstado');
             dom.lobbyMensaje = document.getElementById('lobbyMensaje');
+            dom.btnJugarRapido = document.getElementById('btnJugarRapido');
             dom.btnCrearPartida = document.getElementById('btnCrearPartida');
             dom.inputCodigo = document.getElementById('inputCodigo');
             dom.btnUnirsePartida = document.getElementById('btnUnirsePartida');
@@ -1406,6 +1410,97 @@
                 mostrarLobbyMensaje('Error al unirse. Revisá tu conexión.', true);
                 dom.btnUnirsePartida.disabled = false;
             }
+        }
+
+        // ============ FIREBASE: JUGAR RÁPIDO (MATCHMAKING) ============
+        let colaListener = null;
+        let buscandoRapido = false;
+
+        function jugarRapido() {
+            if (!estado.usuario || buscandoRapido) return;
+            buscandoRapido = true;
+            mostrarLobbyMensaje('Buscando rival...', false);
+            dom.btnJugarRapido.disabled = true;
+            dom.btnCrearPartida.disabled = true;
+            dom.btnUnirsePartida.disabled = true;
+
+            // Buscar una partida en cola
+            const colaRef = ref(db, 'cola');
+            get(colaRef).then(async (snap) => {
+                let partidaEncontrada = null;
+                let codigoEncontrado = null;
+                if (snap.exists()) {
+                    snap.forEach((child) => {
+                        if (partidaEncontrada) return;
+                        const val = child.val();
+                        if (val && val.uid && val.uid !== estado.usuario.uid) {
+                            partidaEncontrada = val;
+                            codigoEncontrado = child.key;
+                        }
+                    });
+                }
+
+                if (partidaEncontrada && codigoEncontrado) {
+                    // Unirse a la partida existente
+                    await remove(ref(db, 'cola/' + codigoEncontrado));
+                    const partidaRef = ref(db, 'partidas/' + codigoEncontrado);
+                    const partidaSnap = await get(partidaRef);
+                    if (partidaSnap.exists() && partidaSnap.val().estado === 'esperando') {
+                        await update(partidaRef, {
+                            unido: { uid: estado.usuario.uid, nickname: estado.nickname || 'Jugador', fotoURL: estado.fotoURL || '', listo: true },
+                            estado: 'jugando', ultimaActividad: Date.now()
+                        });
+                        estado.partidaId = codigoEncontrado;
+                        estado.miLado = 'rival';
+                        estado.fase = 'esperando';
+                        dom.overlayLobby.classList.add('oculto');
+                        dom.overlayEsperando.classList.add('oculto');
+                        dom.nombreRivalEtiqueta.textContent = partidaSnap.val().creador.nickname || 'Rival';
+                        estado.rivalNombre = partidaSnap.val().creador.nickname || 'Rival';
+                        escucharPartida(codigoEncontrado);
+                        buscandoRapido = false;
+                        return;
+                    }
+                }
+
+                // Crear una partida en cola
+                let codigo = generarCodigoPartida();
+                let existe = true;
+                let intentos = 0;
+                while (existe && intentos < 10) {
+                    const s = await get(ref(db, 'partidas/' + codigo));
+                    existe = s.exists();
+                    if (existe) { codigo = generarCodigoPartida(); intentos++; }
+                }
+                const partidaRef = ref(db, 'partidas/' + codigo);
+                await set(partidaRef, {
+                    codigo, creador: { uid: estado.usuario.uid, nickname: estado.nickname || 'Jugador', fotoURL: estado.fotoURL || '', listo: true },
+                    unido: null, estado: 'esperando', creadoEn: Date.now(), ultimaActividad: Date.now()
+                });
+                await set(ref(db, 'cola/' + codigo), { uid: estado.usuario.uid, creadoEn: Date.now() });
+                estado.partidaId = codigo;
+                estado.miLado = 'jugador';
+                estado.fase = 'esperando';
+                dom.overlayLobby.classList.add('oculto');
+                dom.overlayEsperando.classList.remove('oculto');
+                dom.codigoPartida.textContent = codigo;
+                dom.esperandoTitulo.textContent = 'Buscando rival...';
+                dom.esperandoSubtitulo.textContent = 'Esperando a que se una un rival';
+                escucharPartida(codigo);
+                // Limpiar la cola si se cancela
+                const limpiarCola = async () => {
+                    try { await remove(ref(db, 'cola/' + codigo)); } catch (e) {}
+                };
+                window.addEventListener('beforeunload', limpiarCola);
+                buscandoRapido = false;
+            }).catch((error) => {
+                console.error('Error en búsqueda rápida:', error);
+                mostrarLobbyMensaje('Error en la búsqueda. Intentá de nuevo.', true);
+                buscandoRapido = false;
+                dom.btnJugarRapido.disabled = false;
+                dom.btnCrearPartida.disabled = false;
+                dom.btnUnirsePartida.disabled = false;
+            });
         }
 
         // ============ FIREBASE: ESCUCHAR ============
@@ -2408,6 +2503,7 @@
                         estado.nickname = nick && nick.length >= 3 ? nick : (user.displayName || 'Jugador');
                         estado.fotoURL = user.photoURL || '';
                         dom.lobbySubtitulo.textContent = 'Jugando como: ' + estado.nickname;
+                        dom.btnJugarRapido.disabled = false;
                         dom.btnCrearPartida.disabled = false;
                         dom.inputCodigo.disabled = false;
                         dom.btnUnirsePartida.disabled = false;
@@ -2416,12 +2512,14 @@
                         estado.nickname = user.displayName || 'Jugador';
                         estado.fotoURL = user.photoURL || '';
                         dom.lobbySubtitulo.textContent = 'Jugando como: ' + estado.nickname;
+                        dom.btnJugarRapido.disabled = false;
                         dom.btnCrearPartida.disabled = false;
                         dom.inputCodigo.disabled = false;
                         dom.btnUnirsePartida.disabled = false;
                     });
                 } else {
                     dom.lobbySubtitulo.textContent = 'Necesitás iniciar sesión para jugar online';
+                    dom.btnJugarRapido.disabled = true;
                     dom.btnCrearPartida.disabled = true;
                     dom.inputCodigo.disabled = true;
                     dom.btnUnirsePartida.disabled = true;
@@ -2429,6 +2527,7 @@
                 }
             });
 
+            dom.btnJugarRapido.addEventListener('click', jugarRapido);
             dom.btnCrearPartida.addEventListener('click', crearPartida);
             dom.btnUnirsePartida.addEventListener('click', unirsePartida);
             dom.btnVolverInicio.addEventListener('click', () => window.location.href = 'index.html');
