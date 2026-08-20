@@ -1579,16 +1579,25 @@
                     if (estado.juego.fase === 'var_pedido' && !varYaResolviendo) {
                         const miDeclare = estado.juego.varDeclaraciones.jugador;
                         const rivalDeclare = estado.juego.varDeclaraciones.rival;
-                        if (rivalDeclare !== null && miDeclare === null) {
-                            // El rival ya declaró pero yo no → declaro automáticamente
+                        // Actualizar el panel VAR con las declaraciones actuales
+                        if (dom.varPanel && dom.varPanelTexto) {
+                            const dj = miDeclare === null || miDeclare === undefined ? '?' : miDeclare;
+                            const dr = rivalDeclare === null || rivalDeclare === undefined ? '?' : rivalDeclare;
+                            dom.varPanelTexto.textContent = `${estado.nickname || 'Jugador'} ${dj} vs ${estado.rivalNombre} ${dr}`;
+                            dom.varPanel.classList.add('visible');
+                        }
+                        // Si yo aún no declaré, declaro automáticamente
+                        if (miDeclare === null || miDeclare === undefined) {
                             varYaResolviendo = true;
                             declararVarJugador();
                             varYaResolviendo = false;
-                        } else if (rivalDeclare !== null && miDeclare !== null) {
-                            // Ambos ya declaramos → debemos resolver
-                            varYaResolviendo = true;
-                            declararVarJugador();
-                            varYaResolviendo = false;
+                        } else if (rivalDeclare !== null && rivalDeclare !== undefined) {
+                            // Ambos ya declaramos → solo el declarante resuelve
+                            if (estado.juego.varTurnoDeclarar === 'jugador') {
+                                varYaResolviendo = true;
+                                verificarVarResolucion();
+                                varYaResolviendo = false;
+                            }
                         }
                     }
 
@@ -2179,7 +2188,8 @@
         // ============ VAR ============
         function iniciarVar() {
             estado.juego.fase = 'var_pedido';
-            estado.juego.varTurnoDeclarar = 'jugador';
+            // Quien pidió el VAR (el defensor) es quien declara primero y resuelve
+            estado.juego.varTurnoDeclarar = estado.juego.varPedidoPor;
             const dj = numeroMasAltoArqDel(estado.juego.manoJugador);
             estado.juego.varDeclaraciones.jugador = dj;
             if (dom.varPanel && dom.varPanelTexto) {
@@ -2189,13 +2199,35 @@
             mostrarMensaje(`📺 VAR: ${estado.nickname || 'Jugador'} ${dj} vs ${estado.rivalNombre} ?`);
             sincronizarJuego();
             renderizarTodo();
+            // Si el rival ya declaró, resolver
+            verificarVarResolucion();
         }
 
         function declararVarJugador() {
             const real = numeroMasAltoArqDel(estado.juego.manoJugador);
             estado.juego.varDeclaraciones.jugador = real;
+            const dr = estado.juego.varDeclaraciones.rival;
+            if (dom.varPanel && dom.varPanelTexto) {
+                dom.varPanelTexto.textContent = `${estado.nickname || 'Jugador'} ${real} vs ${estado.rivalNombre} ${dr === null || dr === undefined ? '?' : dr}`;
+                dom.varPanel.classList.add('visible');
+            }
+            mostrarMensaje(`📺 VAR: ${estado.nickname || 'Jugador'} ${real} vs ${estado.rivalNombre} ${dr === null || dr === undefined ? '?' : dr}`);
+            sincronizarJuego();
+            renderizarTodo();
+            verificarVarResolucion();
+        }
+
+        function verificarVarResolucion() {
+            if (estado.juego.fase !== 'var_pedido') return;
+            // Solo el declarante (quien pidió el VAR) resuelve para evitar doble resolución
+            if (estado.juego.varTurnoDeclarar !== 'jugador') return;
             const dj = estado.juego.varDeclaraciones.jugador;
             const dr = estado.juego.varDeclaraciones.rival;
+            if (dj === null || dj === undefined || dr === null || dr === undefined) return;
+            resolverVar(dj, dr);
+        }
+
+        function resolverVar(dj, dr) {
             const varPedidoPor = estado.juego.varPedidoPor;
             const cantoPedidoPor = estado.juego.cantoPedidoPor;
 
