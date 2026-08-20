@@ -1235,21 +1235,21 @@
                 rondaActual: estado.juego.rondaActual,
                 turnoInicial: aAbsoluto(estado.juego.turnoInicial),
                 turnoActual: aAbsoluto(estado.juego.turnoActual),
-                cartasEnMesa: estado.juego.cartasEnMesa,
+                cartasEnMesa: estado.juego.cartasEnMesa.map(c => ({ ...c, origen: aAbsoluto(c.origen) })),
                 fase: estado.juego.fase,
                 penalUsado: estado.juego.penalUsado,
                 penalCantadoPor: aAbsoluto(estado.juego.penalCantadoPor),
                 penalActivo: estado.juego.penalActivo,
                 penalAtacante: aAbsoluto(estado.juego.penalAtacante),
-                penalCartas: estado.juego.penalCartas,
+                penalCartas: estado.juego.penalCartas.map(c => ({ ...c, origen: aAbsoluto(c.origen) })),
                 golActivo: estado.juego.golActivo,
                 golAtacante: aAbsoluto(estado.juego.golAtacante),
-                golCartas: estado.juego.golCartas,
+                golCartas: estado.juego.golCartas.map(c => ({ ...c, origen: aAbsoluto(c.origen) })),
                 golUsado: estado.juego.golUsado,
                 golazoUsado: estado.juego.golazoUsado,
                 cantoActual: estado.juego.cantoActual,
                 cantoPedidoPor: aAbsoluto(estado.juego.cantoPedidoPor),
-                cantoPendiente: estado.juego.cantoPendiente,
+                cantoPendiente: estado.juego.cantoPendiente ? { ...estado.juego.cantoPendiente, pedidoPor: aAbsoluto(estado.juego.cantoPendiente.pedidoPor) } : null,
                 varPedidoPor: aAbsoluto(estado.juego.varPedidoPor),
                 varDeclaraciones: {
                     jugador: estado.miLado === 'jugador' ? estado.juego.varDeclaraciones.jugador : estado.juego.varDeclaraciones.rival,
@@ -1257,7 +1257,14 @@
                 },
                 varTurnoDeclarar: aAbsoluto(estado.juego.varTurnoDeclarar),
                 esperandoRespuestaDe: aAbsoluto(estado.juego.esperandoRespuestaDe),
-                historialManos: estado.juego.historialManos,
+                historialManos: estado.juego.historialManos.map(h => ({
+                    ...h,
+                    turnoInicial: aAbsoluto(h.turnoInicial),
+                    golesJugador: estado.miLado === 'jugador' ? h.golesJugador : h.golesRival,
+                    golesRival: estado.miLado === 'jugador' ? h.golesRival : h.golesJugador,
+                    puntosJugador: estado.miLado === 'jugador' ? h.puntosJugador : h.puntosRival,
+                    puntosRival: estado.miLado === 'jugador' ? h.puntosRival : h.puntosJugador,
+                })),
                 inicioRonda: estado.juego.inicioRonda,
                 ganadorManoAnterior: aAbsoluto(estado.juego.ganadorManoAnterior),
                 golEnMano: estado.juego.golEnMano,
@@ -1390,18 +1397,12 @@
                 });
                 estado.partidaId = codigo;
                 estado.miLado = 'rival';
-                estado.fase = 'jugando';
-                estado.enPartida = true;
+                estado.fase = 'esperando';
                 dom.overlayLobby.classList.add('oculto');
                 dom.overlayEsperando.classList.add('oculto');
-                dom.nombreJugadorEtiqueta.textContent = estado.nickname || 'Jugador';
-                dom.nombreEnTurno.textContent = estado.nickname || 'Jugador';
                 dom.nombreRivalEtiqueta.textContent = partida.creador.nickname || 'Rival';
                 estado.rivalNombre = partida.creador.nickname || 'Rival';
-                dom.etiquetaCpu.textContent = 'Turno de ' + estado.rivalNombre;
-                dom.etiquetaJugador.textContent = 'Turno de ' + (estado.nickname || 'Jugador');
                 escucharPartida(codigo);
-                renderizarTodo();
             } catch (error) {
                 console.error('Error uniéndose a partida:', error);
                 mostrarLobbyMensaje('Error al unirse. Revisá tu conexión.', true);
@@ -1456,7 +1457,7 @@
                     estado.juego.rondaActual = j.rondaActual || 0;
                     estado.juego.turnoActual = aRelativo(j.turnoActual);
                     estado.juego.turnoInicial = aRelativo(j.turnoInicial);
-                    estado.juego.cartasEnMesa = j.cartasEnMesa || [];
+                    estado.juego.cartasEnMesa = (j.cartasEnMesa || []).map(c => ({ ...c, origen: aRelativo(c.origen) }));
                     estado.juego.fase = j.fase || 'esperando_seleccion';
                     estado.juego.cantoActual = j.cantoActual || null;
                     estado.juego.cantoPedidoPor = aRelativo(j.cantoPedidoPor);
@@ -1465,11 +1466,11 @@
                     estado.juego.penalCantadoPor = aRelativo(j.penalCantadoPor);
                     estado.juego.penalActivo = j.penalActivo || false;
                     estado.juego.penalAtacante = aRelativo(j.penalAtacante);
-                    estado.juego.penalCartas = j.penalCartas || [];
+                    estado.juego.penalCartas = (j.penalCartas || []).map(c => ({ ...c, origen: aRelativo(c.origen) }));
                     estado.juego.golUsado = j.golUsado || false;
                     estado.juego.golActivo = j.golActivo || false;
                     estado.juego.golAtacante = aRelativo(j.golAtacante);
-                    estado.juego.golCartas = j.golCartas || [];
+                    estado.juego.golCartas = (j.golCartas || []).map(c => ({ ...c, origen: aRelativo(c.origen) }));
                     estado.juego.golazoUsado = j.golazoUsado || false;
                     estado.juego.varPedidoPor = aRelativo(j.varPedidoPor);
                     estado.juego.varTurnoDeclarar = aRelativo(j.varTurnoDeclarar);
@@ -1482,7 +1483,14 @@
                     estado.juego.golEnMano = j.golEnMano || false;
                     estado.juego.ganadorManoAnterior = aRelativo(j.ganadorManoAnterior);
                     estado.juego.inicioRonda = j.inicioRonda || 0;
-                    estado.juego.historialManos = j.historialManos || [];
+                    estado.juego.historialManos = (j.historialManos || []).map(h => ({
+                        ...h,
+                        turnoInicial: aRelativo(h.turnoInicial),
+                        golesJugador: estado.miLado === 'jugador' ? h.golesJugador : h.golesRival,
+                        golesRival: estado.miLado === 'jugador' ? h.golesRival : h.golesJugador,
+                        puntosJugador: estado.miLado === 'jugador' ? h.puntosJugador : h.puntosRival,
+                        puntosRival: estado.miLado === 'jugador' ? h.puntosRival : h.puntosJugador,
+                    }));
                     estado.juego.golesInicioManoJugador = estado.miLado === 'jugador' ? (j.golesInicioManoJugador || 0) : (j.golesInicioManoRival || 0);
                     estado.juego.golesInicioManoRival = estado.miLado === 'jugador' ? (j.golesInicioManoRival || 0) : (j.golesInicioManoJugador || 0);
 
