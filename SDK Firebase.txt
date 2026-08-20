@@ -85,6 +85,32 @@ recursos (quota hijacking). Por eso es importante restringirla por dominio.
     "ranking": {
       ".read": true,
       ".write": "auth != null"
+    },
+    // Partidas online 1vs1: solo usuarios autenticados pueden crear/unirse
+    "partidas": {
+      "$codigo": {
+        // Cualquier usuario autenticado puede leer una partida (para unirse)
+        ".read": "auth != null",
+        // Solo usuarios autenticados pueden crear/modificar partidas
+        ".write": "auth != null",
+        // Validaciones de estructura
+        "codigo": { ".validate": "newData.isString() && newData.val().length === 6" },
+        "creador": {
+          "uid": { ".validate": "newData.isString()" },
+          "nickname": { ".validate": "newData.isString() && newData.val().length <= 20" },
+          "fotoURL": { ".validate": "newData.isString()" },
+          "listo": { ".validate": "newData.isBoolean()" }
+        },
+        "unido": {
+          "uid": { ".validate": "newData.isString()" },
+          "nickname": { ".validate": "newData.isString() && newData.val().length <= 20" },
+          "fotoURL": { ".validate": "newData.isString()" },
+          "listo": { ".validate": "newData.isBoolean()" }
+        },
+        "estado": { ".validate": "newData.isString() && (newData.val() === 'esperando' || newData.val() === 'jugando' || newData.val() === 'terminada')" },
+        "creadoEn": { ".validate": "newData.isNumber()" },
+        "ultimaActividad": { ".validate": "newData.isNumber()" }
+      }
     }
   }
 }

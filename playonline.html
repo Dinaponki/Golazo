@@ -442,6 +442,40 @@
         .spinner { width: 50px; height: 50px; border: 4px solid rgba(255, 255, 255, 0.1); border-top-color: var(--dorado); border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
+        /* Overlay marcador detallado */
+        .overlay-marcador {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.92);
+            z-index: 100;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 20px;
+            animation: fadeIn 0.3s ease;
+        }
+        .overlay-marcador.oculto { display: none; }
+        .overlay-marcador .tabla-marcador { width: 100%; max-width: 500px; border-collapse: collapse; }
+        .overlay-marcador .tabla-marcador th,
+        .overlay-marcador .tabla-marcador td {
+            padding: 14px 12px; text-align: center;
+            font-size: clamp(16px, 4vmin, 22px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .overlay-marcador .tabla-marcador th {
+            font-size: clamp(14px, 3.5vmin, 18px);
+            letter-spacing: 0.06em;
+            color: rgba(255, 255, 255, 0.5);
+            text-transform: uppercase;
+        }
+        .overlay-marcador .tabla-marcador .fila-actual { background: rgba(200, 168, 78, 0.15); border-radius: 8px; }
+        .overlay-marcador .tabla-marcador .fila-actual td { color: var(--dorado); font-weight: 700; }
+        .overlay-marcador .btn-volver {
+            margin-top: 24px; padding: 14px 40px;
+            border-radius: 50px; font-size: 16px; font-weight: 700;
+            letter-spacing: 0.04em;
+            background: var(--blanco); color: var(--negro);
+            border: none; cursor: pointer; transition: var(--transicion);
+        }
+        .overlay-marcador .btn-volver:hover { background: #fff; box-shadow: 0 4px 20px rgba(255, 255, 255, 0.2); }
+
         /* Overlay fin */
         .overlay-fin {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -596,6 +630,22 @@
         <div class="lobby-codigo" id="codigoPartida">------</div>
         <div class="lobby-jugadores" id="lobbyJugadores"></div>
         <button class="btn-lobby btn-volver-lobby" id="btnCancelarEspera">✕ Cancelar</button>
+    </div>
+
+    <!-- ============ OVERLAY MARCADOR DETALLADO ============ -->
+    <div class="overlay-marcador oculto" id="overlayMarcador">
+        <table class="tabla-marcador" id="tablaMarcador">
+            <thead>
+                <tr>
+                    <th>Minuto</th>
+                    <th id="thJugador">Jugador</th>
+                    <th></th>
+                    <th>Rival</th>
+                </tr>
+            </thead>
+            <tbody id="cuerpoTablaMarcador"></tbody>
+        </table>
+        <button class="btn-volver" id="btnVolverMarcador">VOLVER</button>
     </div>
 
     <!-- ============ OVERLAY FIN ============ -->
@@ -793,6 +843,11 @@
             dom.resultadoMarcador = document.getElementById('resultadoMarcador');
             dom.btnRevancha = document.getElementById('btnRevancha');
             dom.btnInicio = document.getElementById('btnInicio');
+            dom.overlayMarcador = document.getElementById('overlayMarcador');
+            dom.cuerpoTablaMarcador = document.getElementById('cuerpoTablaMarcador');
+            dom.btnVolverMarcador = document.getElementById('btnVolverMarcador');
+            dom.panelMarcador = document.getElementById('panelMarcador');
+            dom.thJugador = document.getElementById('thJugador');
             dom.overlaySalida = document.getElementById('overlaySalida');
             dom.btnCancelarSalida = document.getElementById('btnCancelarSalida');
             dom.btnConfirmarSalida = document.getElementById('btnConfirmarSalida');
@@ -1438,11 +1493,6 @@
                         estado.juego.golesInicioManoRival = estado.miLado === 'jugador' ? j.golesInicioManoRival : j.golesInicioManoJugador;
                     }
 
-                    // Si la fase es resolviendo, resolver
-                    if (estado.juego.fase === 'resolviendo') {
-                        setTimeout(resolverRonda, 300);
-                    }
-
                     renderizarTodo();
                 }
 
@@ -2066,6 +2116,58 @@
             }
         }
 
+            // ============ MARCADOR DETALLADO ============
+            function actualizarTablaMarcador() {
+                if (!dom.cuerpoTablaMarcador) return;
+                dom.cuerpoTablaMarcador.innerHTML = '';
+                let acumJ = 0, acumR = 0;
+                for (let i = 0; i < TOTAL_MANOS; i++) {
+                    const minuto = MINUTOS[i];
+                    const tr = document.createElement('tr');
+                    const esActual = i === estado.juego.manoActual && estado.juego.fase !== 'fin_partido';
+                    const esPasada = i < estado.juego.manoActual;
+                    if (esActual) tr.classList.add('fila-actual');
+                    const hist = estado.juego.historialManos.find(h => h.minuto === minuto);
+
+                    let gJ, gR, pJ, pR;
+                    if (esActual) {
+                        gJ = estado.juego.golesJugador;
+                        gR = estado.juego.golesRival;
+                        pJ = estado.juego.puntosManoJugador + estado.juego.puntosJugador;
+                        pR = estado.juego.puntosManoRival + estado.juego.puntosRival;
+                    } else if (esPasada && hist) {
+                        acumJ += hist.golesJugador;
+                        acumR += hist.golesRival;
+                        gJ = acumJ;
+                        gR = acumR;
+                        pJ = hist.puntosJugador;
+                        pR = hist.puntosRival;
+                    } else {
+                        gJ = '-';
+                        gR = '-';
+                        pJ = 0;
+                        pR = 0;
+                    }
+
+                    let eJ = '', eR = '';
+                    for (let s = 0; s < Math.min(pJ, 3); s++) eJ += '★';
+                    for (let s = 0; s < Math.min(pR, 3); s++) eR += '★';
+                    tr.innerHTML =
+                        `<td>${minuto}</td><td>${eJ} ⚽${gJ}</td><td style="color:rgba(255,255,255,0.3)">vs</td><td>⚽${gR} ${eR}</td>`;
+                    dom.cuerpoTablaMarcador.appendChild(tr);
+                }
+            }
+
+            function mostrarMarcadorDetallado() {
+                if (estado.fase !== 'jugando') return;
+                dom.overlayMarcador.classList.remove('oculto');
+                actualizarTablaMarcador();
+            }
+
+            function ocultarMarcadorDetallado() {
+                dom.overlayMarcador.classList.add('oculto');
+            }
+
         // ============ FIN DE PARTIDA ============
         function mostrarFinPartido(resultado) {
             estado.fase = 'fin';
@@ -2225,6 +2327,18 @@
 
             dom.btnRevancha.addEventListener('click', () => window.location.reload());
             dom.btnInicio.addEventListener('click', () => window.location.href = 'index.html');
+
+            // Marcador detallado
+            dom.panelMarcador.addEventListener('click', (e) => {
+                if (dom.btnSonido.contains(e.target) || dom.btnMusica.contains(e.target)) return;
+                mostrarMarcadorDetallado();
+            });
+            dom.btnVolverMarcador.addEventListener('click', ocultarMarcadorDetallado);
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !dom.overlayMarcador.classList.contains('oculto')) ocultarMarcadorDetallado();
+                if (e.key === 'Enter' && estado.juego.fase === 'esperando_seleccion' && estado.juego.cartaSeleccionada !== null) jugarCartaSeleccionada();
+            });
 
             window.addEventListener('beforeunload', (e) => {
                 if (estado.enPartida) { e.preventDefault(); e.returnValue = ''; }

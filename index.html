@@ -197,6 +197,29 @@
             background: rgba(200, 168, 78, 0.08);
         }
 
+        .boton-online {
+            background: transparent;
+            color: var(--dorado);
+            border: 2px solid var(--dorado);
+            font-size: 15px;
+            padding: 12px 36px;
+            letter-spacing: 0.06em;
+            opacity: 0.75;
+            max-width: 320px;
+        }
+
+        .boton-online:hover {
+            background: rgba(200, 168, 78, 0.1);
+            border-color: var(--dorado-claro);
+            color: var(--dorado-claro);
+            opacity: 1;
+            transform: translateY(-2px);
+        }
+
+        .boton-online:active {
+            transform: translateY(0);
+        }
+
         .footer {
             font-size: 12px;
             color: rgba(255, 255, 255, 0.35);
@@ -989,6 +1012,8 @@
 
         <a href="play.html" class="boton boton-jugar" id="btnJugar">⚽ JUGAR VS. CPU</a>
 
+        <a href="playonline.html" class="boton boton-online" id="btnOnline">🌐 ONLINE PROXIMAMENTE...</a>
+
         <a href="rules.html" class="boton boton-donar">📖 REGLAS</a>
 
         <a href="https://forms.gle/Ez9W97N3qsYgaZb89"
@@ -1494,7 +1519,7 @@
                         if (datos.enPartida === true) {
                             const partidosJugados = (datos.partidosJugados || 0) + 1;
                             const partidosPerdidos = (datos.partidosPerdidos || 0) + 1;
-                            const puntos = (datos.puntos || 0) - 3;
+                            const puntos = (datos.puntos || 0) - 5;
                             const efectividad = partidosJugados > 0 ? Math.round(((datos.partidosGanados || 0) / partidosJugados) * 1000) / 10 : 0;
                             const historialPartidos = datos.historialPartidos || [];
                             historialPartidos.push({
@@ -1515,8 +1540,8 @@
                                 enPartida: false,
                                 ultimaActualizacion: Date.now()
                             });
-                            console.log('Abandono detectado: +1 partidosJugados, +1 partidosPerdidos, -3 puntos');
-                            mostrarToast('⚠ Abandonaste una partida: +1 partido jugado, +1 partido perdido, -3 puntos');
+                            console.log('Abandono detectado: +1 partidosJugados, +1 partidosPerdidos, -5 puntos');
+                            mostrarToast('⚠ Abandonaste una partida: +1 partido jugado, +1 partido perdido, -5 puntos');
                         }
                     }
                 } catch (error) {
@@ -1524,22 +1549,22 @@
                 }
             }
 
-        function actualizarEstadisticasUsuario(lista) {
+        function actualizarEstadisticasUsuario(lista, filtro) {
             if (!usuarioActual || !lista || lista.length === 0) {
                 panelEstadisticas.classList.remove('visible');
                 return;
             }
 
-            // Calcular puntos de todos los jugadores para ordenar
+            const filtroActual = filtro || 'global';
+
+            // Calcular puntos de todos los jugadores según el período seleccionado
             const listaConPuntos = lista.map(j => {
-                const pj = j.partidosJugados || 0;
-                const pg = j.partidosGanados || 0;
-                const pe = j.partidosEmpatados || 0;
-                const pp = j.partidosPerdidos || 0;
+                const stats = calcularEstadisticasPorPeriodo(j, filtroActual);
                 return {
                     ...j,
-                    _puntos: (pg * 3) + (pe * 1) - (pp * 5),
-                    _efectividad: pj > 0 ? Math.round((pg / pj) * 1000) / 10 : 0
+                    _stats: stats,
+                    _puntos: stats.puntos,
+                    _efectividad: stats.efectividad
                 };
             });
 
@@ -1557,25 +1582,18 @@
                 return;
             }
 
-            const misDatos = listaConPuntos[posicion];
-            const pj = misDatos.partidosJugados || 0;
-            const pg = misDatos.partidosGanados || 0;
-            const pe = misDatos.partidosEmpatados || 0;
-            const pp = misDatos.partidosPerdidos || 0;
-            const puntos = (pg * 3) + (pe * 1) - (pp * 5);
-            const efectividad = pj > 0 ? Math.round((pg / pj) * 1000) / 10 : 0;
-            const racha = misDatos.rachaActual || 0;
-            const gf = misDatos.golesFavor || 0;
-            const gc = misDatos.golesContra || 0;
+            const misStats = listaConPuntos[posicion]._stats;
+            const gf = misStats.gf;
+            const gc = misStats.gc;
             const dif = gf - gc;
 
             miPosicionRanking.textContent = '#' + (posicion + 1);
-            miPuntos.textContent = puntos;
-            miPJ.textContent = pj;
-            miPG.textContent = pg;
-            miPE.textContent = pe;
-            miPP.textContent = pp;
-            miEfec.textContent = efectividad + '%';
+            miPuntos.textContent = misStats.puntos;
+            miPJ.textContent = misStats.pj;
+            miPG.textContent = misStats.pg;
+            miPE.textContent = misStats.pe;
+            miPP.textContent = misStats.pp;
+            miEfec.textContent = misStats.efectividad + '%';
             miGF.textContent = gf;
             miGC.textContent = gc;
             miDIF.textContent = (dif > 0 ? '+' : '') + dif;
@@ -1601,8 +1619,9 @@
                     }
                     // Detectar si el jugador abandonó una partida sin terminar
                     await verificarAbandono(user.uid);
-                    // Actualizar panel de estadísticas con los datos ya cargados
-                    actualizarEstadisticasUsuario(ultimaListaRanking);
+                    // Actualizar panel de estadísticas con el filtro seleccionado
+                    const filtroActual = document.querySelector('input[name="filtroRanking"]:checked')?.value || 'global';
+                    actualizarEstadisticasUsuario(ultimaListaRanking, filtroActual);
                 });
             } else {
                 btnGoogle.style.display = 'inline-flex';
@@ -1686,20 +1705,20 @@
         });
 
         // ================= PERFIL DE JUGADOR (desde ranking) =================
-        function mostrarPerfilJugador(uid) {
+        function mostrarPerfilJugador(uid, filtro) {
             const jugador = ultimaListaRanking.find(j => j.uid === uid);
             if (!jugador) return;
 
-            // Calcular posición en el ranking global
-            const listaConPuntos = [...ultimaListaRanking].map(j => {
-                const pj = j.partidosJugados || 0;
-                const pg = j.partidosGanados || 0;
-                const pe = j.partidosEmpatados || 0;
-                const pp = j.partidosPerdidos || 0;
+            const filtroActual = filtro || 'global';
+
+            // Calcular posición según el período seleccionado en el ranking
+            const listaConPuntos = ultimaListaRanking.map(j => {
+                const stats = calcularEstadisticasPorPeriodo(j, filtroActual);
                 return {
                     ...j,
-                    _puntos: (pg * 3) + (pe * 1) - (pp * 5),
-                    _efectividad: pj > 0 ? Math.round((pg / pj) * 1000) / 10 : 0
+                    _stats: stats,
+                    _puntos: stats.puntos,
+                    _efectividad: stats.efectividad
                 };
             });
             listaConPuntos.sort((a, b) => {
@@ -1707,26 +1726,23 @@
                 if (difPuntos !== 0) return difPuntos;
                 return b._efectividad - a._efectividad;
             });
-            const posicion = listaConPuntos.findIndex(j => j.uid === uid) + 1;
+            const jugadorConStats = listaConPuntos.find(j => j.uid === uid);
+            if (!jugadorConStats) return;
+            const stats = jugadorConStats._stats;
+            const posicion = listaConPuntos.indexOf(jugadorConStats) + 1;
 
-            const pj = jugador.partidosJugados || 0;
-            const pg = jugador.partidosGanados || 0;
-            const pe = jugador.partidosEmpatados || 0;
-            const pp = jugador.partidosPerdidos || 0;
-            const puntos = (pg * 3) + (pe * 1) - (pp * 5);
-            const efectividad = pj > 0 ? Math.round((pg / pj) * 1000) / 10 : 0;
-            const gf = jugador.golesFavor || 0;
-            const gc = jugador.golesContra || 0;
+            const gf = stats.gf;
+            const gc = stats.gc;
             const dif = gf - gc;
 
             perfilNick.textContent = jugador.nickname || 'Jugador';
             perfilPosicion.textContent = 'Posición #' + posicion + ' del ranking';
-            perfilPuntos.textContent = puntos;
-            perfilPJ.textContent = pj;
-            perfilPG.textContent = pg;
-            perfilPE.textContent = pe;
-            perfilPP.textContent = pp;
-            perfilEfec.textContent = efectividad + '%';
+            perfilPuntos.textContent = stats.puntos;
+            perfilPJ.textContent = stats.pj;
+            perfilPG.textContent = stats.pg;
+            perfilPE.textContent = stats.pe;
+            perfilPP.textContent = stats.pp;
+            perfilEfec.textContent = stats.efectividad + '%';
             perfilGF.textContent = gf;
             perfilGC.textContent = gc;
             perfilDIF.textContent = (dif > 0 ? '+' : '') + dif;
@@ -1826,6 +1842,9 @@
                 tbody.innerHTML = '<tr><td colspan="9" class="vacio-ranking">Aún no hay jugadores registrados</td></tr>';
                 return;
             }
+
+            // Actualizar panel de estadísticas del usuario según el período seleccionado
+            actualizarEstadisticasUsuario(ultimaListaRanking, filtro);
             
             // Filtrar según el tipo
             let listaFiltrada = [...lista];
@@ -1894,7 +1913,7 @@
 
                 tr.style.cursor = 'pointer';
                 tr.title = 'Ver perfil de ' + nick;
-                tr.addEventListener('click', () => mostrarPerfilJugador(jugador.uid));
+                tr.addEventListener('click', () => mostrarPerfilJugador(jugador.uid, filtro));
 
                 tr.innerHTML =
                     '<td class="posicion' + (posicion <= 3 ? ' top3' : '') + '">' + posicion + '</td>' +
@@ -1917,8 +1936,6 @@
                     const datos = snap.val();
                     const lista = Object.keys(datos).map(uid => ({ ...datos[uid], uid }));
                     ultimaListaRanking = lista;
-                    // Actualizar panel de estadísticas del usuario
-                    actualizarEstadisticasUsuario(lista);
                     // Guardar filtro seleccionado en localStorage
                     const filtro = document.querySelector('input[name="filtroRanking"]:checked')?.value || 'global';
                     localStorage.setItem('rankingFiltro', filtro);
