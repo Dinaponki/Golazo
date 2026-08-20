@@ -1582,7 +1582,6 @@
                 dom.nombreRivalEtiqueta.textContent = partida.creador.nickname || 'Rival';
                 estado.rivalNombre = partida.creador.nickname || 'Rival';
                 escucharPartida(codigo);
-                iniciarJuegoOnline();
             } catch (error) {
                 console.error('Error uniéndose a partida:', error);
                 mostrarLobbyMensaje('Error al unirse. Revisá tu conexión.', true);
