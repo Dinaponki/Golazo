@@ -111,6 +111,20 @@ recursos (quota hijacking). Por eso es importante restringirla por dominio.
         "creadoEn": { ".validate": "newData.isNumber()" },
         "ultimaActividad": { ".validate": "newData.isNumber()" }
       }
+    },
+    // Cola de matchmaking para "Jugar rápido": solo usuarios autenticados
+    // Cualquier usuario autenticado puede leer/escribir porque es una cola
+    // temporal donde los jugadores se eliminan mutuamente al emparejarse.
+    "cola_rapido": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        "uid": { ".validate": "newData.isString()" },
+        "nickname": { ".validate": "newData.isString() && newData.val().length <= 20" },
+        "fotoURL": { ".validate": "newData.isString()" },
+        "partidaId": { ".validate": "newData.isString() && newData.val().length === 6" },
+        "creadoEn": { ".validate": "newData.isNumber()" }
+      }
     }
   }
 }
