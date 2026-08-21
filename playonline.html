@@ -817,6 +817,7 @@
                 varPedidoPor: null,
                 varDeclaraciones: { jugador: null, rival: null },
                 varTurnoDeclarar: null,
+                varPanelVisible: false,
                 esperandoRespuestaDe: null,
                 historialManos: [], inicioRonda: 0,
                 ganadorManoAnterior: null,
@@ -1258,6 +1259,7 @@
                     rival: estado.miLado === 'jugador' ? estado.juego.varDeclaraciones.rival : estado.juego.varDeclaraciones.jugador
                 },
                 varTurnoDeclarar: aAbsoluto(estado.juego.varTurnoDeclarar),
+                varPanelVisible: estado.juego.varPanelVisible,
                 esperandoRespuestaDe: aAbsoluto(estado.juego.esperandoRespuestaDe),
                 historialManos: estado.juego.historialManos.map(h => ({
                     ...h,
@@ -1636,6 +1638,7 @@
                     estado.juego.golazoUsado = j.golazoUsado || false;
                     estado.juego.varPedidoPor = aRelativo(j.varPedidoPor);
                     estado.juego.varTurnoDeclarar = aRelativo(j.varTurnoDeclarar);
+                    estado.juego.varPanelVisible = j.varPanelVisible || false;
                     if (j.varDeclaraciones) {
                         estado.juego.varDeclaraciones = {
                             jugador: estado.miLado === 'jugador' ? j.varDeclaraciones.jugador : j.varDeclaraciones.rival,
@@ -1726,7 +1729,21 @@
                         }
                     }
 
+                    // ============ VAR: PANEL VISIBLE SINCRONIZADO ============
+                    // Mostrar/ocultar el panel VAR según el estado sincronizado
+                    if (dom.varPanel) {
+                        if (estado.juego.varPanelVisible) {
+                            dom.varPanel.classList.add('visible');
+                        } else {
+                            dom.varPanel.classList.remove('visible');
+                        }
+                    }
+
                     // ============ VAR: DECLARACIÓN Y RESOLUCIÓN AUTOMÁTICA ============
+                    // Mostrar el panel VAR solo durante var_pedido (sincronizado para ambos)
+                    if (dom.varPanel) {
+                        dom.varPanel.classList.toggle('visible', estado.juego.fase === 'var_pedido');
+                    }
                     // Si estamos en fase var_pedido
                     if (estado.juego.fase === 'var_pedido' && !varYaResolviendo) {
                         const miDeclare = estado.juego.varDeclaraciones.jugador;
@@ -2292,7 +2309,8 @@
         }
 
         function finalizarCanto() {
-            // Ocultar el panel VAR al finalizar el canto
+            // Ocultar el panel VAR al finalizar el canto (sincronizado)
+            estado.juego.varPanelVisible = false;
             if (dom.varPanel) dom.varPanel.classList.remove('visible');
             estado.juego.cantoActual = null;
             estado.juego.cantoPedidoPor = null;
