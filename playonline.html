@@ -1740,10 +1740,6 @@
                     }
 
                     // ============ VAR: DECLARACIÓN Y RESOLUCIÓN AUTOMÁTICA ============
-                    // Mostrar el panel VAR solo durante var_pedido (sincronizado para ambos)
-                    if (dom.varPanel) {
-                        dom.varPanel.classList.toggle('visible', estado.juego.fase === 'var_pedido');
-                    }
                     // Si estamos en fase var_pedido
                     if (estado.juego.fase === 'var_pedido' && !varYaResolviendo) {
                         const miDeclare = estado.juego.varDeclaraciones.jugador;
@@ -2065,7 +2061,8 @@
         }
 
         async function finalizarMano() {
-            // Ocultar el panel VAR al finalizar la mano
+            // Ocultar el panel VAR al finalizar la mano (sincronizado para ambos)
+            estado.juego.varPanelVisible = false;
             if (dom.varPanel) dom.varPanel.classList.remove('visible');
             const golesManoJ = estado.juego.golesJugador - estado.juego.golesInicioManoJugador;
             const golesManoR = estado.juego.golesRival - estado.juego.golesInicioManoRival;
@@ -2134,6 +2131,7 @@
             estado.juego.esperandoRespuestaDe = null;
             estado.juego.varDeclaraciones = { jugador: null, rival: null };
             estado.juego.varPedidoPor = null;
+            estado.juego.varPanelVisible = false;
             estado.juego.ganadorManoAnterior = null;
             if (dom.varPanel) dom.varPanel.classList.remove('visible');
 
@@ -2364,6 +2362,8 @@
             estado.juego.fase = 'var_pedido';
             // Quien pidió el VAR (el defensor) es quien declara primero y resuelve
             estado.juego.varTurnoDeclarar = estado.juego.varPedidoPor;
+            // Mostrar el panel VAR sincronizado para ambos jugadores
+            estado.juego.varPanelVisible = true;
             const dj = numeroMasAltoArqDel(estado.juego.manoJugador);
             estado.juego.varDeclaraciones.jugador = dj;
             if (dom.varPanel && dom.varPanelTexto) {
