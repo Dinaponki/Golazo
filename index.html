@@ -416,6 +416,40 @@
             font-variant-numeric: tabular-nums;
         }
 
+        /* Filtros del panel de estadísticas del usuario */
+        .filtros-panel {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .filtros-panel button {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: rgba(255, 255, 255, 0.7);
+            padding: 5px 12px;
+            border-radius: 50px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            transition: var(--transicion);
+            font-family: inherit;
+            white-space: nowrap;
+        }
+
+        .filtros-panel button:hover {
+            border-color: var(--dorado);
+            color: var(--dorado);
+        }
+
+        .filtros-panel button.activo {
+            background: rgba(200, 168, 78, 0.15);
+            border-color: var(--dorado);
+            color: var(--dorado);
+        }
+
         .estadisticas-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -1010,6 +1044,16 @@
         <!-- Panel de estadísticas del usuario -->
         <div class="panel-estadisticas-usuario" id="panelEstadisticas">
             <div class="estadisticas-titulo">📊 Tu rendimiento</div>
+            <div class="filtros-panel" id="filtrosPanelTipo">
+                <button data-tipo="cpu">🤖 Vs CPU</button>
+                <button data-tipo="online">🌐 Online</button>
+            </div>
+            <div class="filtros-panel" id="filtrosPanelPeriodo">
+                <button data-filtro="global">Global</button>
+                <button data-filtro="mes">Mes actual</button>
+                <button data-filtro="semana">Semana actual</button>
+                <button data-filtro="dia">Día actual</button>
+            </div>
             <div class="estadisticas-posicion">
                 <span>Posición</span>
                 <span class="posicion-numero" id="miPosicionRanking">-</span>
@@ -1695,6 +1739,39 @@
             panelEstadisticas.classList.add('visible');
         }
 
+        // ================= FILTROS DEL PANEL DE ESTADÍSTICAS =================
+        let panelTipo = localStorage.getItem('panelStatsTipo') || 'cpu';
+        let panelFiltro = localStorage.getItem('panelStatsFiltro') || 'global';
+
+        function marcarBotonesPanel() {
+            document.querySelectorAll('#filtrosPanelTipo button').forEach(b => {
+                b.classList.toggle('activo', b.dataset.tipo === panelTipo);
+            });
+            document.querySelectorAll('#filtrosPanelPeriodo button').forEach(b => {
+                b.classList.toggle('activo', b.dataset.filtro === panelFiltro);
+            });
+        }
+
+        document.querySelectorAll('#filtrosPanelTipo button').forEach(b => {
+            b.addEventListener('click', () => {
+                panelTipo = b.dataset.tipo;
+                localStorage.setItem('panelStatsTipo', panelTipo);
+                marcarBotonesPanel();
+                actualizarEstadisticasUsuario(ultimaListaRanking, panelFiltro, panelTipo);
+            });
+        });
+
+        document.querySelectorAll('#filtrosPanelPeriodo button').forEach(b => {
+            b.addEventListener('click', () => {
+                panelFiltro = b.dataset.filtro;
+                localStorage.setItem('panelStatsFiltro', panelFiltro);
+                marcarBotonesPanel();
+                actualizarEstadisticasUsuario(ultimaListaRanking, panelFiltro, panelTipo);
+            });
+        });
+
+        marcarBotonesPanel();
+
         function actualizarUIUsuario(user) {
             usuarioActual = user;
             if (user) {
@@ -1713,9 +1790,9 @@
                     }
                     // Detectar si el jugador abandonó una partida sin terminar
                     await verificarAbandono(user.uid);
-                    // Actualizar panel de estadísticas con el filtro y tipo seleccionados
-                    const filtroActual = document.querySelector('input[name="filtroRanking"]:checked')?.value || 'global';
-                    actualizarEstadisticasUsuario(ultimaListaRanking, filtroActual, tipoRankingActual);
+                    // Actualizar panel de estadísticas con los filtros propios del panel
+                    marcarBotonesPanel();
+                    actualizarEstadisticasUsuario(ultimaListaRanking, panelFiltro, panelTipo);
                 });
             } else {
                 btnGoogle.style.display = 'inline-flex';
@@ -1942,8 +2019,8 @@
                 return;
             }
 
-            // Actualizar panel de estadísticas del usuario según el período y tipo seleccionados
-            actualizarEstadisticasUsuario(ultimaListaRanking, filtro, tipoActual);
+            // Actualizar panel de estadísticas del usuario con sus filtros propios
+            actualizarEstadisticasUsuario(ultimaListaRanking, panelFiltro, panelTipo);
             
             // Filtrar según el tipo
             let listaFiltrada = [...lista];
