@@ -1523,7 +1523,12 @@
                 console.error('Error en búsqueda rápida:', error);
                 // Si falla el matchmaking (ej: reglas de Firebase no actualizadas),
                 // mostrar un mensaje claro en lugar de un código para compartir
-                mostrarLobbyMensaje('Error en la búsqueda. Verificá que las reglas de Firebase incluyan el nodo "cola_rapido".', true);
+                const esPermiso = error && (error.code === 'PERMISSION_DENIED' || (error.message && error.message.includes('permission')));
+                if (esPermiso) {
+                    mostrarLobbyMensaje('⚠ Firebase bloquea el acceso. Actualizá las reglas en la consola: agregá el nodo "cola_rapido" (ver SDK Firebase.txt).', true);
+                } else {
+                    mostrarLobbyMensaje('Error en la búsqueda. Revisá tu conexión e intentá de nuevo.', true);
+                }
                 dom.btnJugarRapido.disabled = false;
                 dom.btnCrearPartida.disabled = false;
                 dom.btnUnirsePartida.disabled = false;
