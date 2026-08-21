@@ -1635,6 +1635,8 @@
                         dom.etiquetaCpu.textContent = 'Turno de ' + estado.rivalNombre;
                         dom.etiquetaJugador.textContent = 'Turno de ' + (estado.nickname || 'Jugador');
                         reproducirAudioFondo();
+                        // Empujar un estado de historial para interceptar el botón "atrás"
+                        history.pushState({ juegoIniciado: true }, '', location.href);
                     }
 
                     const j = partida.juego;
@@ -2645,7 +2647,10 @@
             const ganador = resultado.ganador;
             const yoGane = (estado.miLado === 'jugador' && ganador === 'jugador') || (estado.miLado === 'rival' && ganador === 'rival');
             // Guardar resultado en Firebase (solo partidas rápidas)
-            if (!resultado.abandono && estado.esPartidaRapida) {
+            // También se guarda en abandonos: el que abandonó registra la derrota
+            // (-5 pts) y el rival registra la victoria (+3 pts). Cada cliente
+            // guarda su propio resultado al detectar el fin de la partida.
+            if (estado.esPartidaRapida) {
                 guardarResultadoPartidoOnline(resultado, gJ, gR);
             }
 
@@ -2694,16 +2699,12 @@
                             },
                             ultimaActividad: Date.now()
                         });
-                        // Guardar estadísticas del ranking online si fue una partida rápida
-                        // (se espera el guardado antes de redirigir para no cancelar la escritura)
-                        if (estado.esPartidaRapida || partida.rapida === true) {
-                            const gJ = estado.miLado === 'jugador' ? (partida.juego ? partida.juego.golesJugador : 0) : (partida.juego ? partida.juego.golesRival : 0);
-                            const gR = estado.miLado === 'jugador' ? (partida.juego ? partida.juego.golesRival : 0) : (partida.juego ? partida.juego.golesJugador : 0);
-                            await guardarResultadoPartidoOnline({ ganador, abandono: true }, gJ, gR);
-                        }
                     }
                 } catch (error) { console.error('Error abandonando partida:', error); }
             }
+            // Las estadísticas se guardan automáticamente en cada cliente vía
+            // mostrarFinPartido(): el que abandona registra derrota (-5 pts) y
+            // el rival registra victoria (+3 pts) cuando detecta el abandono.
             window.location.href = 'index.html';
         }
 
@@ -2763,7 +2764,13 @@
             dom.btnJugarRapido.addEventListener('click', jugarRapido);
             dom.btnCrearPartida.addEventListener('click', crearPartida);
             dom.btnUnirsePartida.addEventListener('click', unirsePartida);
-            dom.btnVolverInicio.addEventListener('click', () => window.location.href = 'index.html');
+            dom.btnVolverInicio.addEventListener('click', () => {
+                if (estado.enPartida) {
+                    dom.overlaySalida.classList.add('visible');
+                } else {
+                    window.location.href = 'index.html';
+                }
+            });
             dom.btnCancelarEspera.addEventListener('click', cancelarEspera);
 
             dom.inputCodigo.addEventListener('input', () => {
@@ -2808,7 +2815,13 @@
             dom.btnConfirmarSalida.addEventListener('click', () => { dom.overlaySalida.classList.remove('visible'); abandonarPartida(); });
 
             dom.btnRevancha.addEventListener('click', () => window.location.reload());
-            dom.btnInicio.addEventListener('click', () => window.location.href = 'index.html');
+            dom.btnInicio.addEventListener('click', () => {
+                if (estado.enPartida) {
+                    dom.overlaySalida.classList.add('visible');
+                } else {
+                    window.location.href = 'index.html';
+                }
+            });
 
             // Marcador detallado
             dom.panelMarcador.addEventListener('click', (e) => {
@@ -2824,6 +2837,31 @@
 
             window.addEventListener('beforeunload', (e) => {
                 if (estado.enPartida) { e.preventDefault(); e.returnValue = ''; }
+            });
+
+            // Interceptar navegación hacia atrás (botón del navegador)
+            window.addEventListener('popstate', (e) => {
+                if (estado.enPartida) {
+                    e.preventDefault();
+                    dom.overlaySalida.classList.add('visible');
+                    // Mantener en la página empujando un nuevo estado
+                    history.pushState({ juegoIniciado: true }, '', location.href);
+                }
+            });
+
+            // Al ocultar la pestaña, esperar 30 segundos antes de considerar abandono
+            // (evita registrar abandono por cambiar de app o minimizar brevemente)
+            let tiempoOcultoInicio = 0;
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden && estado.enPartida) {
+                    tiempoOcultoInicio = Date.now();
+                } else if (!document.hidden && tiempoOcultoInicio > 0) {
+                    const tiempoOcultoMs = Date.now() - tiempoOcultoInicio;
+                    if (tiempoOcultoMs > 30000) {
+                        abandonarPartida();
+                    }
+                    tiempoOcultoInicio = 0;
+                }
             });
 
             window.addEventListener('resize', () => { if (estado.fase === 'jugando') renderizarTodo(); });
