@@ -2307,9 +2307,7 @@
         }
 
         function finalizarCanto() {
-            // Ocultar el panel VAR al finalizar el canto (sincronizado)
-            estado.juego.varPanelVisible = false;
-            if (dom.varPanel) dom.varPanel.classList.remove('visible');
+            // El panel VAR permanece visible hasta que termine la mano (como en play.html)
             estado.juego.cantoActual = null;
             estado.juego.cantoPedidoPor = null;
             estado.juego.cantoPendiente = null;
