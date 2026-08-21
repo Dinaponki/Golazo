@@ -2048,6 +2048,8 @@
         }
 
         async function finalizarMano() {
+            // Ocultar el panel VAR al finalizar la mano
+            if (dom.varPanel) dom.varPanel.classList.remove('visible');
             const golesManoJ = estado.juego.golesJugador - estado.juego.golesInicioManoJugador;
             const golesManoR = estado.juego.golesRival - estado.juego.golesInicioManoRival;
             estado.juego.puntosManoJugador += estado.juego.puntosJugador;
@@ -2290,6 +2292,8 @@
         }
 
         function finalizarCanto() {
+            // Ocultar el panel VAR al finalizar el canto
+            if (dom.varPanel) dom.varPanel.classList.remove('visible');
             estado.juego.cantoActual = null;
             estado.juego.cantoPedidoPor = null;
             estado.juego.cantoPendiente = null;
