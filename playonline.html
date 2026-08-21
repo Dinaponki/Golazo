@@ -606,7 +606,6 @@
         @media (max-width: 767px) {
             .mesa-fila { height: 100%; width: 100%; }
             .indicador-canto { margin-bottom: 4px; }
-            .mesa-cartas .carta-contenedor { top: 95%; left: 50%; }
             .zona-jugador .etiqueta-turno { margin-top: clamp(4px, 0.8vh, 8px); }
             .zona-botones { justify-content: space-between; align-items: flex-start; padding: 0; gap: 0; }
             .botones-laterales { flex: 0 0 auto; max-width: 28%; flex-direction: column; gap: clamp(4px, 0.8vmin, 6px); padding: 0; }
@@ -1147,16 +1146,27 @@
 
         function renderizarMesa() {
             dom.mesaCartas.innerHTML = '';
-            if (!estado.juego.cartasEnMesa.length) return;
+
+            // Durante un canto (penal/gol/golazo) solo se muestran las cartas del canto,
+            // para que se vean bien y no se mezclen con las de rondas anteriores.
+            let cartasVisibles;
+            if (estado.juego.penalActivo && estado.juego.penalCartas.length) {
+                cartasVisibles = estado.juego.penalCartas;
+            } else if (estado.juego.golActivo && estado.juego.golCartas.length) {
+                cartasVisibles = estado.juego.golCartas;
+            } else {
+                const inicio = estado.juego.inicioRonda || 0;
+                cartasVisibles = estado.juego.cartasEnMesa.slice(inicio);
+            }
+            if (!cartasVisibles.length) return;
+
             const filaMesa = document.createElement('div');
             filaMesa.className = 'mesa-fila';
-            const esMovil = window.innerWidth < 768;
-            const inicio = estado.juego.inicioRonda || 0;
 
             // Agrupar cartas por ronda (de a 2: una mía + una del rival)
             const rondas = [];
-            for (let i = inicio; i < estado.juego.cartasEnMesa.length; i += 2) {
-                rondas.push(estado.juego.cartasEnMesa.slice(i, i + 2));
+            for (let i = 0; i < cartasVisibles.length; i += 2) {
+                rondas.push(cartasVisibles.slice(i, i + 2));
             }
 
             let idxGlobal = 0;
@@ -1187,17 +1197,14 @@
                     const esRival = item.origen === 'rival';
                     // Si ambas cartas están en la mesa, se superponen como en un juego real:
                     // cada carta queda del lado de quien la tiró y se acercan al enfrentar.
-                    const sep = ambos ? 14 : 32; // % de la altura de la carta
+                    // Todo centrado en la mesa, sin invadir botones ni textos.
+                    const sep = ambos ? 12 : 24; // % de la altura de la carta
                     const ty = esRival ? -sep : sep;
-                    const tx = (ri % 2 === 0 ? -1 : 1) * 10;
+                    const tx = (ri % 2 === 0 ? -1 : 1) * 8;
 
-                    if (esMovil) {
-                        cont.style.top = '95%';
-                        cont.style.left = '50%';
-                        cont.style.transform = `translate(-50%, 0%) translateX(${tx}px) translateY(${ty}%)`;
-                    } else {
-                        cont.style.transform = `translate(-50%, -42%) translateX(${tx}px) translateY(${ty}%)`;
-                    }
+                    cont.style.top = '50%';
+                    cont.style.left = '50%';
+                    cont.style.transform = `translate(-50%, -50%) translateX(${tx}px) translateY(${ty}%)`;
 
                     // Resaltar quién mata a quién
                     if (ganadorOrigen === item.origen) {
