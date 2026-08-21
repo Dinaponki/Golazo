@@ -11,6 +11,11 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-title" content="Golazo" />
     <link rel="manifest" href="/site.webmanifest" />
+
+    <!-- Google AdSense -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7274805595278083"
+        crossorigin="anonymous"></script>
+
     <style>
         :root { 
             --verde-fondo: #1a3c2a;
@@ -486,6 +491,20 @@
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             gap: 20px; padding: 20px;
             animation: fadeIn 0.5s ease;
+            overflow-y: auto;
+        }
+
+        /* Publicidad al final de la partida */
+        .ads-fin {
+            width: 100%;
+            max-width: 480px;
+            text-align: center;
+            overflow: hidden;
+        }
+
+        .ads-fin ins.adsbygoogle {
+            display: block;
+            width: 100%;
         }
         .overlay-fin.oculto { display: none; }
         .overlay-fin .resultado-titulo { font-size: clamp(36px, 8vw, 60px); font-weight: 900; letter-spacing: -0.02em; text-align: center; }
@@ -658,6 +677,20 @@
         <div class="botones-fin">
             <button class="btn-fin btn-revancha" id="btnRevancha">⚽ Jugar otra vez</button>
             <button class="btn-fin btn-inicio" id="btnInicio">🏠 Volver al inicio</button>
+        </div>
+
+        <!-- Publicidad (solo visible al finalizar la partida) -->
+        <div class="ads-fin">
+            <!-- Reemplazá el data-ad-slot por el ID de tu bloque de anuncios de AdSense -->
+            <ins class="adsbygoogle"
+                style="display:block"
+                data-ad-client="ca-pub-7274805595278083"
+                data-ad-slot="3344556677"
+                data-ad-format="auto"
+                data-full-width-responsive="true"></ins>
+            <script>
+                (adsbygoogle = window.adsbygoogle || []).push({});
+            </script>
         </div>
     </div>
 
