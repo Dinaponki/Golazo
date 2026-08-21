@@ -934,6 +934,32 @@
                 font-size: 88px;
             }
         }
+
+        /* ---------- Enlaces legales ---------- */
+        .enlaces-legales {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            font-size: 12px;
+            letter-spacing: 0.04em;
+            margin-top: -16px;
+        }
+
+        .enlaces-legales a {
+            color: rgba(255, 255, 255, 0.45);
+            text-decoration: none;
+            transition: var(--transicion);
+        }
+
+        .enlaces-legales a:hover {
+            color: var(--dorado);
+        }
+
+        .enlaces-legales span {
+            color: rgba(255, 255, 255, 0.25);
+        }
     </style>
 </head>
 <body>
@@ -1226,6 +1252,15 @@
     Instagram: @silvaa_ariel<br>
     arielsilvacontacto@gmail.com
 </p>
+
+        <!-- Enlaces legales -->
+        <div class="enlaces-legales">
+            <a href="privacidad.html">Política de Privacidad</a>
+            <span>·</span>
+            <a href="terminos.html">Términos y Condiciones</a>
+            <span>·</span>
+            <a href="cookies.html">Política de Cookies</a>
+        </div>
     </div>
 
     <div class="toast" id="toast"></div>
