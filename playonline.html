@@ -166,6 +166,17 @@
             opacity: 0.9;
         }
 
+        /* Enfrentamiento de cartas: quien gana brilla, quien pierde se atenúa */
+        .mesa-cartas .carta-contenedor.ganadora-ronda {
+            z-index: 20 !important;
+            filter: brightness(1.08) drop-shadow(0 0 10px rgba(200, 168, 78, 0.65));
+        }
+
+        .mesa-cartas .carta-contenedor.perdedora-ronda {
+            opacity: 0.75;
+            filter: saturate(0.7);
+        }
+
         .mesa-cartas .carta-img {
             width: var(--carta-mano);
             height: auto;
@@ -1140,21 +1151,65 @@
             const filaMesa = document.createElement('div');
             filaMesa.className = 'mesa-fila';
             const esMovil = window.innerWidth < 768;
-            estado.juego.cartasEnMesa.forEach((item, index) => {
-                const cont = document.createElement('div');
-                cont.className = 'carta-contenedor';
-                const img = document.createElement('img');
-                img.src = item.carta.imagen;
-                img.className = 'carta-img';
-                img.draggable = false;
-                cont.appendChild(img);
-                cont.style.zIndex = index + 1;
-                if (esMovil) {
-                    cont.style.transform = `translate(-50%, 0%) translateX(${(index % 2) * 12}px) translateY(${Math.floor(index / 2) * 8}px)`;
-                } else {
-                    cont.style.transform = `translate(-50%, -42%) translateX(${(index % 2) * 12}px) translateY(${Math.floor(index / 2) * 8}px)`;
+            const inicio = estado.juego.inicioRonda || 0;
+
+            // Agrupar cartas por ronda (de a 2: una mía + una del rival)
+            const rondas = [];
+            for (let i = inicio; i < estado.juego.cartasEnMesa.length; i += 2) {
+                rondas.push(estado.juego.cartasEnMesa.slice(i, i + 2));
+            }
+
+            let idxGlobal = 0;
+            rondas.forEach((ronda, ri) => {
+                const uj = ronda.find(c => c.origen === 'jugador');
+                const ur = ronda.find(c => c.origen === 'rival');
+                const ambos = uj && ur;
+                // Quién gana el enfrentamiento de esta ronda
+                let ganadorOrigen = null;
+                if (ambos) {
+                    if (uj.carta.numero > ur.carta.numero) ganadorOrigen = 'jugador';
+                    else if (ur.carta.numero > uj.carta.numero) ganadorOrigen = 'rival';
                 }
-                filaMesa.appendChild(cont);
+                const esRondaActual = ri === rondas.length - 1;
+
+                ronda.forEach((item) => {
+                    const cont = document.createElement('div');
+                    cont.className = 'carta-contenedor';
+                    const img = document.createElement('img');
+                    img.src = item.carta.imagen;
+                    img.className = 'carta-img';
+                    img.draggable = false;
+                    // Las cartas del rival se muestran giradas 180°
+                    if (item.origen === 'rival') img.style.transform = 'rotate(180deg)';
+                    cont.appendChild(img);
+                    cont.style.zIndex = ++idxGlobal;
+
+                    const esRival = item.origen === 'rival';
+                    // Si ambas cartas están en la mesa, se superponen como en un juego real:
+                    // cada carta queda del lado de quien la tiró y se acercan al enfrentar.
+                    const sep = ambos ? 14 : 32; // % de la altura de la carta
+                    const ty = esRival ? -sep : sep;
+                    const tx = (ri % 2 === 0 ? -1 : 1) * 10;
+
+                    if (esMovil) {
+                        cont.style.top = '95%';
+                        cont.style.left = '50%';
+                        cont.style.transform = `translate(-50%, 0%) translateX(${tx}px) translateY(${ty}%)`;
+                    } else {
+                        cont.style.transform = `translate(-50%, -42%) translateX(${tx}px) translateY(${ty}%)`;
+                    }
+
+                    // Resaltar quién mata a quién
+                    if (ganadorOrigen === item.origen) {
+                        cont.classList.add('ganadora-ronda');
+                    } else if (ganadorOrigen) {
+                        cont.classList.add('perdedora-ronda');
+                    }
+                    // Rondas anteriores se atenúan
+                    if (!esRondaActual) cont.style.opacity = '0.45';
+
+                    filaMesa.appendChild(cont);
+                });
             });
             dom.mesaCartas.appendChild(filaMesa);
         }
