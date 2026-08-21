@@ -1,0 +1,109 @@
+{
+  "rules": {
+    "usuarios": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "newData.hasChildren(['nickname'])",
+        "nickname": {
+          ".validate": "newData.isString() && newData.val().length >= 0 && newData.val().length <= 12"
+        },
+        "email": { ".validate": "newData.isString()" },
+        "fotoURL": { ".validate": "newData.isString()" },
+        "descripcion": { ".validate": "newData.isString() && newData.val().length <= 200" },
+        "redSocial": { ".validate": "newData.isString() && newData.val().length <= 200" },
+        "partidosJugados": { ".validate": "newData.isNumber()" },
+        "partidosGanados": { ".validate": "newData.isNumber()" },
+        "partidosEmpatados": { ".validate": "newData.isNumber()" },
+        "partidosPerdidos": { ".validate": "newData.isNumber()" },
+        "puntos": { ".validate": "newData.isNumber()" },
+        "efectividad": { ".validate": "newData.isNumber()" },
+        "rachaActual": { ".validate": "newData.isNumber()" },
+        "mejorRacha": { ".validate": "newData.isNumber()" },
+        "golesFavor": { ".validate": "newData.isNumber()" },
+        "golesContra": { ".validate": "newData.isNumber()" },
+        "enPartida": { ".validate": "newData.isBoolean()" },
+        "historialPartidos": {
+          "$partidoId": {
+            "fecha": { ".validate": "newData.isNumber()" },
+            "resultado": { ".validate": "newData.isString() && (newData.val() === 'ganar' || newData.val() === 'empate' || newData.val() === 'perder')" },
+            "golesFavor": { ".validate": "newData.isNumber()" },
+            "golesContra": { ".validate": "newData.isNumber()" }
+          }
+        },
+        "onlineStats": {
+          "partidosJugados": { ".validate": "newData.isNumber()" },
+          "partidosGanados": { ".validate": "newData.isNumber()" },
+          "partidosEmpatados": { ".validate": "newData.isNumber()" },
+          "partidosPerdidos": { ".validate": "newData.isNumber()" },
+          "puntos": { ".validate": "newData.isNumber()" },
+          "efectividad": { ".validate": "newData.isNumber()" },
+          "rachaActual": { ".validate": "newData.isNumber()" },
+          "mejorRacha": { ".validate": "newData.isNumber()" },
+          "golesFavor": { ".validate": "newData.isNumber()" },
+          "golesContra": { ".validate": "newData.isNumber()" },
+          "ultimaActualizacion": { ".validate": "newData.isNumber()" },
+          "historialPartidos": {
+            "$partidoId": {
+              "fecha": { ".validate": "newData.isNumber()" },
+              "resultado": { ".validate": "newData.isString() && (newData.val() === 'ganar' || newData.val() === 'empate' || newData.val() === 'perder')" },
+              "golesFavor": { ".validate": "newData.isNumber()" },
+              "golesContra": { ".validate": "newData.isNumber()" },
+              "online": { ".validate": "newData.isBoolean()" },
+              "abandono": { ".validate": "newData.isBoolean()" }
+            }
+          }
+        },
+        "ultimaActualizacion": { ".validate": "newData.isNumber()" },
+        "$other": { ".validate": false }
+      }
+    },
+    "partidas": {
+      ".read": "auth != null",
+      "$codigo": {
+        ".write": "auth != null",
+        "codigo": { ".validate": "newData.isString() && newData.val().length === 6" },
+        "creador": {
+          "uid": { ".validate": "newData.isString()" },
+          "nickname": { ".validate": "newData.isString() && newData.val().length <= 20" },
+          "fotoURL": { ".validate": "newData.isString()" },
+          "listo": { ".validate": "newData.isBoolean()" }
+        },
+        "unido": {
+          "uid": { ".validate": "newData.isString()" },
+          "nickname": { ".validate": "newData.isString() && newData.val().length <= 20" },
+          "fotoURL": { ".validate": "newData.isString()" },
+          "listo": { ".validate": "newData.isBoolean()" }
+        },
+        "estado": {
+          ".validate": "newData.isString() && (newData.val() === 'esperando' || newData.val() === 'jugando' || newData.val() === 'terminada')"
+        },
+        "rapida": { ".validate": "newData.isBoolean()" },
+        "creadoEn": { ".validate": "newData.isNumber()" },
+        "ultimaActividad": { ".validate": "newData.isNumber()" },
+        "resultado": {
+          "ganador": { ".validate": "newData.isString()" },
+          "golesJugador": { ".validate": "newData.isNumber()" },
+          "golesRival": { ".validate": "newData.isNumber()" },
+          "abandono": { ".validate": "newData.isBoolean()" }
+        },
+        "juego": {
+          ".write": "auth != null",
+          ".read": "auth != null"
+        },
+        "$other": { ".validate": true }
+      }
+    },
+    "cola_rapido": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$uid": {
+        "uid": { ".validate": "newData.isString()" },
+        "nickname": { ".validate": "newData.isString() && newData.val().length <= 20" },
+        "fotoURL": { ".validate": "newData.isString()" },
+        "partidaId": { ".validate": "newData.isString() && newData.val().length === 6" },
+        "creadoEn": { ".validate": "newData.isNumber()" }
+      }
+    }
+  }
+}
