@@ -1146,6 +1146,7 @@
 
         function renderizarMesa() {
             dom.mesaCartas.innerHTML = '';
+            const esMovil = window.innerWidth < 768;
 
             // Durante un canto (penal/gol/golazo) solo se muestran las cartas del canto,
             // para que se vean bien y no se mezclen con las de rondas anteriores.
