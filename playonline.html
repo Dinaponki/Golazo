@@ -2570,6 +2570,10 @@
 
         // ============ FIN DE PARTIDA ============
         function mostrarFinPartido(resultado) {
+            // Evitar doble ejecución: esta función puede ser llamada tanto
+            // directamente desde finalizarMano() como desde el listener de
+            // Firebase (partida.estado === 'terminada'). Solo procesar una vez.
+            if (estado.fase === 'fin') return;
             estado.fase = 'fin';
             estado.enPartida = false;
             dom.overlayFin.classList.remove('oculto');
@@ -2629,10 +2633,11 @@
                             ultimaActividad: Date.now()
                         });
                         // Guardar estadísticas del ranking online si fue una partida rápida
+                        // (se espera el guardado antes de redirigir para no cancelar la escritura)
                         if (estado.esPartidaRapida || partida.rapida === true) {
                             const gJ = estado.miLado === 'jugador' ? (partida.juego ? partida.juego.golesJugador : 0) : (partida.juego ? partida.juego.golesRival : 0);
                             const gR = estado.miLado === 'jugador' ? (partida.juego ? partida.juego.golesRival : 0) : (partida.juego ? partida.juego.golesJugador : 0);
-                            guardarResultadoPartidoOnline({ ganador, abandono: true }, gJ, gR);
+                            await guardarResultadoPartidoOnline({ ganador, abandono: true }, gJ, gR);
                         }
                     }
                 } catch (error) { console.error('Error abandonando partida:', error); }
