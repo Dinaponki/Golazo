@@ -2963,6 +2963,7 @@
                 estado.penalUsado = true;
                 estado.penalCantadoPor = 'jugador';
                 renderizarTodo();
+                mostrarMensaje(`🥅 PENAL de ${estado.nombreJugador}`);
                 setTimeout(() => procesarRespuestaCpu(iaResponderCanto('penal')), 800 + Math.random() * 600);
             }
 
@@ -2976,6 +2977,7 @@
                 estado.penalCantadoPor = 'cpu';
                 renderizarTodo();
                 reproducirSonidoCpu('penal');
+                mostrarMensaje('🥅 PENAL de CPU');
             }
 
             function jugadorPideGol() {
@@ -2986,6 +2988,7 @@
                 estado.esperandoRespuestaDe = 'cpu';
                 estado.golUsado = true;
                 renderizarTodo();
+                mostrarMensaje(`⚽ ¡GOL! de ${estado.nombreJugador}`);
                 setTimeout(() => procesarRespuestaCpu(iaResponderCanto('gol')), 800 + Math.random() * 600);
             }
 
@@ -2998,6 +3001,7 @@
                 estado.golUsado = true;
                 renderizarTodo();
                 reproducirSonidoCpu('gol');
+                mostrarMensaje('⚽ ¡GOL! de CPU');
             }
 
             // --- Respuestas ---
@@ -3023,10 +3027,11 @@
                     if (resp === 'no_quiero') {
                         // Atacante rechaza VAR → defensor (quien pidió VAR) +1 punto
                         sumarPuntos(estado.varPedidoPor, 1);
-                        mostrarMensaje('No quiero el VAR');
+                        mostrarMensaje(`${estado.nombreJugador}: No quiero el VAR`);
                         finalizarCanto();
                     } else {
                         // Atacante acepta VAR
+                        mostrarMensaje(`${estado.nombreJugador}: ¡Quiero el VAR!`);
                         iniciarVar();
                     }
                     return;
@@ -3037,7 +3042,7 @@
                     const quienCanto = cantoPedidoPor === 'cpu' ? 'cpu' : 'jugador';
                     const puntos = cantoActual === 'golazo' ? 2 : 1;
                     const golPorPuntos = sumarPuntos(quienCanto, puntos);
-                    mostrarMensaje('No quiso');
+                    mostrarMensaje(`${estado.nombreJugador}: ✗ No quiso`);
                     if (golPorPuntos) {
                         setTimeout(finalizarMano, 2200);
                     } else {
@@ -3049,6 +3054,7 @@
                     estado.varPedidoPor = 'jugador';
                     estado.esperandoRespuestaDe = 'cpu';
                     renderizarTodo();
+                    mostrarMensaje(`📺 ${estado.nombreJugador} pide VAR`);
                     setTimeout(() => procesarRespuestaCpu(iaDecidirVar()), 800);
                 } else if (resp === 'golazo') {
                     estado.fase = 'golazo_pedido';
@@ -3057,8 +3063,10 @@
                     estado.esperandoRespuestaDe = 'cpu';
                     estado.golazoUsado = true;
                     renderizarTodo();
+                    mostrarMensaje(`💥 ${estado.nombreJugador} canta GOLAZO`);
                     setTimeout(() => procesarRespuestaCpu(iaResponderCanto('golazo')), 800);
                 } else if (resp === 'quiero') {
+                    mostrarMensaje(`${estado.nombreJugador}: ✓ ¡Quiero!`);
                     ejecutarCanto(cantoActual, cantoPedidoPor);
                 }
             }
@@ -3069,10 +3077,11 @@
                     if (resp === 'no_quiero') {
                         // Atacante rechaza VAR → defensor (quien pidió VAR) +1 punto
                         sumarPuntos(estado.varPedidoPor, 1);
-                        mostrarMensaje('CPU: No quiero el VAR');
+                        mostrarMensaje('CPU: ✗ No quiero el VAR');
                         finalizarCanto();
                     } else {
                         // Atacante acepta VAR
+                        mostrarMensaje('CPU: ✓ ¡Quiero el VAR!');
                         iniciarVar();
                     }
                     return;
@@ -3092,6 +3101,7 @@
                     }
                 } else if (resp === 'quiero') {
                     reproducirSonidoQuiero();
+                    mostrarMensaje('CPU: ✓ ¡Quiero!');
                     ejecutarCanto(cantoActual, cantoPedidoPor);
                 } else if (resp === 'var') {
                     // CPU pide VAR → jugador (atacante) decide aceptar/rechazar
@@ -3099,6 +3109,7 @@
                     estado.varPedidoPor = 'cpu';
                     estado.esperandoRespuestaDe = 'jugador';
                     renderizarTodo();
+                    mostrarMensaje('📺 CPU pide VAR');
                     setTimeout(() => reproducirSonidoCpu('var'), 300);
                 } else if (resp === 'golazo') {
                     estado.fase = 'golazo_pedido';
@@ -3108,6 +3119,7 @@
                     estado.golazoUsado = true;
                     renderizarTodo();
                     reproducirSonidoCpu('golazo');
+                    mostrarMensaje('💥 CPU canta GOLAZO');
                 }
             }
 
@@ -3239,7 +3251,7 @@
                         estado.cartaSeleccionada = null;
                         renderizarTodo();
                     }
-                    mostrarMensaje('🥅 ¡PENAL!');
+                    mostrarMensaje(`🥅 ¡PENAL de ${pedidoPor === 'jugador' ? estado.nombreJugador : 'CPU'}!`);
                     return;
                 }
 
@@ -3259,7 +3271,8 @@
                     estado.cartaSeleccionada = null;
                     renderizarTodo();
                 }
-                mostrarMensaje((tipo === 'golazo' ? '💥' : '⚽') + ' ¡' + (tipo === 'golazo' ? 'Golazo' : 'Gol') + '!');
+                const nombreAtacante = pedidoPor === 'jugador' ? estado.nombreJugador : 'CPU';
+                mostrarMensaje((tipo === 'golazo' ? '💥' : '⚽') + ' ¡' + (tipo === 'golazo' ? 'GOLAZO' : 'GOL') + ` de ${nombreAtacante}!`);
             }
 
             function finalizarCanto() {

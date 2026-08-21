@@ -1716,14 +1716,20 @@
                         // Sonido de penal del rival
                         if (!jAnterior.penalCantadoPor && j.penalCantadoPor) {
                             const quienPenal = aRelativo(j.penalCantadoPor);
-                            if (quienPenal === 'rival') reproducirSonido('penal');
+                            if (quienPenal === 'rival') {
+                                reproducirSonido('penal');
+                                mostrarMensaje(`🥅 PENAL de ${estado.rivalNombre}`);
+                            }
                         }
                         // Sonido de gol del rival
                         if (!jAnterior.golUsado && j.golUsado) {
                             // Quien pidió gol es cantoPedidoPor
                             if (j.cantoPedidoPor) {
                                 const quienGol = aRelativo(j.cantoPedidoPor);
-                                if (quienGol === 'rival') reproducirSonido('gol');
+                                if (quienGol === 'rival') {
+                                    reproducirSonido('gol');
+                                    mostrarMensaje(`⚽ ¡GOL! de ${estado.rivalNombre}`);
+                                }
                             }
                         }
                         // Sonido de golazo del rival
@@ -1744,7 +1750,23 @@
                         // Sonido de VAR del rival
                         if (!jAnterior.varPedidoPor && j.varPedidoPor) {
                             const quienVar = aRelativo(j.varPedidoPor);
-                            if (quienVar === 'rival') reproducirSonido('var');
+                            if (quienVar === 'rival') {
+                                reproducirSonido('var');
+                                mostrarMensaje(`📺 ${estado.rivalNombre} pide VAR`);
+                            }
+                        }
+                        // ============ MENSAJES DE RESPUESTAS DEL RIVAL ============
+                        // Detectar qué respondió el rival a un canto (quiero / no quiero / VAR / golazo)
+                        if (jAnterior.esperandoRespuestaDe === 'rival' && j.esperandoRespuestaDe !== 'rival') {
+                            if (!jAnterior.golazoUsado && j.golazoUsado) {
+                                mostrarMensaje(`💥 ${estado.rivalNombre} canta GOLAZO`);
+                            } else if (!jAnterior.varPedidoPor && j.varPedidoPor) {
+                                // Ya se muestra el mensaje de "pide VAR" arriba
+                            } else if (j.penalActivo || j.golActivo || j.cantoPendiente) {
+                                mostrarMensaje(`${estado.rivalNombre}: ✓ ¡Quiero!`);
+                            } else {
+                                mostrarMensaje(`${estado.rivalNombre}: ✗ No quiso`);
+                            }
                         }
                         // Sonido de gol del rival (cuando se marca un gol)
                         if (jAnterior.golesJugador !== undefined && j.golesJugador !== undefined) {
@@ -2203,6 +2225,7 @@
             sincronizarJuego();
             renderizarTodo();
             reproducirSonido('penal');
+            mostrarMensaje(`🥅 PENAL de ${estado.nickname || 'Jugador'}`);
         }
 
         function jugadorPideGol() {
@@ -2221,6 +2244,7 @@
             sincronizarJuego();
             renderizarTodo();
             reproducirSonido('gol');
+            mostrarMensaje(`⚽ ¡GOL! de ${estado.nickname || 'Jugador'}`);
         }
 
         function jugadorRespondeQuiero() {
@@ -2246,23 +2270,24 @@
         }
 
         function procesarRespuestaJugador(resp) {
-            if (estado.juego.fase === 'var_decision') {
-                if (resp === 'no_quiero') {
-                    sumarPuntos(estado.juego.varPedidoPor, 1);
-                    mostrarMensaje('No quiero el VAR');
-                    finalizarCanto();
-                } else {
-                    iniciarVar();
+                if (estado.juego.fase === 'var_decision') {
+                    if (resp === 'no_quiero') {
+                        sumarPuntos(estado.juego.varPedidoPor, 1);
+                        mostrarMensaje(`${estado.nickname || 'Jugador'}: ✗ No quiero el VAR`);
+                        finalizarCanto();
+                    } else {
+                        mostrarMensaje(`${estado.nickname || 'Jugador'}: ✓ ¡Quiero el VAR!`);
+                        iniciarVar();
+                    }
+                    return;
                 }
-                return;
-            }
 
             const { cantoActual, cantoPedidoPor } = estado.juego;
             if (resp === 'no_quiero') {
                 const quienCanto = cantoPedidoPor;
                 const puntos = cantoActual === 'golazo' ? 2 : 1;
                 const golPorPuntos = sumarPuntos(quienCanto, puntos);
-                mostrarMensaje('No quiso');
+                mostrarMensaje(`${estado.nickname || 'Jugador'}: ✗ No quiso`);
                 if (golPorPuntos) setTimeout(finalizarMano, 2200);
                 else finalizarCanto();
             } else if (resp === 'var') {
@@ -2271,6 +2296,7 @@
                 estado.juego.esperandoRespuestaDe = 'rival';
                 sincronizarJuego();
                 renderizarTodo();
+                mostrarMensaje(`📺 ${estado.nickname || 'Jugador'} pide VAR`);
             } else if (resp === 'golazo') {
                 estado.juego.fase = 'golazo_pedido';
                 estado.juego.cantoActual = 'golazo';
@@ -2279,7 +2305,9 @@
                 estado.juego.golazoUsado = true;
                 sincronizarJuego();
                 renderizarTodo();
+                mostrarMensaje(`💥 ${estado.nickname || 'Jugador'} canta GOLAZO`);
             } else if (resp === 'quiero') {
+                mostrarMensaje(`${estado.nickname || 'Jugador'}: ✓ ¡Quiero!`);
                 ejecutarCanto(cantoActual, cantoPedidoPor);
             }
         }
@@ -2327,7 +2355,7 @@
                 }
                 sincronizarJuego();
                 renderizarTodo();
-                mostrarMensaje('🥅 ¡PENAL!');
+                mostrarMensaje(`🥅 ¡PENAL de ${pedidoPor === 'jugador' ? (estado.nickname || 'Jugador') : estado.rivalNombre}!`);
                 return;
             }
             estado.juego.golActivo = true;
@@ -2343,7 +2371,8 @@
             }
             sincronizarJuego();
             renderizarTodo();
-            mostrarMensaje((tipo === 'golazo' ? '💥' : '⚽') + ' ¡' + (tipo === 'golazo' ? 'Golazo' : 'Gol') + '!');
+            const nombreAtacante = pedidoPor === 'jugador' ? (estado.nickname || 'Jugador') : estado.rivalNombre;
+            mostrarMensaje((tipo === 'golazo' ? '💥' : '⚽') + ' ¡' + (tipo === 'golazo' ? 'GOLAZO' : 'GOL') + ` de ${nombreAtacante}!`);
         }
 
         function finalizarCanto() {
