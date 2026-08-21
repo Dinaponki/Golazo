@@ -1200,11 +1200,11 @@
                     // cada carta queda del lado de quien la tiró y se acercan al enfrentar.
                     // En móvil se baja un poco el grupo para que no tape el
                     // texto "Turno de ..." ni los botones; en PC queda centrado.
-                    const sep = ambos ? (esMovil ? 8 : 12) : (esMovil ? 12 : 24);
+                    const sep = ambos ? (esMovil ? 7 : 12) : (esMovil ? 10 : 24);
                     const ty = esRival ? -sep : sep;
                     const tx = (ri % 2 === 0 ? -1 : 1) * 8;
 
-                    cont.style.top = esMovil ? '70%' : '50%';
+                    cont.style.top = esMovil ? '82%' : '50%';
                     cont.style.left = '50%';
                     cont.style.transform = `translate(-50%, -50%) translateX(${tx}px) translateY(${ty}%)`;
 
