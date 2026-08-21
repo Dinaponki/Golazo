@@ -628,6 +628,73 @@
             white-space: nowrap;
         }
 
+        /* ---------- Logros en perfil ---------- */
+        .perfil-logros-titulo {
+            font-size: 13px;
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--dorado);
+            text-align: center;
+            margin-top: 4px;
+        }
+
+        .perfil-logros {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+            width: 100%;
+            max-height: 220px;
+            overflow-y: auto;
+            padding: 2px;
+        }
+
+        .logro-item {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            padding: 8px 4px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            min-width: 0;
+        }
+
+        .logro-item .logro-icono {
+            font-size: 20px;
+            line-height: 1;
+        }
+
+        .logro-item .logro-nombre {
+            font-size: 9px;
+            font-weight: 700;
+            color: var(--blanco);
+            line-height: 1.2;
+        }
+
+        .logro-item .logro-desc {
+            font-size: 8px;
+            color: rgba(255, 255, 255, 0.45);
+            line-height: 1.2;
+        }
+
+        .logro-item.desbloqueado {
+            border-color: rgba(200, 168, 78, 0.5);
+            background: rgba(200, 168, 78, 0.1);
+        }
+
+        .logro-item.desbloqueado .logro-nombre {
+            color: var(--dorado);
+        }
+
+        .logro-item.bloqueado {
+            opacity: 0.45;
+            filter: grayscale(1);
+        }
+
         /* ---------- Ranking ---------- */
         .ranking-seccion {
             width: 100%;
@@ -1413,6 +1480,8 @@
                     <span class="etiqueta">DIF</span>
                 </div>
             </div>
+            <div class="perfil-logros-titulo">🏅 Logros (<span id="perfilLogrosCount">0</span>)</div>
+            <div class="perfil-logros" id="perfilLogros"></div>
         </div>
     </div>
 
@@ -1808,6 +1877,8 @@
                     }
                     // Detectar si el jugador abandonó una partida sin terminar
                     await verificarAbandono(user.uid);
+                    // Actualizar racha de días consecutivos de login (para logros)
+                    await actualizarRachaLogin(user.uid);
                     // Actualizar panel de estadísticas con los filtros propios del panel
                     marcarBotonesPanel();
                     actualizarEstadisticasUsuario(ultimaListaRanking, panelFiltro, panelTipo);
@@ -1893,6 +1964,81 @@
             }
         });
 
+        // ================= LOGROS =================
+        // Catálogo de logros. Para agregar logros nuevos, simplemente
+        // agregá un objeto más a esta lista: { id, icono, nombre, desc, check }
+        // donde check(stats) devuelve true si el jugador lo cumple.
+        const LOGROS = [
+            { id: 'v1', icono: '🥇', nombre: 'Primera victoria', desc: 'Ganá tu primer partido', check: s => s.pg >= 1 },
+            { id: 'v10', icono: '🏅', nombre: 'Diez de oro', desc: 'Ganá 10 partidos', check: s => s.pg >= 10 },
+            { id: 'v50', icono: '🎖️', nombre: 'Cincuentón', desc: 'Ganá 50 partidos', check: s => s.pg >= 50 },
+            { id: 'v100', icono: '🏆', nombre: 'Centenario', desc: 'Ganá 100 partidos', check: s => s.pg >= 100 },
+            { id: 'v500', icono: '👑', nombre: 'Leyenda', desc: 'Ganá 500 partidos', check: s => s.pg >= 500 },
+            { id: 'r5', icono: '🔥', nombre: 'En racha', desc: 'Ganá 5 partidos seguidos', check: s => s.mejorRacha >= 5 },
+            { id: 'r10', icono: '⚡', nombre: 'Imparable', desc: 'Ganá 10 partidos seguidos', check: s => s.mejorRacha >= 10 },
+            { id: 'r20', icono: '🌋', nombre: 'Volcán', desc: 'Ganá 20 partidos seguidos', check: s => s.mejorRacha >= 20 },
+            { id: 'g10', icono: '⚽', nombre: 'Goleador', desc: 'Anotá 10 goles', check: s => s.gf >= 10 },
+            { id: 'g100', icono: '🎯', nombre: 'Artillero', desc: 'Anotá 100 goles', check: s => s.gf >= 100 },
+            { id: 'g500', icono: '💥', nombre: 'Máquina de goles', desc: 'Anotá 500 goles', check: s => s.gf >= 500 },
+            { id: 'g1000', icono: '🚀', nombre: 'Mil goles', desc: 'Anotá 1000 goles', check: s => s.gf >= 1000 },
+            { id: 'p10', icono: '🎮', nombre: 'Debutante', desc: 'Jugá 10 partidos', check: s => s.pj >= 10 },
+            { id: 'p50', icono: '💪', nombre: 'Veterano', desc: 'Jugá 50 partidos', check: s => s.pj >= 50 },
+            { id: 'p200', icono: '🧠', nombre: 'Crack', desc: 'Jugá 200 partidos', check: s => s.pj >= 200 },
+            { id: 'e10', icono: '🤝', nombre: 'Empatador', desc: 'Empatá 10 partidos', check: s => s.pe >= 10 },
+            { id: 'd3', icono: '📅', nombre: 'Constancia', desc: 'Entrá 3 días consecutivos', check: s => s.diasConsecutivos >= 3 },
+            { id: 'd7', icono: '🗓️', nombre: 'Semana perfecta', desc: 'Entrá 7 días consecutivos', check: s => s.diasConsecutivos >= 7 },
+            { id: 'd30', icono: '🌟', nombre: 'Hincha fiel', desc: 'Entrá 30 días consecutivos', check: s => s.diasConsecutivos >= 30 },
+            { id: 'ef60', icono: '📈', nombre: 'Efectivo', desc: '60% de efectividad (20+ PJ)', check: s => s.pj >= 20 && s.efectividad >= 60 },
+            { id: 'ef75', icono: '🎖️', nombre: 'Élite', desc: '75% de efectividad (50+ PJ)', check: s => s.pj >= 50 && s.efectividad >= 75 },
+            { id: 'on10', icono: '🌐', nombre: 'Online', desc: 'Jugá 10 partidos online', check: s => s.pjOnline >= 10 },
+            { id: 'cpu10', icono: '🤖', nombre: 'Contra la máquina', desc: 'Jugá 10 partidos vs CPU', check: s => s.pjCpu >= 10 },
+        ];
+
+        // Combina estadísticas vs CPU + online de un jugador
+        function calcularStatsTotales(jugador) {
+            const cpu = jugador || {};
+            const on = (jugador && jugador.onlineStats) || {};
+            const pj = (cpu.partidosJugados || 0) + (on.partidosJugados || 0);
+            const pg = (cpu.partidosGanados || 0) + (on.partidosGanados || 0);
+            const pe = (cpu.partidosEmpatados || 0) + (on.partidosEmpatados || 0);
+            const pp = (cpu.partidosPerdidos || 0) + (on.partidosPerdidos || 0);
+            const gf = (cpu.golesFavor || 0) + (on.golesFavor || 0);
+            const gc = (cpu.golesContra || 0) + (on.golesContra || 0);
+            return {
+                pj, pg, pe, pp, gf, gc,
+                mejorRacha: Math.max(cpu.mejorRacha || 0, on.mejorRacha || 0),
+                rachaActual: Math.max(cpu.rachaActual || 0, on.rachaActual || 0),
+                efectividad: pj > 0 ? Math.round((pg / pj) * 1000) / 10 : 0,
+                pjCpu: cpu.partidosJugados || 0,
+                pjOnline: on.partidosJugados || 0,
+                diasConsecutivos: (jugador && jugador.loginStreak) || 0
+            };
+        }
+
+        // Actualiza la racha de días consecutivos de login
+        async function actualizarRachaLogin(uid) {
+            try {
+                const userRef = ref(db, 'usuarios/' + uid);
+                const snap = await get(userRef);
+                if (!snap.exists()) return;
+                const datos = snap.val();
+                const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+                const ultimo = datos.ultimoLogin ? new Date(datos.ultimoLogin) : null;
+                if (ultimo) ultimo.setHours(0, 0, 0, 0);
+                let streak = datos.loginStreak || 0;
+                if (!ultimo) {
+                    streak = 1;
+                } else {
+                    const diff = Math.round((hoy - ultimo) / 86400000);
+                    if (diff === 0) return; // ya se contó hoy
+                    streak = diff === 1 ? streak + 1 : 1;
+                }
+                await update(userRef, { loginStreak: streak, ultimoLogin: Date.now() });
+            } catch (error) {
+                console.error('Error actualizando racha de login:', error);
+            }
+        }
+
         // ================= PERFIL DE JUGADOR (desde ranking) =================
         function mostrarPerfilJugador(uid, filtro, tipo) {
             const jugador = ultimaListaRanking.find(j => j.uid === uid);
@@ -1927,6 +2073,30 @@
 
             perfilNick.textContent = jugador.nickname || 'Jugador';
             perfilPosicion.textContent = 'Posición #' + posicion + ' del ranking';
+
+            // Renderizar logros del jugador
+            const statsLogros = calcularStatsTotales(jugador);
+            const logrosObtenidos = LOGROS.filter(l => l.check(statsLogros));
+            const esMiPerfil = usuarioActual && uid === usuarioActual.uid;
+            const contLogros = document.getElementById('perfilLogros');
+            const countLogros = document.getElementById('perfilLogrosCount');
+            if (contLogros && countLogros) {
+                countLogros.textContent = logrosObtenidos.length + '/' + LOGROS.length;
+                contLogros.innerHTML = '';
+                // En el propio perfil se muestran también los logros bloqueados;
+                // en perfiles ajenos solo los desbloqueados.
+                const lista = esMiPerfil ? LOGROS : logrosObtenidos;
+                lista.forEach(l => {
+                    const desbloqueado = logrosObtenidos.some(o => o.id === l.id);
+                    const div = document.createElement('div');
+                    div.className = 'logro-item ' + (desbloqueado ? 'desbloqueado' : 'bloqueado');
+                    div.innerHTML =
+                        '<span class="logro-icono">' + (desbloqueado ? l.icono : '🔒') + '</span>' +
+                        '<span class="logro-nombre">' + escaparHTML(l.nombre) + '</span>' +
+                        '<span class="logro-desc">' + escaparHTML(desbloqueado ? l.desc : '???') + '</span>';
+                    contLogros.appendChild(div);
+                });
+            }
             perfilPuntos.textContent = stats.puntos;
             perfilPJ.textContent = stats.pj;
             perfilPG.textContent = stats.pg;

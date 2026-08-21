@@ -1387,6 +1387,84 @@
         }
 
         window.GolazoFirebase.guardarResultadoPartido = guardarResultadoPartido;
+
+        // ================= LOGROS =================
+        // Catálogo de logros (debe coincidir con index.html)
+        const LOGROS = [
+            { id: 'v1', icono: '🥇', nombre: 'Primera victoria', check: s => s.pg >= 1 },
+            { id: 'v10', icono: '🏅', nombre: 'Diez de oro', check: s => s.pg >= 10 },
+            { id: 'v50', icono: '🎖️', nombre: 'Cincuentón', check: s => s.pg >= 50 },
+            { id: 'v100', icono: '🏆', nombre: 'Centenario', check: s => s.pg >= 100 },
+            { id: 'v500', icono: '👑', nombre: 'Leyenda', check: s => s.pg >= 500 },
+            { id: 'r5', icono: '🔥', nombre: 'En racha', check: s => s.mejorRacha >= 5 },
+            { id: 'r10', icono: '⚡', nombre: 'Imparable', check: s => s.mejorRacha >= 10 },
+            { id: 'r20', icono: '🌋', nombre: 'Volcán', check: s => s.mejorRacha >= 20 },
+            { id: 'g10', icono: '⚽', nombre: 'Goleador', check: s => s.gf >= 10 },
+            { id: 'g100', icono: '🎯', nombre: 'Artillero', check: s => s.gf >= 100 },
+            { id: 'g500', icono: '💥', nombre: 'Máquina de goles', check: s => s.gf >= 500 },
+            { id: 'g1000', icono: '🚀', nombre: 'Mil goles', check: s => s.gf >= 1000 },
+            { id: 'p10', icono: '🎮', nombre: 'Debutante', check: s => s.pj >= 10 },
+            { id: 'p50', icono: '💪', nombre: 'Veterano', check: s => s.pj >= 50 },
+            { id: 'p200', icono: '🧠', nombre: 'Crack', check: s => s.pj >= 200 },
+            { id: 'e10', icono: '🤝', nombre: 'Empatador', check: s => s.pe >= 10 },
+            { id: 'd3', icono: '📅', nombre: 'Constancia', check: s => s.diasConsecutivos >= 3 },
+            { id: 'd7', icono: '🗓️', nombre: 'Semana perfecta', check: s => s.diasConsecutivos >= 7 },
+            { id: 'd30', icono: '🌟', nombre: 'Hincha fiel', check: s => s.diasConsecutivos >= 30 },
+            { id: 'ef60', icono: '📈', nombre: 'Efectivo', check: s => s.pj >= 20 && s.efectividad >= 60 },
+            { id: 'ef75', icono: '🎖️', nombre: 'Élite', check: s => s.pj >= 50 && s.efectividad >= 75 },
+            { id: 'on10', icono: '🌐', nombre: 'Online', check: s => s.pjOnline >= 10 },
+            { id: 'cpu10', icono: '🤖', nombre: 'Contra la máquina', check: s => s.pjCpu >= 10 },
+        ];
+
+        function calcularStatsTotalesLogros(datos) {
+            const cpu = datos || {};
+            const on = (datos && datos.onlineStats) || {};
+            const pj = (cpu.partidosJugados || 0) + (on.partidosJugados || 0);
+            const pg = (cpu.partidosGanados || 0) + (on.partidosGanados || 0);
+            const pe = (cpu.partidosEmpatados || 0) + (on.partidosEmpatados || 0);
+            return {
+                pj, pg, pe,
+                gf: (cpu.golesFavor || 0) + (on.golesFavor || 0),
+                mejorRacha: Math.max(cpu.mejorRacha || 0, on.mejorRacha || 0),
+                efectividad: pj > 0 ? Math.round((pg / pj) * 1000) / 10 : 0,
+                pjCpu: cpu.partidosJugados || 0,
+                pjOnline: on.partidosJugados || 0,
+                diasConsecutivos: (datos && datos.loginStreak) || 0
+            };
+        }
+
+        // Verifica y desbloquea logros nuevos tras terminar una partida
+        async function verificarLogros() {
+            const user = window.GolazoFirebase.usuario;
+            if (!user) return;
+            try {
+                const userRef = ref(db, 'usuarios/' + user.uid);
+                const snap = await get(userRef);
+                if (!snap.exists()) return;
+                const datos = snap.val();
+                const stats = calcularStatsTotalesLogros(datos);
+                const logrosActuales = datos.logros || {};
+                const nuevos = [];
+                for (const l of LOGROS) {
+                    if (!logrosActuales[l.id] && l.check(stats)) {
+                        nuevos.push(l);
+                        logrosActuales[l.id] = Date.now();
+                    }
+                }
+                if (nuevos.length) {
+                    await update(userRef, { logros: logrosActuales });
+                    const msg = document.getElementById('mensajeFlotante');
+                    if (msg) {
+                        msg.textContent = '🏅 ¡Nuevo logro: ' + nuevos[0].icono + ' ' + nuevos[0].nombre + '!' +
+                            (nuevos.length > 1 ? ' (+' + (nuevos.length - 1) + ' más)' : '');
+                        msg.classList.add('mostrar');
+                        setTimeout(() => msg.classList.remove('mostrar'), 3000);
+                    }
+                }
+            } catch (e) {
+                console.error('Error verificando logros:', e);
+            }
+        }
     </script>
 
     <script>
@@ -3566,6 +3644,8 @@
                 if (window.GolazoFirebase && window.GolazoFirebase.guardarResultadoPartido) {
                     window.GolazoFirebase.guardarResultadoPartido(resultado, estado.golesJugador, estado.golesCpu);
                 }
+                // Verificar y desbloquear logros nuevos
+                verificarLogros();
             }
 
             let timeoutMensaje;
