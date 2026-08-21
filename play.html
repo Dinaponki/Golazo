@@ -813,6 +813,16 @@
             border-color: var(--blanco);
         }
 
+        .btn-compartir {
+            background: #2980b9;
+            color: #fff;
+        }
+
+        .btn-compartir:hover {
+            background: #3498db;
+            box-shadow: 0 4px 20px rgba(41, 128, 185, 0.4);
+        }
+
         /* Panel VAR */
         .var-panel {
             background: rgba(0, 0, 0, 0.85);
@@ -1126,6 +1136,7 @@
         <div class="resultado-marcador" id="resultadoMarcador"></div>
         <div class="botones-fin">
             <button class="btn-fin btn-revancha" id="btnRevancha">⚽ Jugar otra vez</button>
+            <button class="btn-fin btn-compartir" id="btnCompartir">📤 Compartir resultado</button>
             <button class="btn-fin btn-inicio" id="btnInicio">🏠 Volver al inicio</button>
         </div>
 
@@ -1463,6 +1474,7 @@
                 dom.resultadoTitulo = document.getElementById('resultadoTitulo');
                 dom.resultadoMarcador = document.getElementById('resultadoMarcador');
                 dom.btnRevancha = document.getElementById('btnRevancha');
+                dom.btnCompartir = document.getElementById('btnCompartir');
                 dom.btnInicio = document.getElementById('btnInicio');
                 dom.mensajeFlotante = document.getElementById('mensajeFlotante');
                 dom.varPanel = document.getElementById('varPanel');
@@ -3878,6 +3890,26 @@ window.addEventListener('beforeunload', (e) => {
                 });
                 dom.btnVolverMarcador.addEventListener('click', ocultarMarcadorDetallado);
                 dom.btnRevancha.addEventListener('click', reiniciarPartido);
+
+                // ---------- Compartir resultado (link de referidos) ----------
+                dom.btnCompartir.addEventListener('click', async () => {
+                    const titulo = dom.resultadoTitulo.textContent || '';
+                    const marcador = dom.resultadoMarcador.textContent || '';
+                    const base = location.origin + location.pathname.replace(/[^/]*$/, '');
+                    const link = base + 'index.html?ref=' + encodeURIComponent(estado.nombreJugador || 'Jugador');
+                    const texto = `⚽ ${titulo} | ${marcador}\n🎮 Jugá GOLAZO - El Truco del Fútbol:\n${link}`;
+                    try {
+                        if (navigator.share) {
+                            await navigator.share({ title: 'GOLAZO', text: texto });
+                        } else {
+                            await navigator.clipboard.writeText(texto);
+                            mostrarMensaje('📋 Resultado copiado. ¡Pegalo donde quieras!');
+                        }
+                    } catch (e) {
+                        // El usuario canceló el compartir o falló el portapapeles
+                        console.log('Compartir cancelado:', e);
+                    }
+                });
                 dom.btnInicio.addEventListener('click', () => {
                     detenerAudioFondo();
                     if (partidoEnCurso()) {

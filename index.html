@@ -1503,6 +1503,24 @@
             timeoutToast = setTimeout(() => toast.classList.remove('mostrar'), 3000);
         }
 
+        // ================= DETECCIÓN DE REFERIDO =================
+        // Si se llegó desde un link de referidos (?ref=nickname), guardar
+        // quién invitó y mostrar un mensaje de bienvenida.
+        (function detectarReferido() {
+            try {
+                const params = new URLSearchParams(location.search);
+                const refNick = params.get('ref');
+                if (refNick && refNick.length > 0 && refNick.length <= 20) {
+                    localStorage.setItem('golazoReferido', refNick);
+                    // Limpiar el parámetro de la URL para no repetir el mensaje
+                    history.replaceState(null, '', location.pathname);
+                    setTimeout(() => {
+                        mostrarToast('👋 Te invitó ' + refNick + '. ¡Sumate a jugar GOLAZO!');
+                    }, 800);
+                }
+            } catch (e) { /* ignorar errores de URL */ }
+        })();
+
         async function iniciarSesionGoogle() {
             try {
                 btnGoogle.disabled = true;
