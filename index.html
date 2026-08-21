@@ -1164,6 +1164,8 @@
                     <span class="etiqueta">DIF</span>
                 </div>
             </div>
+            <div class="perfil-logros-titulo">🏅 Logros (<span id="miLogrosCount">0</span>)</div>
+            <div class="perfil-logros" id="miLogros"></div>
         </div>
 
         <a href="play.html" class="boton boton-jugar" id="btnJugar">⚽ JUGAR VS. CPU</a>
@@ -1822,6 +1824,29 @@
             miGF.textContent = gf;
             miGC.textContent = gc;
             miDIF.textContent = (dif > 0 ? '+' : '') + dif;
+
+            // Renderizar logros del usuario en el panel de rendimiento
+            const jugadorActual = lista.find(j => j.uid === usuarioActual.uid);
+            if (jugadorActual) {
+                const statsLogros = calcularStatsTotales(jugadorActual);
+                const logrosObtenidos = LOGROS.filter(l => l.check(statsLogros));
+                const contMiLogros = document.getElementById('miLogros');
+                const countMiLogros = document.getElementById('miLogrosCount');
+                if (contMiLogros && countMiLogros) {
+                    countMiLogros.textContent = logrosObtenidos.length + '/' + LOGROS.length;
+                    contMiLogros.innerHTML = '';
+                    LOGROS.forEach(l => {
+                        const desbloqueado = logrosObtenidos.some(o => o.id === l.id);
+                        const div = document.createElement('div');
+                        div.className = 'logro-item ' + (desbloqueado ? 'desbloqueado' : 'bloqueado');
+                        div.innerHTML =
+                            '<span class="logro-icono">' + (desbloqueado ? l.icono : '🔒') + '</span>' +
+                            '<span class="logro-nombre">' + escaparHTML(l.nombre) + '</span>' +
+                            '<span class="logro-desc">' + escaparHTML(desbloqueado ? l.desc : '???') + '</span>';
+                        contMiLogros.appendChild(div);
+                    });
+                }
+            }
 
             panelEstadisticas.classList.add('visible');
         }
