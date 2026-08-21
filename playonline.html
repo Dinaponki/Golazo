@@ -799,6 +799,7 @@
             partidaId: null, miLado: null, // 'jugador' o 'rival'
             rivalNombre: 'Rival',
             enPartida: false, fase: 'lobby',
+            esPartidaRapida: false,
             sonidosActivados: true, musicaActivada: true,
             juego: {
                 manoJugador: [], manoRival: [],
@@ -1367,6 +1368,7 @@
                 estado.partidaId = codigo;
                 estado.miLado = 'jugador';
                 estado.fase = 'esperando';
+                estado.esPartidaRapida = false;
                 dom.overlayLobby.classList.add('oculto');
                 dom.overlayEsperando.classList.remove('oculto');
                 dom.codigoPartida.textContent = codigo;
@@ -1455,6 +1457,7 @@
                         estado.partidaId = rivalEncontrado.partidaId;
                         estado.miLado = 'rival';
                         estado.fase = 'esperando';
+                        estado.esPartidaRapida = true;
                         dom.overlayLobby.classList.add('oculto');
                         dom.overlayEsperando.classList.add('oculto');
                         dom.nombreRivalEtiqueta.textContent = rivalEncontrado.nickname || 'Rival';
@@ -1477,7 +1480,7 @@
                 const partidaRef = ref(db, 'partidas/' + codigo);
                 await set(partidaRef, {
                     codigo, creador: { uid: estado.usuario.uid, nickname: estado.nickname || 'Jugador', fotoURL: estado.fotoURL || '', listo: true },
-                    unido: null, estado: 'esperando', creadoEn: Date.now(), ultimaActividad: Date.now()
+                    unido: null, estado: 'esperando', rapida: true, creadoEn: Date.now(), ultimaActividad: Date.now()
                 });
                 // Añadir a la cola de matchmaking
                 const colaEntry = ref(db, 'cola_rapido/' + estado.usuario.uid);
@@ -1492,6 +1495,7 @@
                 estado.partidaId = codigo;
                 estado.miLado = 'jugador';
                 estado.fase = 'esperando';
+                estado.esPartidaRapida = true;
                 dom.overlayLobby.classList.add('oculto');
                 dom.overlayEsperando.classList.remove('oculto');
                 dom.codigoPartida.textContent = codigo;
@@ -1549,6 +1553,7 @@
                 estado.partidaId = codigo;
                 estado.miLado = 'rival';
                 estado.fase = 'esperando';
+                estado.esPartidaRapida = true;
                 dom.overlayLobby.classList.add('oculto');
                 dom.overlayEsperando.classList.add('oculto');
                 estado.rivalNombre = rivalNickname;
@@ -1573,6 +1578,8 @@
             partidaListener = onValue(partidaRef, (snap) => {
                 if (!snap.exists()) { mostrarMensaje('La partida terminó'); return; }
                 const partida = snap.val();
+                // Detectar si es una partida rápida (para el ranking online)
+                estado.esPartidaRapida = partida.rapida === true;
 
                 // El creador detecta que el rival se unió
                 if (estado.miLado === 'jugador' && partida.unido && estado.fase === 'esperando') {
@@ -2489,6 +2496,78 @@
             dom.overlayMarcador.classList.add('oculto');
         }
 
+        // ============ GUARDAR RESULTADO ONLINE ============
+        async function guardarResultadoPartidoOnline(resultado, golesJugador, golesRival) {
+            const user = estado.usuario;
+            if (!user) return;
+            try {
+                // Guardar en el nodo onlineStats (separado de las estadísticas vs CPU)
+                const userRef = ref(db, 'usuarios/' + user.uid + '/onlineStats');
+                const snap = await get(userRef);
+                const datos = snap.exists() ? snap.val() : {};
+
+                // Determinar resultado relativo para este jugador
+                const ganador = resultado.ganador;
+                const yoGane = (estado.miLado === 'jugador' && ganador === 'jugador') || (estado.miLado === 'rival' && ganador === 'rival');
+                const esEmpate = ganador === 'empate';
+                const resultadoJugador = esEmpate ? 'empate' : (yoGane ? 'ganar' : 'perder');
+
+                const partidosJugados = (datos.partidosJugados || 0) + 1;
+                const partidosGanados = (datos.partidosGanados || 0) + (resultadoJugador === 'ganar' ? 1 : 0);
+                const partidosEmpatados = (datos.partidosEmpatados || 0) + (resultadoJugador === 'empate' ? 1 : 0);
+                const partidosPerdidos = (datos.partidosPerdidos || 0) + (resultadoJugador === 'perder' ? 1 : 0);
+
+                let rachaActual = datos.rachaActual || 0;
+                if (resultadoJugador === 'ganar') rachaActual++;
+                if (resultadoJugador === 'perder') rachaActual = 0;
+
+                const mejorRacha = Math.max(datos.mejorRacha || 0, rachaActual);
+                const efectividad = partidosJugados > 0 ? Math.round((partidosGanados / partidosJugados) * 1000) / 10 : 0;
+                const puntos = (partidosGanados * 3) + (partidosEmpatados * 1) - (partidosPerdidos * 5);
+
+                // Goles a favor y en contra (relativos a este jugador)
+                const golesFavor = (datos.golesFavor || 0) + (golesJugador || 0);
+                const golesContra = (datos.golesContra || 0) + (golesRival || 0);
+
+                // Historial de partidos para filtros por período
+                const historialPartidos = datos.historialPartidos || [];
+                historialPartidos.push({
+                    fecha: Date.now(),
+                    resultado: resultadoJugador,
+                    golesFavor: golesJugador || 0,
+                    golesContra: golesRival || 0,
+                    online: true
+                });
+                const historialLimitado = historialPartidos.slice(-200);
+
+                const camposActualizar = {
+                    partidosJugados,
+                    partidosGanados,
+                    partidosEmpatados,
+                    partidosPerdidos,
+                    puntos,
+                    efectividad,
+                    rachaActual,
+                    mejorRacha,
+                    golesFavor,
+                    golesContra,
+                    historialPartidos: historialLimitado,
+                    ultimaActualizacion: Date.now()
+                };
+
+                await update(userRef, camposActualizar);
+                console.log('Resultado online guardado en Firebase:', resultadoJugador, camposActualizar);
+            } catch (error) {
+                console.error('Error guardando resultado online:', error);
+                const mensaje = document.getElementById('mensajeFlotante');
+                if (mensaje) {
+                    mensaje.textContent = '⚠ No se pudo guardar el resultado: ' + (error.code || error.message || 'error desconocido');
+                    mensaje.classList.add('mostrar');
+                    setTimeout(() => mensaje.classList.remove('mostrar'), 5000);
+                }
+            }
+        }
+
         // ============ FIN DE PARTIDA ============
         function mostrarFinPartido(resultado) {
             estado.fase = 'fin';
@@ -2499,6 +2578,10 @@
             const gR = estado.miLado === 'jugador' ? (resultado.golesRival || 0) : (resultado.golesJugador || 0);
             const ganador = resultado.ganador;
             const yoGane = (estado.miLado === 'jugador' && ganador === 'jugador') || (estado.miLado === 'rival' && ganador === 'rival');
+            // Guardar resultado en Firebase (solo partidas rápidas)
+            if (!resultado.abandono && estado.esPartidaRapida) {
+                guardarResultadoPartidoOnline(resultado, gJ, gR);
+            }
 
             if (resultado.abandono) {
                 if (yoGane) {
@@ -2545,6 +2628,12 @@
                             },
                             ultimaActividad: Date.now()
                         });
+                        // Guardar estadísticas del ranking online si fue una partida rápida
+                        if (estado.esPartidaRapida || partida.rapida === true) {
+                            const gJ = estado.miLado === 'jugador' ? (partida.juego ? partida.juego.golesJugador : 0) : (partida.juego ? partida.juego.golesRival : 0);
+                            const gR = estado.miLado === 'jugador' ? (partida.juego ? partida.juego.golesRival : 0) : (partida.juego ? partida.juego.golesJugador : 0);
+                            guardarResultadoPartidoOnline({ ganador, abandono: true }, gJ, gR);
+                        }
                     }
                 } catch (error) { console.error('Error abandonando partida:', error); }
             }

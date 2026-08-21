@@ -1033,7 +1033,17 @@
 
         <!-- Ranking global -->
         <section class="ranking-seccion">
-            <h2>🏆 Ranking</h2>
+            <h2 id="tituloRanking">🏆 Ranking</h2>
+            <div class="filtros-ranking">
+                <label>
+                    <input type="radio" name="tipoRanking" value="cpu" checked>
+                    <span>🤖 Vs CPU</span>
+                </label>
+                <label>
+                    <input type="radio" name="tipoRanking" value="online">
+                    <span>🌐 Online</span>
+                </label>
+            </div>
             <div class="buscador-ranking">
                 <input type="text" id="inputBuscador" class="input-buscador" placeholder="🔍 Buscar jugador por nickname..." autocomplete="off">
             </div>
@@ -1358,6 +1368,7 @@
         let nicknameActual = '';
         let timeoutVerificarNickname = null;
         let ultimaListaRanking = [];
+        let tipoRankingActual = 'cpu'; // 'cpu' o 'online'
 
         function mostrarToast(texto) {
             toast.textContent = texto;
@@ -1549,17 +1560,18 @@
                 }
             }
 
-        function actualizarEstadisticasUsuario(lista, filtro) {
+        function actualizarEstadisticasUsuario(lista, filtro, tipo) {
             if (!usuarioActual || !lista || lista.length === 0) {
                 panelEstadisticas.classList.remove('visible');
                 return;
             }
 
             const filtroActual = filtro || 'global';
+            const tipoActual = tipo || 'cpu';
 
             // Calcular puntos de todos los jugadores según el período seleccionado
             const listaConPuntos = lista.map(j => {
-                const stats = calcularEstadisticasPorPeriodo(j, filtroActual);
+                const stats = calcularEstadisticasPorPeriodo(j, filtroActual, tipoActual);
                 return {
                     ...j,
                     _stats: stats,
@@ -1619,9 +1631,9 @@
                     }
                     // Detectar si el jugador abandonó una partida sin terminar
                     await verificarAbandono(user.uid);
-                    // Actualizar panel de estadísticas con el filtro seleccionado
+                    // Actualizar panel de estadísticas con el filtro y tipo seleccionados
                     const filtroActual = document.querySelector('input[name="filtroRanking"]:checked')?.value || 'global';
-                    actualizarEstadisticasUsuario(ultimaListaRanking, filtroActual);
+                    actualizarEstadisticasUsuario(ultimaListaRanking, filtroActual, tipoRankingActual);
                 });
             } else {
                 btnGoogle.style.display = 'inline-flex';
@@ -1705,15 +1717,16 @@
         });
 
         // ================= PERFIL DE JUGADOR (desde ranking) =================
-        function mostrarPerfilJugador(uid, filtro) {
+        function mostrarPerfilJugador(uid, filtro, tipo) {
             const jugador = ultimaListaRanking.find(j => j.uid === uid);
             if (!jugador) return;
 
             const filtroActual = filtro || 'global';
+            const tipoActual = tipo || 'cpu';
 
             // Calcular posición según el período seleccionado en el ranking
             const listaConPuntos = ultimaListaRanking.map(j => {
-                const stats = calcularEstadisticasPorPeriodo(j, filtroActual);
+                const stats = calcularEstadisticasPorPeriodo(j, filtroActual, tipoActual);
                 return {
                     ...j,
                     _stats: stats,
@@ -1780,25 +1793,28 @@
             return div.innerHTML;
         }
 
-        function calcularEstadisticasPorPeriodo(jugador, filtro) {
+        function calcularEstadisticasPorPeriodo(jugador, filtro, tipo) {
+            // Seleccionar los datos según el tipo de ranking (cpu u online)
+            const datos = tipo === 'online' ? (jugador.onlineStats || {}) : jugador;
+
             // Si es global, usar las estadísticas acumuladas
             if (filtro === 'global') {
-                const pj = jugador.partidosJugados || 0;
-                const pg = jugador.partidosGanados || 0;
-                const pe = jugador.partidosEmpatados || 0;
-                const pp = jugador.partidosPerdidos || 0;
-                const gf = jugador.golesFavor || 0;
-                const gc = jugador.golesContra || 0;
+                const pj = datos.partidosJugados || 0;
+                const pg = datos.partidosGanados || 0;
+                const pe = datos.partidosEmpatados || 0;
+                const pp = datos.partidosPerdidos || 0;
+                const gf = datos.golesFavor || 0;
+                const gc = datos.golesContra || 0;
                 return {
                     pj, pg, pe, pp, gf, gc,
                     puntos: (pg * 3) + (pe * 1) - (pp * 5),
                     efectividad: pj > 0 ? Math.round((pg / pj) * 1000) / 10 : 0,
-                    racha: jugador.rachaActual || 0
+                    racha: datos.rachaActual || 0
                 };
             }
 
             // Para mes/día, calcular desde el historial de partidos
-            const historial = jugador.historialPartidos || [];
+            const historial = datos.historialPartidos || [];
             const hoy = new Date();
 
             // Inicio de la semana actual (lunes a las 00:00)
@@ -1836,15 +1852,16 @@
             };
         }
 
-        function renderRanking(lista, filtro) {
+        function renderRanking(lista, filtro, tipo) {
+            const tipoActual = tipo || 'cpu';
             const tbody = document.getElementById('cuerpoRanking');
             if (!lista || lista.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="9" class="vacio-ranking">Aún no hay jugadores registrados</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9" class="vacio-ranking">' + (tipoActual === 'online' ? 'Aún no hay jugadores en el ranking online' : 'Aún no hay jugadores registrados') + '</td></tr>';
                 return;
             }
 
-            // Actualizar panel de estadísticas del usuario según el período seleccionado
-            actualizarEstadisticasUsuario(ultimaListaRanking, filtro);
+            // Actualizar panel de estadísticas del usuario según el período y tipo seleccionados
+            actualizarEstadisticasUsuario(ultimaListaRanking, filtro, tipoActual);
             
             // Filtrar según el tipo
             let listaFiltrada = [...lista];
@@ -1860,7 +1877,8 @@
                 const mesActual = hoy.getMonth();
                 const anioActual = hoy.getFullYear();
                 listaFiltrada = lista.filter(j => {
-                    const historial = j.historialPartidos || [];
+                    const datos = tipoActual === 'online' ? (j.onlineStats || {}) : j;
+                    const historial = datos.historialPartidos || [];
                     return historial.some(p => {
                         const fecha = new Date(p.fecha);
                         return fecha.getMonth() === mesActual && fecha.getFullYear() === anioActual;
@@ -1868,7 +1886,8 @@
                 });
             } else if (filtro === 'semana') {
                 listaFiltrada = lista.filter(j => {
-                    const historial = j.historialPartidos || [];
+                    const datos = tipoActual === 'online' ? (j.onlineStats || {}) : j;
+                    const historial = datos.historialPartidos || [];
                     return historial.some(p => {
                         const fecha = new Date(p.fecha);
                         return fecha >= inicioSemana;
@@ -1879,7 +1898,8 @@
                 const mesActual = hoy.getMonth();
                 const anioActual = hoy.getFullYear();
                 listaFiltrada = lista.filter(j => {
-                    const historial = j.historialPartidos || [];
+                    const datos = tipoActual === 'online' ? (j.onlineStats || {}) : j;
+                    const historial = datos.historialPartidos || [];
                     return historial.some(p => {
                         const fecha = new Date(p.fecha);
                         return fecha.getDate() === diaActual && fecha.getMonth() === mesActual && fecha.getFullYear() === anioActual;
@@ -1889,7 +1909,7 @@
             
             // Calcular estadísticas según el período
             listaFiltrada.forEach(j => {
-                const stats = calcularEstadisticasPorPeriodo(j, filtro);
+                const stats = calcularEstadisticasPorPeriodo(j, filtro, tipoActual);
                 j._stats = stats;
                 j._puntosCalc = stats.puntos;
             });
@@ -1913,7 +1933,7 @@
 
                 tr.style.cursor = 'pointer';
                 tr.title = 'Ver perfil de ' + nick;
-                tr.addEventListener('click', () => mostrarPerfilJugador(jugador.uid, filtro));
+                tr.addEventListener('click', () => mostrarPerfilJugador(jugador.uid, filtro, tipoActual));
 
                 tr.innerHTML =
                     '<td class="posicion' + (posicion <= 3 ? ' top3' : '') + '">' + posicion + '</td>' +
@@ -1939,9 +1959,9 @@
                     // Guardar filtro seleccionado en localStorage
                     const filtro = document.querySelector('input[name="filtroRanking"]:checked')?.value || 'global';
                     localStorage.setItem('rankingFiltro', filtro);
-                    renderRanking(lista, filtro);
+                    renderRanking(lista, filtro, tipoRankingActual);
                 } else {
-                    renderRanking([]);
+                    renderRanking([], 'global', tipoRankingActual);
                 }
             }, (error) => {
                 console.error('Error cargando ranking:', error);
@@ -1960,9 +1980,27 @@
                     if (snap.exists()) {
                         const datos = snap.val();
                         const lista = Object.keys(datos).map(uid => ({ ...datos[uid], uid }));
-                        renderRanking(lista, filtro);
+                        renderRanking(lista, filtro, tipoRankingActual);
                     }
                 });
+            });
+        });
+
+        // Selector de tipo de ranking (Vs CPU u Online)
+        function actualizarTituloRanking(tipo) {
+            const titulo = document.getElementById('tituloRanking');
+            if (titulo) {
+                titulo.textContent = tipo === 'online' ? '🏆 Ranking Online' : '🏆 Ranking Vs CPU';
+            }
+        }
+        document.querySelectorAll('input[name="tipoRanking"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                const tipo = radio.value;
+                tipoRankingActual = tipo;
+                localStorage.setItem('rankingTipo', tipo);
+                actualizarTituloRanking(tipo);
+                const filtro = document.querySelector('input[name="filtroRanking"]:checked')?.value || 'global';
+                renderRanking(ultimaListaRanking, filtro, tipo);
             });
         });
 
@@ -1972,7 +2010,7 @@
             const filtro = document.querySelector('input[name="filtroRanking"]:checked')?.value || 'global';
             
             if (!termino) {
-                renderRanking(ultimaListaRanking, filtro);
+                renderRanking(ultimaListaRanking, filtro, tipoRankingActual);
                 return;
             }
 
@@ -1980,13 +2018,18 @@
                 const nick = (j.nickname || 'Jugador').toLowerCase();
                 return nick.includes(termino);
             });
-            renderRanking(filtrados, filtro);
+            renderRanking(filtrados, filtro, tipoRankingActual);
         });
 
-        // Cargar filtro guardado al iniciar
+        // Cargar filtro y tipo de ranking guardados al iniciar
         document.addEventListener('DOMContentLoaded', () => {
             const filtroGuardado = localStorage.getItem('rankingFiltro') || 'global';
             document.querySelector('input[value="' + filtroGuardado + '"]').checked = true;
+            const tipoGuardado = localStorage.getItem('rankingTipo') || 'cpu';
+            tipoRankingActual = tipoGuardado;
+            const radioTipo = document.querySelector('input[name="tipoRanking"][value="' + tipoGuardado + '"]');
+            if (radioTipo) radioTipo.checked = true;
+            actualizarTituloRanking(tipoGuardado);
         });
 
         cargarRanking();
