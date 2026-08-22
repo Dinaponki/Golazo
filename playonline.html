@@ -1190,8 +1190,6 @@
                     img.src = item.carta.imagen;
                     img.className = 'carta-img';
                     img.draggable = false;
-                    // Las cartas del rival se muestran giradas 180°
-                    if (item.origen === 'rival') img.style.transform = 'rotate(180deg)';
                     cont.appendChild(img);
                     cont.style.zIndex = ++idxGlobal;
 

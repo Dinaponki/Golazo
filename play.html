@@ -1924,8 +1924,6 @@
                         img.src = item.carta.imagen;
                         img.className = 'carta-img';
                         img.draggable = false;
-                        // Las cartas del CPU se muestran giradas 180°
-                        if (item.origen === 'cpu') img.style.transform = 'rotate(180deg)';
                         cont.appendChild(img);
                         cont.style.zIndex = ++idxGlobal;
 
