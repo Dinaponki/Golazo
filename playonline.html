@@ -1356,6 +1356,12 @@
         // ============ SINCRONIZACIÓN ============
         function sincronizarJuego() {
             if (!estado.partidaId) return;
+            // Registrar los valores actuales como "escritos por nosotros",
+            // para que el listener no reproduzca sonidos de nuestros propios cambios
+            puntosSyncJ = estado.juego.puntosJugador;
+            puntosSyncR = estado.juego.puntosRival;
+            golesSyncJ = estado.juego.golesJugador;
+            golesSyncR = estado.juego.golesRival;
             const juegoRef = ref(db, 'partidas/' + estado.partidaId + '/juego');
             const datos = {
                 manoJugador: estado.miLado === 'jugador' ? estado.juego.manoJugador : estado.juego.manoRival,
@@ -1725,6 +1731,13 @@
         let ultimoEstadoJuego = null;
         let varYaResolviendo = false;
         let ultimoEventoTs = null;
+        // Últimos valores de puntos/goles vistos por este cliente.
+        // Se actualizan con cada acción local (vía sincronizarJuego) y con
+        // cada snapshot; si un aumento no fue escrito por nosotros, vino del
+        // rival y hay que reproducir el sonido correspondiente.
+        let puntosSyncJ = 0, puntosSyncR = 0;
+        let golesSyncJ = 0, golesSyncR = 0;
+        let syncInicializado = false;
 
         // Registrar un evento de canto en Firebase para que el rival
         // lo escuche aunque los cambios de estado lleguen combinados.
@@ -1811,6 +1824,8 @@
                         dom.etiquetaCpu.textContent = 'Turno de ' + estado.rivalNombre;
                         dom.etiquetaJugador.textContent = 'Turno de ' + (estado.nickname || 'Jugador');
                         reproducirAudioFondo();
+                        // Reiniciar la línea base de puntos/goles al comenzar la partida
+                        syncInicializado = false;
                         // Empujar un estado de historial para interceptar el botón "atrás"
                         history.pushState({ juegoIniciado: true }, '', location.href);
                     }
@@ -1908,26 +1923,28 @@
                                 }
                             }
                         }
-                        // Sonido de gol del rival (cuando se marca un gol)
-                        if (jAnterior.golesJugador !== undefined && j.golesJugador !== undefined) {
-                            const golesJugadorAntes = estado.miLado === 'jugador' ? jAnterior.golesJugador : jAnterior.golesRival;
-                            const golesJugadorAhora = estado.miLado === 'jugador' ? j.golesJugador : j.golesRival;
-                            if (golesJugadorAhora > golesJugadorAntes) {
-                                // Yo metí gol
-                            }
-                            const golesRivalAntes = estado.miLado === 'jugador' ? jAnterior.golesRival : jAnterior.golesJugador;
-                            const golesRivalAhora = estado.miLado === 'jugador' ? j.golesRival : j.golesJugador;
-                            if (golesRivalAhora > golesRivalAntes) {
-                                reproducirSonido('golcpu');
-                            }
-                        }
-                        // Sonido de punto del rival
-                        if (jAnterior.puntosJugador !== undefined && j.puntosJugador !== undefined) {
-                            const puntosRivalAntes = estado.miLado === 'jugador' ? jAnterior.puntosRival : jAnterior.puntosJugador;
-                            const puntosRivalAhora = estado.miLado === 'jugador' ? j.puntosRival : j.puntosJugador;
-                            if (puntosRivalAhora > puntosRivalAntes) {
-                                reproducirSonido('puntocpu');
-                            }
+                        // ============ SONIDOS DE PUNTOS Y GOLES ============
+                        // Igual que contra la CPU: puntoplayer/puntocpu para
+                        // puntos y golplayer/golcpu para goles. Solo suenan
+                        // para cambios hechos por el rival; los propios ya
+                        // sonaron localmente (sincronizarJuego actualiza la
+                        // línea base con cada acción nuestra).
+                        if (!syncInicializado) {
+                            puntosSyncJ = estado.juego.puntosJugador;
+                            puntosSyncR = estado.juego.puntosRival;
+                            golesSyncJ = estado.juego.golesJugador;
+                            golesSyncR = estado.juego.golesRival;
+                            syncInicializado = true;
+                        } else {
+                            while (golesSyncJ < estado.juego.golesJugador) { reproducirSonido('golplayer'); golesSyncJ++; }
+                            while (golesSyncR < estado.juego.golesRival) { reproducirSonido('golcpu'); golesSyncR++; }
+                            while (puntosSyncJ < estado.juego.puntosJugador) { reproducirSonido('puntoplayer'); puntosSyncJ++; }
+                            while (puntosSyncR < estado.juego.puntosRival) { reproducirSonido('puntocpu'); puntosSyncR++; }
+                            // Al reiniciar la mano los valores bajan: solo actualizar sin sonido
+                            golesSyncJ = estado.juego.golesJugador;
+                            golesSyncR = estado.juego.golesRival;
+                            puntosSyncJ = estado.juego.puntosJugador;
+                            puntosSyncR = estado.juego.puntosRival;
                         }
                     }
 
