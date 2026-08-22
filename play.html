@@ -217,6 +217,17 @@
             opacity: 0.9;
         }
 
+        /* Enfrentamiento de cartas: quien gana brilla, quien pierde se atenúa */
+        .mesa-cartas .carta-contenedor.ganadora-ronda {
+            z-index: 20 !important;
+            filter: brightness(1.08) drop-shadow(0 0 10px rgba(200, 168, 78, 0.65));
+        }
+
+        .mesa-cartas .carta-contenedor.perdedora-ronda {
+            opacity: 0.75;
+            filter: saturate(0.7);
+        }
+
         .mesa-cartas .carta-img {
             width: var(--carta-mano);
             height: auto;
@@ -995,11 +1006,6 @@
 
             .indicador-canto {
                 margin-bottom: 4px;
-            }
- 
-            .mesa-cartas .carta-contenedor {
-                top: 95%;
-                left: 50%;
             }
 
             /* 3. Etiqueta turno jugador: bajar en Y en móviles */
@@ -1874,58 +1880,80 @@
 
             function renderizarMesa() {
                 dom.mesaCartas.innerHTML = '';
-                if (!estado.cartasEnMesa.length) return;
+                const esMovil = window.innerWidth < 768;
+
+                // Durante un canto (penal/gol/golazo) solo se muestran las cartas del canto,
+                // para que se vean bien y no se mezclen con las de rondas anteriores.
+                let cartasVisibles;
+                if (estado.penalActivo && estado.penalCartas.length) {
+                    cartasVisibles = estado.penalCartas;
+                } else if (estado.golActivo && estado.golCartas.length) {
+                    cartasVisibles = estado.golCartas;
+                } else {
+                    const inicio = estado.inicioRonda || 0;
+                    cartasVisibles = estado.cartasEnMesa.slice(inicio);
+                }
+                if (!cartasVisibles.length) return;
 
                 const filaMesa = document.createElement('div');
                 filaMesa.className = 'mesa-fila';
 
-                const esMovil = window.innerWidth < 768;
-                estado.cartasEnMesa.forEach((item, index) => {
-                    const cont = crearContenedorMesa(item);
-                    cont.style.zIndex = index + 1;
-                    if (esMovil) {
-                        // En móviles, centrar X con translateX(-50%), pero en Y usar 0% (top define la posición)
-                        cont.style.transform = `translate(-50%, 0%) translateX(${(index % 2) * 12}px) translateY(${Math.floor(index / 2) * 8}px)`;
-                        if (cont.classList.contains('ganadora')) {
-                            cont.style.transform = `translate(-50%, 0%) translateX(${(index % 2) * 12}px) translateY(${Math.floor(index / 2) * 8}px) translateY(-10px) scale(1.02)`;
-                        } else if (cont.classList.contains('perdedora')) {
-                            cont.style.transform = `translate(-50%, 0%) translateX(${(index % 2) * 12}px) translateY(${Math.floor(index / 2) * 8}px) translateY(6px)`;
-                        }
-                    } else {
-                        cont.style.transform = `translate(-50%, -42%) translateX(${(index % 2) * 12}px) translateY(${Math.floor(index / 2) * 8}px)`;
-                        if (cont.classList.contains('ganadora')) {
-                            cont.style.transform = `translate(-50%, -42%) translateX(${(index % 2) * 12}px) translateY(${Math.floor(index / 2) * 8}px) translateY(-12px) scale(1.02)`;
-                        } else if (cont.classList.contains('perdedora')) {
-                            cont.style.transform = `translate(-50%, -42%) translateX(${(index % 2) * 12}px) translateY(${Math.floor(index / 2) * 8}px) translateY(8px)`;
-                        }
-                    }
-                    filaMesa.appendChild(cont);
-                });
-
-                dom.mesaCartas.appendChild(filaMesa);
-            }
-
-            function crearContenedorMesa(item) {
-                const cont = document.createElement('div');
-                cont.className = 'carta-contenedor';
-                const todas = estado.cartasEnMesa;
-                const ucpu = todas.filter(c => c.origen === 'cpu').pop();
-                const ujug = todas.filter(c => c.origen === 'jugador').pop();
-                if (ucpu && ujug && (item.carta === ucpu.carta || item.carta === ujug.carta)) {
-                    if (ucpu.numero > ujug.numero) {
-                        if (item.origen === 'cpu') cont.classList.add('ganadora');
-                        else cont.classList.add('perdedora');
-                    } else if (ujug.numero > ucpu.numero) {
-                        if (item.origen === 'jugador') cont.classList.add('ganadora');
-                        else cont.classList.add('perdedora');
-                    }
+                // Agrupar cartas por ronda (de a 2: una mía + una del CPU)
+                const rondas = [];
+                for (let i = 0; i < cartasVisibles.length; i += 2) {
+                    rondas.push(cartasVisibles.slice(i, i + 2));
                 }
-                const img = document.createElement('img');
-                img.src = item.carta.imagen;
-                img.className = 'carta-img';
-                img.draggable = false;
-                cont.appendChild(img);
-                return cont;
+
+                let idxGlobal = 0;
+                rondas.forEach((ronda, ri) => {
+                    const uj = ronda.find(c => c.origen === 'jugador');
+                    const uc = ronda.find(c => c.origen === 'cpu');
+                    const ambos = uj && uc;
+                    // Quién gana el enfrentamiento de esta ronda
+                    let ganadorOrigen = null;
+                    if (ambos) {
+                        if (uj.carta.numero > uc.carta.numero) ganadorOrigen = 'jugador';
+                        else if (uc.carta.numero > uj.carta.numero) ganadorOrigen = 'cpu';
+                    }
+                    const esRondaActual = ri === rondas.length - 1;
+
+                    ronda.forEach((item) => {
+                        const cont = document.createElement('div');
+                        cont.className = 'carta-contenedor';
+                        const img = document.createElement('img');
+                        img.src = item.carta.imagen;
+                        img.className = 'carta-img';
+                        img.draggable = false;
+                        // Las cartas del CPU se muestran giradas 180°
+                        if (item.origen === 'cpu') img.style.transform = 'rotate(180deg)';
+                        cont.appendChild(img);
+                        cont.style.zIndex = ++idxGlobal;
+
+                        const esCpu = item.origen === 'cpu';
+                        // Si ambas cartas están en la mesa, se superponen como en un juego real:
+                        // cada carta queda del lado de quien la tiró y se acercan al enfrentar.
+                        // En móvil se baja el grupo para que quede entre los textos de turno.
+                        const sep = ambos ? (esMovil ? 7 : 12) : (esMovil ? 10 : 24);
+                        const ty = esCpu ? -sep : sep;
+                        const tx = (ri % 2 === 0 ? -1 : 1) * 8;
+
+                        cont.style.top = esMovil ? '95%' : '50%';
+                        cont.style.left = '50%';
+                        cont.style.transform = `translate(-50%, -50%) translateX(${tx}px) translateY(${ty}%)`;
+
+                        // Resaltar quién mata a quién
+                        if (ganadorOrigen === item.origen) {
+                            cont.classList.add('ganadora-ronda');
+                        } else if (ganadorOrigen) {
+                            cont.classList.add('perdedora-ronda');
+                        }
+                        // Rondas anteriores se atenúan
+                        if (!esRondaActual) cont.style.opacity = '0.45';
+
+                        filaMesa.appendChild(cont);
+                    });
+                });
+                dom.mesaCartas.appendChild(filaMesa);
             }
 
             function renderizarEstrellas(mostrarTresEstrellas) {
