@@ -1741,15 +1741,43 @@
 
         // Registrar un evento de canto en Firebase para que el rival
         // lo escuche aunque los cambios de estado lleguen combinados.
-        function registrarEventoCanto(tipo) {
+        function registrarEventoCanto(tipo, canto) {
             if (!estado.partidaId) return;
             update(ref(db, 'partidas/' + estado.partidaId + '/juego'), {
-                ultimoEvento: { tipo, quien: estado.miLado, ts: Date.now() }
+                ultimoEvento: { tipo, quien: estado.miLado, canto: canto || null, ts: Date.now() }
             }).catch(() => {});
         }
 
+        // Puntos que el rival va a reportar a mi favor (ya aplicados localmente
+        // al recibir el evento); se consumen sin sonido cuando llega la sincronización
+        // para evitar duplicados.
+        let puntosPendientesRivalParaMi = 0;
+
+        // Aplicar puntos a mi favor localmente (sin tocar Firebase: el rival
+        // es quien sincroniza el valor autoritativo)
+        function aplicarPuntosLocales(cant) {
+            for (let i = 0; i < cant; i++) {
+                estado.juego.puntosJugador++;
+                puntosPendientesRivalParaMi++;
+                if (estado.juego.puntosJugador >= PUNTOS_PARA_GOL) {
+                    estado.juego.golesJugador++;
+                    estado.juego.puntosManoJugador += estado.juego.puntosJugador;
+                    estado.juego.puntosManoRival += estado.juego.puntosRival;
+                    estado.juego.puntosJugador = 0;
+                    estado.juego.puntosRival = 0;
+                    estado.juego.golEnMano = true;
+                    estado.juego.ganadorManoAnterior = 'jugador';
+                    mostrarMensaje('⚽ ¡GOL DE ' + (estado.nickname || 'Jugador').toUpperCase() + '!');
+                    reproducirSonido('golplayer');
+                } else {
+                    reproducirSonido('puntoplayer');
+                }
+            }
+            renderizarMarcador();
+        }
+
         // Reproducir el sonido y mensaje correspondiente a un canto del rival
-        function reproducirEventoRival(tipo) {
+        function reproducirEventoRival(tipo, ev) {
             switch (tipo) {
                 case 'penal':
                     reproducirSonido('penalcpu');
@@ -1770,6 +1798,9 @@
                 case 'no_quiero':
                     reproducirSonido('noquierocpu');
                     mostrarMensaje(`${estado.rivalNombre}: ✗ No quiso`);
+                    // El rival rechazó MI canto → +1 punto para mí (2 si era golazo).
+                    // Se aplica localmente para garantizar que siempre se sume.
+                    aplicarPuntosLocales(ev && ev.canto === 'golazo' ? 2 : 1);
                     break;
                 case 'var':
                     reproducirSonido('pidoverelvarcpu');
@@ -1782,6 +1813,8 @@
                 case 'var_rechaza':
                     reproducirSonido('noquierocpu');
                     mostrarMensaje(`${estado.rivalNombre}: ✗ No quiero el VAR`);
+                    // El rival (atacante) rechazó el VAR que pedí → +1 punto para mí
+                    aplicarPuntosLocales(1);
                     break;
             }
         }
@@ -1919,7 +1952,7 @@
                             } else if (evTs > ultimoEventoTs) {
                                 ultimoEventoTs = evTs;
                                 if (j.ultimoEvento.quien !== estado.miLado) {
-                                    reproducirEventoRival(j.ultimoEvento.tipo);
+                                    reproducirEventoRival(j.ultimoEvento.tipo, j.ultimoEvento);
                                 }
                             }
                         }
@@ -1938,7 +1971,16 @@
                         } else {
                             while (golesSyncJ < estado.juego.golesJugador) { reproducirSonido('golplayer'); golesSyncJ++; }
                             while (golesSyncR < estado.juego.golesRival) { reproducirSonido('golcpu'); golesSyncR++; }
-                            while (puntosSyncJ < estado.juego.puntosJugador) { reproducirSonido('puntoplayer'); puntosSyncJ++; }
+                            while (puntosSyncJ < estado.juego.puntosJugador) {
+                                // Si ya apliqué este punto localmente por un evento
+                                // del rival, consumirlo sin sonido para no duplicar
+                                if (puntosPendientesRivalParaMi > 0) {
+                                    puntosPendientesRivalParaMi--;
+                                } else {
+                                    reproducirSonido('puntoplayer');
+                                }
+                                puntosSyncJ++;
+                            }
                             while (puntosSyncR < estado.juego.puntosRival) { reproducirSonido('puntocpu'); puntosSyncR++; }
                             // Al reiniciar la mano los valores bajan: solo actualizar sin sonido
                             golesSyncJ = estado.juego.golesJugador;
@@ -2450,7 +2492,7 @@
                 const quienCanto = cantoPedidoPor;
                 const puntos = cantoActual === 'golazo' ? 2 : 1;
                 const golPorPuntos = sumarPuntos(quienCanto, puntos);
-                registrarEventoCanto('no_quiero');
+                registrarEventoCanto('no_quiero', cantoActual);
                 reproducirSonido('noquierojugador');
                 mostrarMensaje(`${estado.nickname || 'Jugador'}: ✗ No quiso`);
                 if (golPorPuntos) setTimeout(finalizarMano, 2200);
