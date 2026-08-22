@@ -1748,10 +1748,11 @@
             }).catch(() => {});
         }
 
-        // Puntos que el rival va a reportar a mi favor (ya aplicados localmente
+        // Puntos y goles que el rival va a reportar a mi favor (ya aplicados localmente
         // al recibir el evento); se consumen sin sonido cuando llega la sincronización
         // para evitar duplicados.
         let puntosPendientesRivalParaMi = 0;
+        let golesPendientesRivalParaMi = 0;
 
         // Aplicar puntos a mi favor localmente (sin tocar Firebase: el rival
         // es quien sincroniza el valor autoritativo)
@@ -1768,7 +1769,10 @@
                     estado.juego.golEnMano = true;
                     estado.juego.ganadorManoAnterior = 'jugador';
                     mostrarMensaje('⚽ ¡GOL DE ' + (estado.nickname || 'Jugador').toUpperCase() + '!');
+
                     reproducirSonido('golplayer');
+                    // El gol también llegará por sincronización: consumirlo sin sonido
+                    golesPendientesRivalParaMi++;
                 } else {
                     reproducirSonido('puntoplayer');
                 }
@@ -1969,7 +1973,24 @@
                             golesSyncR = estado.juego.golesRival;
                             syncInicializado = true;
                         } else {
-                            while (golesSyncJ < estado.juego.golesJugador) { reproducirSonido('golplayer'); golesSyncJ++; }
+                            // Si algún valor bajó (nueva mano / reinicio de puntos),
+                            // limpiar los contadores pendientes para no tragarse
+                            // sonidos legítimos más adelante
+                            if (estado.juego.puntosJugador < puntosSyncJ || estado.juego.puntosRival < puntosSyncR ||
+                                estado.juego.golesJugador < golesSyncJ || estado.juego.golesRival < golesSyncR) {
+                                puntosPendientesRivalParaMi = 0;
+                                golesPendientesRivalParaMi = 0;
+                            }
+                            while (golesSyncJ < estado.juego.golesJugador) {
+                                // Si ya apliqué este gol localmente por un evento
+                                // del rival, consumirlo sin sonido para no duplicar
+                                if (golesPendientesRivalParaMi > 0) {
+                                    golesPendientesRivalParaMi--;
+                                } else {
+                                    reproducirSonido('golplayer');
+                                }
+                                golesSyncJ++;
+                            }
                             while (golesSyncR < estado.juego.golesRival) { reproducirSonido('golcpu'); golesSyncR++; }
                             while (puntosSyncJ < estado.juego.puntosJugador) {
                                 // Si ya apliqué este punto localmente por un evento
@@ -2925,6 +2946,16 @@
             estado.fase = 'fin';
             estado.enPartida = false;
             dom.overlayFin.classList.remove('oculto');
+            // Sonido de fin de partido como en play.html (ganar/empate/perder)
+            const ganadorFin = resultado.ganador;
+            const yoGaneFin = (estado.miLado === 'jugador' && ganadorFin === 'jugador') || (estado.miLado === 'rival' && ganadorFin === 'rival');
+            if (ganadorFin === 'empate') {
+                reproducirSonido('empate');
+            } else if (yoGaneFin) {
+                reproducirSonido('ganar');
+            } else {
+                reproducirSonido('perder');
+            }
             // Convertir goles absolutos a relativos
             const gJ = estado.miLado === 'jugador' ? (resultado.golesJugador || 0) : (resultado.golesRival || 0);
             const gR = estado.miLado === 'jugador' ? (resultado.golesRival || 0) : (resultado.golesJugador || 0);
