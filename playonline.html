@@ -1761,6 +1761,19 @@
         let golesSyncJ = 0, golesSyncR = 0;
         let syncInicializado = false;
 
+        // Detecta si un evento es nuevo aunque los relojes de los dispositivos
+        // estén desincronizados: compara el contenido del evento contra el
+        // último procesado (tolerancia de 10 minutos de diferencia de reloj).
+        let ultimaClaveEventoProcesada = null;
+        function claveEventoNueva(ev, evTs) {
+            const clave = JSON.stringify({ q: ev.quien, t: ev.tipo, c: ev.canto || null, r: ev.resumen || null });
+            if (clave === ultimaClaveEventoProcesada) return false;
+            // Solo aceptar si no es un evento muy viejo (replay de una partida anterior)
+            if (evTs < (ultimoEventoTs || 0) - 600000) return false;
+            ultimaClaveEventoProcesada = clave;
+            return true;
+        }
+
         // Registrar un evento de canto en Firebase para que el rival
         // lo escuche aunque los cambios de estado lleguen combinados.
         function registrarEventoCanto(tipo, canto, resumen) {
@@ -1988,8 +2001,8 @@
                             if (ultimoEventoTs === null) {
                                 // Primer snapshot: solo tomar como línea base
                                 ultimoEventoTs = evTs;
-                            } else if (evTs > ultimoEventoTs) {
-                                ultimoEventoTs = evTs;
+                            } else if (evTs > ultimoEventoTs || claveEventoNueva(j.ultimoEvento, evTs)) {
+                                ultimoEventoTs = Math.max(ultimoEventoTs, evTs);
                                 if (j.ultimoEvento.quien !== estado.miLado) {
                                     reproducirEventoRival(j.ultimoEvento.tipo, j.ultimoEvento);
                                     // Aplicar de forma determinista los totales que
