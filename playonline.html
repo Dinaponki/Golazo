@@ -321,20 +321,8 @@
         }
 
         .panel-marcador .estrellas { display: flex; gap: 5px; font-size: clamp(15px, 3.8vmin, 20px); }
-        .panel-marcador .estrellas .estrella { color: rgba(255, 255, 255, 0.2); transition: var(--transicion); display: inline-block; }
+        .panel-marcador .estrellas .estrella { color: rgba(255, 255, 255, 0.2); transition: var(--transicion); }
         .panel-marcador .estrellas .estrella.encendida { color: var(--dorado); text-shadow: 0 0 8px rgba(200, 168, 78, 0.5); }
-
-        /* Destello cuando se enciende una estrella nueva (punto por canto rechazado, ronda ganada, etc.) */
-        @keyframes popEstrella {
-            0% { transform: scale(1); }
-            40% { transform: scale(1.9); }
-            100% { transform: scale(1); }
-        }
-        .panel-marcador .estrellas .estrella.recien {
-            color: var(--dorado);
-            text-shadow: 0 0 14px rgba(200, 168, 78, 0.95);
-            animation: popEstrella 0.6s ease;
-        }
 
         .panel-marcador .centro-marcador {
             font-size: clamp(14px, 3.2vmin, 18px);
@@ -734,9 +722,6 @@
     <!-- Mensaje flotante -->
     <div class="mensaje-flotante" id="mensajeFlotante"></div>
 
-    <!-- Badge de diagnóstico (borrar cuando se confirme el funcionamiento) -->
-    <div id="debugBadge" style="position:fixed;top:4px;left:4px;z-index:9999;background:rgba(0,0,0,.75);color:#0f0;font:11px monospace;padding:3px 6px;border-radius:6px;pointer-events:none;">v5</div>
-
     <!-- Audio -->
     <audio id="audioFondo" loop preload="auto"><source src="sounds/background.mp3" type="audio/mpeg"></audio>
     <audio id="sndCarta" preload="auto"><source src="sounds/carta.mp3" type="audio/mpeg"></audio>
@@ -895,7 +880,6 @@
                 varTurnoDeclarar: null,
                 varPanelVisible: false,
                 esperandoRespuestaDe: null,
-                ultimoEvento: null,
                 historialManos: [], inicioRonda: 0,
                 ganadorManoAnterior: null,
                 golEnMano: false,
@@ -1070,8 +1054,6 @@
             if (!estado.sonidosActivados) return;
             const audio = dom.sonidos[nombre];
             if (!audio) return;
-            // Este uso es intencional: cancela cualquier pausa pendiente del desbloqueo
-            delete audio.dataset.unlocking;
             audio.volume = 0.7;
             audio.currentTime = 0;
             audio.play().catch(() => {});
@@ -1271,50 +1253,11 @@
             dom.mesaCartas.appendChild(filaMesa);
         }
 
-        // Estrellas visibles: monótonas dentro de cada mano. Una vez que una
-        // estrella se enciende (punto por canto rechazado, ronda ganada, etc.),
-        // permanece encendida hasta que comienza una mano nueva, sin importar
-        // fluctuaciones del estado sincronizado. Esto garantiza que la estrella
-        // se vea en ambas pantallas de forma persistente.
-        // Estrellas visibles: monótonas dentro de cada "segmento" de juego.
-        // Un segmento termina (y las estrellas se reinician legítimamente) solo
-        // cuando cambia la mano o cuando se convierte un gol (los goles suben).
-        // Dentro del segmento, una vez que una estrella se enciende (punto por
-        // canto rechazado, ronda ganada, etc.), permanece encendida sin importar
-        // fluctuaciones del estado sincronizado.
-        let estrellasVisiblesJ = 0, estrellasVisiblesR = 0, estrellasSegmento = null;
-
         function renderizarEstrellas() {
-            const segmento = estado.juego.manoActual + '|' + estado.juego.golesJugador + '-' + estado.juego.golesRival;
-            if (segmento !== estrellasSegmento) {
-                estrellasSegmento = segmento;
-                estrellasVisiblesJ = estado.juego.puntosJugador;
-                estrellasVisiblesR = estado.juego.puntosRival;
-            } else {
-                if (estado.juego.puntosJugador > estrellasVisiblesJ) estrellasVisiblesJ = estado.juego.puntosJugador;
-                if (estado.juego.puntosRival > estrellasVisiblesR) estrellasVisiblesR = estado.juego.puntosRival;
-            }
-
-            // Detectar estrellas recién encendidas para el destello.
-            // Funciona en ambas pantallas: al sumar puntos localmente
-            // ("no quiero" del rival, ronda ganada, etc.) y al recibirlos
-            // por sincronización de Firebase (renderizarTodo → renderizarMarcador).
-            dom.estrellasJugador.querySelectorAll('.estrella').forEach((el, i) => {
-                const encendida = i < estrellasVisiblesJ;
-                if (encendida && !el.classList.contains('encendida')) {
-                    el.classList.add('recien');
-                    setTimeout(() => el.classList.remove('recien'), 650);
-                }
-                el.classList.toggle('encendida', encendida);
-            });
-            dom.estrellasCpu.querySelectorAll('.estrella').forEach((el, i) => {
-                const encendida = i < estrellasVisiblesR;
-                if (encendida && !el.classList.contains('encendida')) {
-                    el.classList.add('recien');
-                    setTimeout(() => el.classList.remove('recien'), 650);
-                }
-                el.classList.toggle('encendida', encendida);
-            });
+            const pJ = estado.juego.puntosJugador;
+            const pR = estado.juego.puntosRival;
+            dom.estrellasJugador.querySelectorAll('.estrella').forEach((el, i) => el.classList.toggle('encendida', i < pJ));
+            dom.estrellasCpu.querySelectorAll('.estrella').forEach((el, i) => el.classList.toggle('encendida', i < pR));
         }
 
         function renderizarMarcador() {
@@ -1322,12 +1265,6 @@
             dom.golesCpu.textContent = estado.juego.golesRival;
             dom.minutoActual.textContent = MINUTOS[estado.juego.manoActual] || "0' a 10'";
             renderizarEstrellas();
-            const dbg = document.getElementById('debugBadge');
-            if (dbg) {
-                dbg.textContent = 'v6 | ' + estado.juego.fase + ' | resp:' + (estado.juego.esperandoRespuestaDe || '-') +
-                    ' | ⭐J:' + estado.juego.puntosJugador + '(' + estrellasVisiblesJ + ') R:' + estado.juego.puntosRival + '(' + estrellasVisiblesR + ')' +
-                    ' | ⚽' + estado.juego.golesJugador + '-' + estado.juego.golesRival;
-            }
         }
 
         function actualizarIndicadorCanto() {
@@ -1365,11 +1302,7 @@
                 case 'esperando_seleccion':
                     if (esMiTurno && quedan) {
                         if (estado.juego.rondaActual === 0 && !estado.juego.penalUsado && !estado.juego.penalCantadoPor && !estado.juego.penalActivo && !estado.juego.golActivo) dom.btnPenal.disabled = false;
-                        // Gol: se puede cantar desde la ronda 1, o también inmediatamente
-                        // después de que se haya cantado/ejecutado el penal (aunque la
-                        // ronda actual siga en 0, porque el penal no cuenta como ronda).
-                        const penalYaCantado = estado.juego.penalUsado || estado.juego.penalCantadoPor;
-                        if ((estado.juego.rondaActual >= 1 || penalYaCantado) && !estado.juego.golUsado && !estado.juego.penalActivo && !estado.juego.golActivo && rivalTieneCartas) dom.btnGol.disabled = false;
+                        if (estado.juego.rondaActual >= 1 && !estado.juego.golUsado && !estado.juego.penalActivo && !estado.juego.golActivo && rivalTieneCartas) dom.btnGol.disabled = false;
                     }
                     break;
                 case 'penal_pedido':
@@ -1423,12 +1356,6 @@
         // ============ SINCRONIZACIÓN ============
         function sincronizarJuego() {
             if (!estado.partidaId) return;
-            // Registrar los valores actuales como "escritos por nosotros",
-            // para que el listener no reproduzca sonidos de nuestros propios cambios
-            puntosSyncJ = estado.juego.puntosJugador;
-            puntosSyncR = estado.juego.puntosRival;
-            golesSyncJ = estado.juego.golesJugador;
-            golesSyncR = estado.juego.golesRival;
             const juegoRef = ref(db, 'partidas/' + estado.partidaId + '/juego');
             const datos = {
                 manoJugador: estado.miLado === 'jugador' ? estado.juego.manoJugador : estado.juego.manoRival,
@@ -1466,9 +1393,6 @@
                 varTurnoDeclarar: aAbsoluto(estado.juego.varTurnoDeclarar),
                 varPanelVisible: estado.juego.varPanelVisible,
                 esperandoRespuestaDe: aAbsoluto(estado.juego.esperandoRespuestaDe),
-                // Incluir el último evento de canto para que el rival lo reciba
-                // aunque la siguiente sincronización lo sobrescriba con null
-                ultimoEvento: estado.juego.ultimoEvento || null,
                 historialManos: estado.juego.historialManos.map(h => ({
                     ...h,
                     turnoInicial: aAbsoluto(h.turnoInicial),
@@ -1562,18 +1486,11 @@
             audioDesbloqueado = true;
             Object.values(dom.sonidos).forEach(audio => {
                 if (audio) {
-                    // Marcar el audio como "en desbloqueo": si el juego lo usa
-                    // antes de que resuelva la promesa, NO pausarlo
-                    // (si no, el pause tardío corta voces como penaljugador)
-                    audio.dataset.unlocking = '1';
                     audio.currentTime = 0;
                     audio.play().then(() => {
-                        if (audio.dataset.unlocking === '1') {
-                            audio.pause();
-                            audio.currentTime = 0;
-                        }
-                        delete audio.dataset.unlocking;
-                    }).catch(() => { delete audio.dataset.unlocking; });
+                        audio.pause();
+                        audio.currentTime = 0;
+                    }).catch(() => {});
                 }
             });
         }
@@ -1808,125 +1725,18 @@
         let ultimoEstadoJuego = null;
         let varYaResolviendo = false;
         let ultimoEventoTs = null;
-        // Últimos valores de puntos/goles vistos por este cliente.
-        // Se actualizan con cada acción local (vía sincronizarJuego) y con
-        // cada snapshot; si un aumento no fue escrito por nosotros, vino del
-        // rival y hay que reproducir el sonido correspondiente.
-        let puntosSyncJ = 0, puntosSyncR = 0;
-        let golesSyncJ = 0, golesSyncR = 0;
-        let syncInicializado = false;
-
-        // Protección anti-regresión de puntos/goles: dentro de la misma mano,
-        // los valores nunca pueden bajar. Esto evita que una escritura
-        // desactualizada (por ejemplo, un sincronizarJuego en vuelo del rival
-        // hecho antes del rechazo del canto) llegue después y revierta el
-        // marcador, haciendo que la estrella recién ganada desaparezca.
-        // Los valores solo se reinician legítimamente al comenzar una mano
-        // nueva (manoActual cambia).
-        let proteccionMano = -1;
-        let puntosMaximosJ = 0, puntosMaximosR = 0;
-        let golesMaximosJ = 0, golesMaximosR = 0;
-        function protegerPuntosYGoles() {
-            if (proteccionMano !== estado.juego.manoActual) {
-                proteccionMano = estado.juego.manoActual;
-                puntosMaximosJ = estado.juego.puntosJugador;
-                puntosMaximosR = estado.juego.puntosRival;
-                golesMaximosJ = estado.juego.golesJugador;
-                golesMaximosR = estado.juego.golesRival;
-                return;
-            }
-            if (estado.juego.puntosJugador > puntosMaximosJ) puntosMaximosJ = estado.juego.puntosJugador;
-            else estado.juego.puntosJugador = puntosMaximosJ;
-            if (estado.juego.puntosRival > puntosMaximosR) puntosMaximosR = estado.juego.puntosRival;
-            else estado.juego.puntosRival = puntosMaximosR;
-            if (estado.juego.golesJugador > golesMaximosJ) golesMaximosJ = estado.juego.golesJugador;
-            else estado.juego.golesJugador = golesMaximosJ;
-            if (estado.juego.golesRival > golesMaximosR) golesMaximosR = estado.juego.golesRival;
-            else estado.juego.golesRival = golesMaximosR;
-        }
-
-        // Detecta si un evento es nuevo aunque los relojes de los dispositivos
-        // estén desincronizados: compara el contenido del evento contra el
-        // último procesado (tolerancia de 10 minutos de diferencia de reloj).
-        let ultimaClaveEventoProcesada = null;
-        function claveEventoNueva(ev, evTs) {
-            const clave = JSON.stringify({ q: ev.quien, t: ev.tipo, c: ev.canto || null, r: ev.resumen || null });
-            if (clave === ultimaClaveEventoProcesada) return false;
-            // Solo aceptar eventos recientes: si es más viejo que 3 segundos
-            // respecto al último visto, es un evento viejo reenviado por una
-            // sincronización desactualizada (voces repetidas al tirar cartas).
-            if (evTs < (ultimoEventoTs || 0) - 3000) return false;
-            ultimaClaveEventoProcesada = clave;
-            return true;
-        }
 
         // Registrar un evento de canto en Firebase para que el rival
         // lo escuche aunque los cambios de estado lleguen combinados.
-        function registrarEventoCanto(tipo, canto, resumen) {
+        function registrarEventoCanto(tipo) {
             if (!estado.partidaId) return;
-            estado.juego.ultimoEvento = { tipo, quien: estado.miLado, canto: canto || null, resumen: resumen || null, ts: Date.now() };
             update(ref(db, 'partidas/' + estado.partidaId + '/juego'), {
-                ultimoEvento: estado.juego.ultimoEvento
-            }).then(() => {
-                // Evento ya propagado: limpiarlo para que las siguientes
-                // sincronizaciones (tirar carta, etc.) NO reenvíen un evento
-                // viejo. Si no, el rival reproducía la voz del canto otra vez
-                // con cada tiro de carta.
-                estado.juego.ultimoEvento = null;
+                ultimoEvento: { tipo, quien: estado.miLado, ts: Date.now() }
             }).catch(() => {});
         }
 
-        // Totales absolutos actuales (para adjuntar a un evento y que el rival
-        // aplique exactamente los mismos valores, sin depender del orden de llegada)
-        function resumenAbsolutoActual() {
-            return {
-                pJ: estado.miLado === 'jugador' ? estado.juego.puntosJugador : estado.juego.puntosRival,
-                pR: estado.miLado === 'jugador' ? estado.juego.puntosRival : estado.juego.puntosJugador,
-                gJ: estado.miLado === 'jugador' ? estado.juego.golesJugador : estado.juego.golesRival,
-                gR: estado.miLado === 'jugador' ? estado.juego.golesRival : estado.juego.golesJugador
-            };
-        }
-
-        // Aplicar los totales que trae un evento del rival (canto rechazado).
-        // Determinista e idempotente: suena según el delta contra las líneas
-        // base y fija el marcador al valor del resumen, pase lo que pase con
-        // el orden de los snapshots de sincronización.
-        let ultimoResumenTs = 0;
-        function aplicarResumenRival(resumen, ts) {
-            if (!resumen || !ts || ts <= ultimoResumenTs) return;
-            ultimoResumenTs = ts;
-            const pJ = estado.miLado === 'jugador' ? (resumen.pJ || 0) : (resumen.pR || 0);
-            const pR = estado.miLado === 'jugador' ? (resumen.pR || 0) : (resumen.pJ || 0);
-            const gJ = estado.miLado === 'jugador' ? (resumen.gJ || 0) : (resumen.gR || 0);
-            const gR = estado.miLado === 'jugador' ? (resumen.gR || 0) : (resumen.gJ || 0);
-            while (golesSyncJ < gJ) { reproducirSonido('golplayer'); golesSyncJ++; }
-            while (golesSyncR < gR) { reproducirSonido('golcpu'); golesSyncR++; }
-            while (puntosSyncJ < pJ) { reproducirSonido('puntoplayer'); puntosSyncJ++; }
-            while (puntosSyncR < pR) { reproducirSonido('puntocpu'); puntosSyncR++; }
-            estado.juego.puntosJugador = pJ;
-            estado.juego.puntosRival = pR;
-            estado.juego.golesJugador = gJ;
-            estado.juego.golesRival = gR;
-            // No permitir regresiones dentro de la misma mano (estrella persistente)
-            protegerPuntosYGoles();
-            puntosSyncJ = Math.max(puntosSyncJ, estado.juego.puntosJugador);
-            puntosSyncR = Math.max(puntosSyncR, estado.juego.puntosRival);
-            golesSyncJ = Math.max(golesSyncJ, estado.juego.golesJugador);
-            golesSyncR = Math.max(golesSyncR, estado.juego.golesRival);
-            renderizarMarcador();
-        }
-
-        // NOTA sobre los puntos por canto rechazado ("no quiero" / VAR rechazado):
-        // quien rechaza aplica los puntos con sumarPuntos() y los sincroniza a
-        // Firebase. El otro cliente los recibe por el listener (bloque de
-        // SONIDOS DE PUNTOS Y GOLES), que reproduce la voz y muestra la estrella.
-        // Los puntos NO se aplican localmente al recibir el evento de canto,
-        // porque eso duplicaba/revertía valores según el orden de llegada de
-        // los snapshots. La sincronización es la única fuente de verdad.
-
-        // Reproducir el sonido y mensaje correspondiente a un canto del rival.
-        // Solo voz y mensaje: los puntos derivados llegan por sincronización.
-        function reproducirEventoRival(tipo, ev) {
+        // Reproducir el sonido y mensaje correspondiente a un canto del rival
+        function reproducirEventoRival(tipo) {
             switch (tipo) {
                 case 'penal':
                     reproducirSonido('penalcpu');
@@ -1947,9 +1757,6 @@
                 case 'no_quiero':
                     reproducirSonido('noquierocpu');
                     mostrarMensaje(`${estado.rivalNombre}: ✗ No quiso`);
-                    // El rival rechazó MI canto → +1 punto para mí (+2 si era golazo).
-                    // Los puntos ya fueron aplicados por el rival en Firebase y
-                    // llegan por sincronización (sonido + estrella automáticos).
                     break;
                 case 'var':
                     reproducirSonido('pidoverelvarcpu');
@@ -1962,7 +1769,6 @@
                 case 'var_rechaza':
                     reproducirSonido('noquierocpu');
                     mostrarMensaje(`${estado.rivalNombre}: ✗ No quiero el VAR`);
-                    // Punto correspondiente recibido por sincronización
                     break;
             }
         }
@@ -2005,8 +1811,6 @@
                         dom.etiquetaCpu.textContent = 'Turno de ' + estado.rivalNombre;
                         dom.etiquetaJugador.textContent = 'Turno de ' + (estado.nickname || 'Jugador');
                         reproducirAudioFondo();
-                        // Reiniciar la línea base de puntos/goles al comenzar la partida
-                        syncInicializado = false;
                         // Empujar un estado de historial para interceptar el botón "atrás"
                         history.pushState({ juegoIniciado: true }, '', location.href);
                     }
@@ -2073,10 +1877,6 @@
                     estado.juego.golesInicioManoJugador = estado.miLado === 'jugador' ? (j.golesInicioManoJugador || 0) : (j.golesInicioManoRival || 0);
                     estado.juego.golesInicioManoRival = estado.miLado === 'jugador' ? (j.golesInicioManoRival || 0) : (j.golesInicioManoJugador || 0);
 
-                    // Evitar que puntos/goles retrocedan dentro de la misma mano
-                    // (la estrella del canto rechazado debe permanecer encendida)
-                    protegerPuntosYGoles();
-
                     // ============ REPRODUCIR SONIDOS DEL RIVAL ============
                     if (jAnterior) {
                         // Sonido de carta del rival
@@ -2101,41 +1901,33 @@
                             if (ultimoEventoTs === null) {
                                 // Primer snapshot: solo tomar como línea base
                                 ultimoEventoTs = evTs;
-                            } else if (evTs > ultimoEventoTs || claveEventoNueva(j.ultimoEvento, evTs)) {
-                                ultimoEventoTs = Math.max(ultimoEventoTs, evTs);
+                            } else if (evTs > ultimoEventoTs) {
+                                ultimoEventoTs = evTs;
                                 if (j.ultimoEvento.quien !== estado.miLado) {
-                                    reproducirEventoRival(j.ultimoEvento.tipo, j.ultimoEvento);
-                                    // Aplicar de forma determinista los totales que
-                                    // trae el evento (canto rechazado → punto al que cantó)
-                                    aplicarResumenRival(j.ultimoEvento.resumen, evTs);
+                                    reproducirEventoRival(j.ultimoEvento.tipo);
                                 }
                             }
                         }
-                        // ============ SONIDOS DE PUNTOS Y GOLES ============
-                        // Igual que contra la CPU: puntoplayer/puntocpu para
-                        // puntos y golplayer/golcpu para goles. Solo suenan
-                        // para cambios hechos por el rival; los propios ya
-                        // sonaron localmente (sincronizarJuego actualiza la
-                        // línea base con cada acción nuestra).
-                        if (!syncInicializado) {
-                            puntosSyncJ = estado.juego.puntosJugador;
-                            puntosSyncR = estado.juego.puntosRival;
-                            golesSyncJ = estado.juego.golesJugador;
-                            golesSyncR = estado.juego.golesRival;
-                            syncInicializado = true;
-                        } else {
-                            // Cualquier aumento de puntos/goles hecho por el rival
-                            // (incluye "no quiero" y VAR rechazado de mis cantos)
-                            // suena y suma la estrella aquí automáticamente.
-                            while (golesSyncJ < estado.juego.golesJugador) { reproducirSonido('golplayer'); golesSyncJ++; }
-                            while (golesSyncR < estado.juego.golesRival) { reproducirSonido('golcpu'); golesSyncR++; }
-                            while (puntosSyncJ < estado.juego.puntosJugador) { reproducirSonido('puntoplayer'); puntosSyncJ++; }
-                            while (puntosSyncR < estado.juego.puntosRival) { reproducirSonido('puntocpu'); puntosSyncR++; }
-                            // Al reiniciar la mano los valores bajan: solo actualizar sin sonido
-                            golesSyncJ = estado.juego.golesJugador;
-                            golesSyncR = estado.juego.golesRival;
-                            puntosSyncJ = estado.juego.puntosJugador;
-                            puntosSyncR = estado.juego.puntosRival;
+                        // Sonido de gol del rival (cuando se marca un gol)
+                        if (jAnterior.golesJugador !== undefined && j.golesJugador !== undefined) {
+                            const golesJugadorAntes = estado.miLado === 'jugador' ? jAnterior.golesJugador : jAnterior.golesRival;
+                            const golesJugadorAhora = estado.miLado === 'jugador' ? j.golesJugador : j.golesRival;
+                            if (golesJugadorAhora > golesJugadorAntes) {
+                                // Yo metí gol
+                            }
+                            const golesRivalAntes = estado.miLado === 'jugador' ? jAnterior.golesRival : jAnterior.golesJugador;
+                            const golesRivalAhora = estado.miLado === 'jugador' ? j.golesRival : j.golesJugador;
+                            if (golesRivalAhora > golesRivalAntes) {
+                                reproducirSonido('golcpu');
+                            }
+                        }
+                        // Sonido de punto del rival
+                        if (jAnterior.puntosJugador !== undefined && j.puntosJugador !== undefined) {
+                            const puntosRivalAntes = estado.miLado === 'jugador' ? jAnterior.puntosRival : jAnterior.puntosJugador;
+                            const puntosRivalAhora = estado.miLado === 'jugador' ? j.puntosRival : j.puntosJugador;
+                            if (puntosRivalAhora > puntosRivalAntes) {
+                                reproducirSonido('puntocpu');
+                            }
                         }
                     }
 
@@ -2218,7 +2010,6 @@
                         varPedidoPor: null,
                         varDeclaraciones: { jugador: null, rival: null },
                         varTurnoDeclarar: null, esperandoRespuestaDe: null,
-                        ultimoEvento: null,
                         historialManos: [], inicioRonda: 0,
                         ganadorManoAnterior: null, golEnMano: false,
                         golesInicioManoJugador: 0, golesInicioManoRival: 0,
@@ -2581,11 +2372,7 @@
         function jugadorPideGol() {
             if (estado.fase !== 'jugando') return;
             if (estado.juego.fase !== 'esperando_seleccion') return;
-            // Gol permitido desde la ronda 1, o inmediatamente después de
-            // cantar/ejecutar el penal (aunque la ronda siga en 0, porque el
-            // penal no cuenta como ronda jugada).
-            const penalYaCantado = estado.juego.penalUsado || estado.juego.penalCantadoPor;
-            if (estado.juego.rondaActual < 1 && !penalYaCantado) return;
+            if (estado.juego.rondaActual < 1) return;
             if (estado.juego.golUsado) return;
             if (estado.juego.manoJugador.length === 0 || estado.juego.manoRival.length === 0) return;
             if (estado.juego.turnoActual !== 'jugador') return;
@@ -2628,9 +2415,7 @@
                 if (estado.juego.fase === 'var_decision') {
                     if (resp === 'no_quiero') {
                         sumarPuntos(estado.juego.varPedidoPor, 1);
-                        registrarEventoCanto('var_rechaza', null, resumenAbsolutoActual());
-                        // Sincronizar los puntos aplicados para que el rival los reciba
-                        sincronizarJuego();
+                        registrarEventoCanto('var_rechaza');
                         reproducirSonido('noquierojugador');
                         mostrarMensaje(`${estado.nickname || 'Jugador'}: ✗ No quiero el VAR`);
                         finalizarCanto();
@@ -2647,11 +2432,8 @@
             if (resp === 'no_quiero') {
                 const quienCanto = cantoPedidoPor;
                 const puntos = cantoActual === 'golazo' ? 2 : 1;
-                console.log('[GOLAZO DEBUG] No quiero:', { cantoActual, quienCanto, puntos });
                 const golPorPuntos = sumarPuntos(quienCanto, puntos);
-                registrarEventoCanto('no_quiero', cantoActual, resumenAbsolutoActual());
-                // Sincronizar los puntos aplicados para que el rival los reciba
-                sincronizarJuego();
+                registrarEventoCanto('no_quiero');
                 reproducirSonido('noquierojugador');
                 mostrarMensaje(`${estado.nickname || 'Jugador'}: ✗ No quiso`);
                 if (golPorPuntos) setTimeout(finalizarMano, 2200);
@@ -3084,16 +2866,6 @@
             estado.fase = 'fin';
             estado.enPartida = false;
             dom.overlayFin.classList.remove('oculto');
-            // Sonido de fin de partido como en play.html (ganar/empate/perder)
-            const ganadorFin = resultado.ganador;
-            const yoGaneFin = (estado.miLado === 'jugador' && ganadorFin === 'jugador') || (estado.miLado === 'rival' && ganadorFin === 'rival');
-            if (ganadorFin === 'empate') {
-                reproducirSonido('empate');
-            } else if (yoGaneFin) {
-                reproducirSonido('ganar');
-            } else {
-                reproducirSonido('perder');
-            }
             // Convertir goles absolutos a relativos
             const gJ = estado.miLado === 'jugador' ? (resultado.golesJugador || 0) : (resultado.golesRival || 0);
             const gR = estado.miLado === 'jugador' ? (resultado.golesRival || 0) : (resultado.golesJugador || 0);
@@ -3182,14 +2954,6 @@
         function inicializar() {
             cacheDom();
             actualizarEscalado();
-            // Marca de versión escrita por JS: si el cartel muestra la hora,
-            // el código nuevo está corriendo; si muestra solo "v5", la página
-            // está cacheada/vieja.
-            const dbgInit = document.getElementById('debugBadge');
-            if (dbgInit) {
-                const t = new Date();
-                dbgInit.textContent = 'v6 ⏱' + t.toLocaleTimeString() + ' | cargando...';
-            }
 
             onAuthStateChanged(auth, (user) => {
                 estado.usuario = user;
