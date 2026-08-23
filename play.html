@@ -3777,6 +3777,19 @@
 
             function iniciarPartido() {
                 dom.overlayBienvenida.classList.add('oculto');
+                // Recién al presionar JUGAR la partida se considera activa.
+                // Esto habilita la detección de abandonos (popstate,
+                // visibilitychange, beforeunload y verificarAbandono en index).
+                estado.partidoActivo = true;
+                // Marcar en Firebase que la partida está en curso (para detectar
+                // abandono si el jugador cierra la página sin terminar)
+                try {
+                    const fbMarca = window.GolazoFirebase;
+                    if (fbMarca && fbMarca.usuario && fbMarca.update && fbMarca.ref && fbMarca.db) {
+                        fbMarca.update(fbMarca.ref(fbMarca.db, 'usuarios/' + fbMarca.usuario.uid), { enPartida: true });
+                    }
+                } catch (e) { console.error('Error marcando partida activa:', e); }
+
                 estado.pausado = false;
                 renderizarTodo();
 
@@ -3826,17 +3839,18 @@
                 }
             });
 
-            // Registrar abandono si el jugador sale antes de terminar la partida
-window.addEventListener('beforeunload', (e) => {
-    if (partidoEnCurso()) {
-        mostrarAdvertenciaSalida(() => {
-            registrarAbandono();
-            window.location.href = 'index.html';
-        });
-        e.preventDefault();
-        e.returnValue = '';
-    }
-});
+            // Registrar abandono si el jugador cierra/recarga la página con una
+            // partida en curso. Acá solo se pide confirmación nativa del navegador:
+            // NO se muestra el overlay custom ni se intenta registrar el abandono
+            // desde acá (las operaciones asíncronas no llegan a completarse durante
+            // el descargo de la página). El abandono real lo registra index.html
+            // vía verificarAbandono(), que detecta la marca enPartida=true.
+            window.addEventListener('beforeunload', (e) => {
+                if (partidoEnCurso()) {
+                    e.preventDefault();
+                    e.returnValue = '';
+                }
+            });
             // Al ocultar la pestaña, esperar 30 segundos antes de considerar abandono
             // (evita registrar abandono por cambiar de app o minimizar brevemente)
             let tiempoOcultoInicio = 0;
@@ -3855,6 +3869,16 @@ window.addEventListener('beforeunload', (e) => {
             function reiniciarPartido() {
                 detenerAudioFondo();
                 dom.overlayFin.classList.add('oculto');
+                // Reactivar la partida: mostrarFinPartido() apagó partidoActivo y
+                // limpió enPartida, así que hay que volver a marcarlos para que la
+                // revancha también esté protegida contra abandonos.
+                estado.partidoActivo = true;
+                try {
+                    const fbMarca = window.GolazoFirebase;
+                    if (fbMarca && fbMarca.usuario && fbMarca.update && fbMarca.ref && fbMarca.db) {
+                        fbMarca.update(fbMarca.ref(fbMarca.db, 'usuarios/' + fbMarca.usuario.uid), { enPartida: true });
+                    }
+                } catch (e) { console.error('Error marcando partida activa (revancha):', e); }
                 estado.pausado = false;
                 Object.assign(estado, {
                     golesJugador: 0,
@@ -3955,15 +3979,12 @@ window.addEventListener('beforeunload', (e) => {
                     }
                     const user = fb.usuario;
                     if (user) {
-                        // Al entrar con sesión, se considera que la partida está activa
-                        estado.partidoActivo = true;
-                        // Marcar en Firebase que la partida está en curso (para detectar abandono)
-                        try {
-                            const fbMarca = window.GolazoFirebase;
-                            if (fbMarca && fbMarca.update && fbMarca.ref && fbMarca.db) {
-                                fbMarca.update(fbMarca.ref(fbMarca.db, 'usuarios/' + user.uid), { enPartida: true });
-                            }
-                        } catch (e) { console.error('Error marcando partida activa:', e); }
+                        // NOTA: acá NO se marca la partida como activa.
+                        // estado.partidoActivo y el flag enPartida en Firebase se
+                        // establecen recién en iniciarPartido(), cuando el usuario
+                        // presiona JUGAR. Si se marcaran acá, alguien que abre
+                        // play.html y vuelve atrás sin jugar sería castigado con
+                        // un falso abandono (-5 puntos) por verificarAbandono().
                         // Usar el nickname si existe, sino el nombre de Google
                         const nick = (fb.nickname && fb.nickname.length >= 3) ? fb.nickname : (user.displayName || 'Jugador');
                         estado.nombreJugador = nick;
