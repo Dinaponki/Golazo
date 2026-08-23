@@ -855,6 +855,7 @@
             partidaId: null, miLado: null, // 'jugador' o 'rival'
             rivalNombre: 'Rival',
             enPartida: false, fase: 'lobby',
+            partidaTerminada: false, // true cuando ya se mostró la pantalla de fin
             esPartidaRapida: false,
             sonidosActivados: true, musicaActivada: true,
             juego: {
@@ -2831,6 +2832,10 @@
             if (estado.fase === 'fin') return;
             estado.fase = 'fin';
             estado.enPartida = false;
+            // Marcar la partida como terminada: a partir de acá ningún evento
+            // automático (cambio de pestaña, botón atrás, etc.) puede quitar
+            // esta pantalla ni registrar un abandono.
+            estado.partidaTerminada = true;
             dom.overlayFin.classList.remove('oculto');
             // Convertir goles absolutos a relativos
             const gJ = estado.miLado === 'jugador' ? (resultado.golesJugador || 0) : (resultado.golesRival || 0);
@@ -2875,6 +2880,9 @@
 
         // ============ ABANDONAR ============
         async function abandonarPartida() {
+            // Si la partida ya terminó, no hacer nada: no sobrescribir el
+            // resultado con un abandono ni navegar fuera de la pantalla de fin.
+            if (estado.fase === 'fin' || estado.partidaTerminada) return;
             if (estado.partidaId && estado.enPartida) {
                 try {
                     const partidaRef = ref(db, 'partidas/' + estado.partidaId);
@@ -3073,7 +3081,10 @@ ${link}`;
                     tiempoOcultoInicio = Date.now();
                 } else if (!document.hidden && tiempoOcultoInicio > 0) {
                     const tiempoOcultoMs = Date.now() - tiempoOcultoInicio;
-                    if (tiempoOcultoMs > 30000) {
+                    // Solo considerar abandono si seguimos DENTRO de una partida
+                    // activa. Si la partida terminó mientras la pestaña estaba
+                    // oculta, no abandonar: dejar que se vea la pantalla de fin.
+                    if (tiempoOcultoMs > 30000 && estado.enPartida && !estado.partidaTerminada) {
                         abandonarPartida();
                     }
                     tiempoOcultoInicio = 0;
