@@ -13,7 +13,7 @@
     <link rel="manifest" href="/site.webmanifest" />
 
     <!-- Google AdSense -->
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7910038078519460"
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7274805595278083"
         crossorigin="anonymous"></script>
 
     <style>
@@ -697,7 +697,7 @@
             <!-- Reemplazá el data-ad-slot por el ID de tu bloque de anuncios de AdSense -->
             <ins class="adsbygoogle"
                 style="display:block"
-                data-ad-client="ca-pub-7910038078519460"
+                data-ad-client="ca-pub-7274805595278083"
                 data-ad-slot="3344556677"
                 data-ad-format="auto"
                 data-full-width-responsive="true"></ins>
@@ -736,20 +736,6 @@
     <audio id="sndPuntocpu" preload="auto"><source src="sounds/puntocpu.mp3" type="audio/mpeg"></audio>
     <audio id="sndPuntoplayer" preload="auto"><source src="sounds/puntoplayer.mp3" type="audio/mpeg"></audio>
     <audio id="sndVar" preload="auto"><source src="sounds/var.mp3" type="audio/mpeg"></audio>
-    <!-- Sonidos de cantos del jugador -->
-    <audio id="sndPenalJugador" preload="auto"><source src="sounds/penaljugador.mp3" type="audio/mpeg"></audio>
-    <audio id="sndQuieroJugador" preload="auto"><source src="sounds/quierojugador.mp3" type="audio/mpeg"></audio>
-    <audio id="sndNoQuieroJugador" preload="auto"><source src="sounds/noquierojugador.mp3" type="audio/mpeg"></audio>
-    <audio id="sndVarJugador" preload="auto"><source src="sounds/varjugador.mp3" type="audio/mpeg"></audio>
-    <audio id="sndGolJugador" preload="auto"><source src="sounds/goljugador.mp3" type="audio/mpeg"></audio>
-    <audio id="sndGolazoJugador" preload="auto"><source src="sounds/golazojugador.mp3" type="audio/mpeg"></audio>
-    <!-- Sonidos de cantos del rival (como si fuera la CPU) -->
-    <audio id="sndPenalCpu" preload="auto"><source src="sounds/penalcpu.mp3" type="audio/mpeg"></audio>
-    <audio id="sndQuieroCpu" preload="auto"><source src="sounds/quierocpu.mp3" type="audio/mpeg"></audio>
-    <audio id="sndNoQuieroCpu" preload="auto"><source src="sounds/noquierocpu.mp3" type="audio/mpeg"></audio>
-    <audio id="sndPideVarCpu" preload="auto"><source src="sounds/pidoverelvarcpu.mp3" type="audio/mpeg"></audio>
-    <audio id="sndGolCpuCanto" preload="auto"><source src="sounds/golcpucanto.mp3" type="audio/mpeg"></audio>
-    <audio id="sndGolazoCpu" preload="auto"><source src="sounds/golazocpu.mp3" type="audio/mpeg"></audio>
     <audio id="sndGanar" preload="auto"><source src="sounds/ganar.mp3" type="audio/mpeg"></audio>
     <audio id="sndEmpate" preload="auto"><source src="sounds/empate.mp3" type="audio/mpeg"></audio>
     <audio id="sndPerder" preload="auto"><source src="sounds/perder.mp3" type="audio/mpeg"></audio>
@@ -960,18 +946,6 @@
             dom.audioPuntocpu = document.getElementById('sndPuntocpu');
             dom.audioPuntoplayer = document.getElementById('sndPuntoplayer');
             dom.audioVar = document.getElementById('sndVar');
-            dom.audioPenalJugador = document.getElementById('sndPenalJugador');
-            dom.audioQuieroJugador = document.getElementById('sndQuieroJugador');
-            dom.audioNoQuieroJugador = document.getElementById('sndNoQuieroJugador');
-            dom.audioVarJugador = document.getElementById('sndVarJugador');
-            dom.audioGolJugador = document.getElementById('sndGolJugador');
-            dom.audioGolazoJugador = document.getElementById('sndGolazoJugador');
-            dom.audioPenalCpu = document.getElementById('sndPenalCpu');
-            dom.audioQuieroCpu = document.getElementById('sndQuieroCpu');
-            dom.audioNoQuieroCpu = document.getElementById('sndNoQuieroCpu');
-            dom.audioPideVarCpu = document.getElementById('sndPideVarCpu');
-            dom.audioGolCpuCanto = document.getElementById('sndGolCpuCanto');
-            dom.audioGolazoCpu = document.getElementById('sndGolazoCpu');
             dom.audioGanar = document.getElementById('sndGanar');
             dom.audioEmpate = document.getElementById('sndEmpate');
             dom.audioPerder = document.getElementById('sndPerder');
@@ -982,13 +956,7 @@
                 'quiero': dom.audioQuiero, 'mmmquiero': dom.audioMmmquiero,
                 'noquiero': dom.audioNoquiero, 'penal': dom.audioPenal,
                 'puntocpu': dom.audioPuntocpu, 'puntoplayer': dom.audioPuntoplayer,
-                'var': dom.audioVar,
-                'penaljugador': dom.audioPenalJugador, 'quierojugador': dom.audioQuieroJugador,
-                'noquierojugador': dom.audioNoQuieroJugador, 'varjugador': dom.audioVarJugador,
-                'goljugador': dom.audioGolJugador, 'golazojugador': dom.audioGolazoJugador,
-                'penalcpu': dom.audioPenalCpu, 'quierocpu': dom.audioQuieroCpu,
-                'noquierocpu': dom.audioNoQuieroCpu, 'pidoverelvarcpu': dom.audioPideVarCpu,
-                'golcpucanto': dom.audioGolCpuCanto, 'golazocpu': dom.audioGolazoCpu, 'ganar': dom.audioGanar,
+                'var': dom.audioVar, 'ganar': dom.audioGanar,
                 'empate': dom.audioEmpate, 'perder': dom.audioPerder,
             };
         }
@@ -1476,29 +1444,9 @@
             reproducirSonido('carta');
         }
 
-        // ============ DESBLOQUEO DE AUDIO (móviles) ============
-        // Los navegadores móviles requieren un gesto del usuario para poder
-        // reproducir audio. Al presionar cualquier botón del lobby se
-        // reproducen y pausan todos los sonidos para desbloquearlos.
-        let audioDesbloqueado = false;
-        function desbloquearAudio() {
-            if (audioDesbloqueado || !dom.sonidos) return;
-            audioDesbloqueado = true;
-            Object.values(dom.sonidos).forEach(audio => {
-                if (audio) {
-                    audio.currentTime = 0;
-                    audio.play().then(() => {
-                        audio.pause();
-                        audio.currentTime = 0;
-                    }).catch(() => {});
-                }
-            });
-        }
-
         // ============ FIREBASE: CREAR PARTIDA ============
         async function crearPartida() {
             if (!estado.usuario) return;
-            desbloquearAudio();
             mostrarLobbyMensaje('Creando partida...', false);
             dom.btnCrearPartida.disabled = true;
             try {
@@ -1536,7 +1484,6 @@
         // ============ FIREBASE: UNIRSE ============
         async function unirsePartida() {
             if (!estado.usuario) return;
-            desbloquearAudio();
             const codigo = dom.inputCodigo.value.trim().toUpperCase();
             if (codigo.length !== CODIGO_LENGTH) { mostrarLobbyMensaje('El código debe tener ' + CODIGO_LENGTH + ' caracteres.', true); return; }
             mostrarLobbyMensaje('Buscando partida...', false);
@@ -1574,7 +1521,6 @@
 
         async function jugarRapido() {
             if (!estado.usuario || buscandoRapido) return;
-            desbloquearAudio();
             buscandoRapido = true;
             mostrarLobbyMensaje('Buscando rival...', false);
             dom.btnJugarRapido.disabled = true;
@@ -1724,62 +1670,6 @@
         let partidaListener = null;
         let ultimoEstadoJuego = null;
         let varYaResolviendo = false;
-        let ultimoEventoTs = null;
-
-        // Registrar un evento de canto en Firebase para que el rival
-        // lo escuche aunque los cambios de estado lleguen combinados.
-        function registrarEventoCanto(tipo) {
-            if (!estado.partidaId) return;
-            update(ref(db, 'partidas/' + estado.partidaId + '/juego'), {
-                ultimoEvento: { tipo, quien: estado.miLado, ts: Date.now() }
-            }).catch(() => {});
-        }
-
-        // Reproducir el sonido y mensaje correspondiente a un canto del rival
-        function reproducirEventoRival(tipo) {
-            switch (tipo) {
-                case 'penal':
-                    reproducirSonido('penalcpu');
-                    mostrarMensaje(`🥅 PENAL de ${estado.rivalNombre}`);
-                    break;
-                case 'gol':
-                    reproducirSonido('golcpucanto');
-                    mostrarMensaje(`⚽ ¡GOL! de ${estado.rivalNombre}`);
-                    break;
-                case 'golazo':
-                    reproducirSonido('golazocpu');
-                    mostrarMensaje(`💥 ${estado.rivalNombre} canta GOLAZO`);
-                    break;
-                case 'quiero':
-                    reproducirSonido('quierocpu');
-                    mostrarMensaje(`${estado.rivalNombre}: ✓ ¡Quiero!`);
-                    break;
-                case 'no_quiero':
-                    reproducirSonido('noquierocpu');
-                    mostrarMensaje(`${estado.rivalNombre}: ✗ No quiso`);
-                    break;
-                case 'var':
-                    reproducirSonido('pidoverelvarcpu');
-                    mostrarMensaje(`📺 ${estado.rivalNombre} pide VAR`);
-                    break;
-                case 'var_acepta':
-                    reproducirSonido('quierocpu');
-                    mostrarMensaje(`${estado.rivalNombre}: ✓ ¡Quiero el VAR!`);
-                    break;
-                case 'var_rechaza':
-                    reproducirSonido('noquierocpu');
-                    mostrarMensaje(`${estado.rivalNombre}: ✗ No quiero el VAR`);
-                    break;
-            }
-        }
-
-        // Declaración para el VAR: el número más alto entre el Delantero
-        // y el Arquero que tenga el jugador en la mano.
-        function declaracionVarDe(mano) {
-            const mejorDel = mejorCartaDe(mano, 'Del');
-            const mejorArq = mejorCartaDe(mano, 'Arq');
-            return Math.max(mejorDel ? mejorDel.numero : 0, mejorArq ? mejorArq.numero : 0);
-        }
 
         function escucharPartida(codigo) {
             if (partidaListener) { partidaListener(); partidaListener = null; }
@@ -1891,21 +1781,59 @@
                                 }
                             }
                         }
-                        // ============ EVENTOS DE CANTOS DEL RIVAL ============
-                        // Cada canto se registra explícitamente en Firebase
-                        // (ultimoEvento), garantizando que todas las voces
-                        // se escuchen aunque los cambios de estado lleguen
-                        // combinados en un mismo snapshot.
-                        if (j.ultimoEvento && j.ultimoEvento.ts) {
-                            const evTs = j.ultimoEvento.ts;
-                            if (ultimoEventoTs === null) {
-                                // Primer snapshot: solo tomar como línea base
-                                ultimoEventoTs = evTs;
-                            } else if (evTs > ultimoEventoTs) {
-                                ultimoEventoTs = evTs;
-                                if (j.ultimoEvento.quien !== estado.miLado) {
-                                    reproducirEventoRival(j.ultimoEvento.tipo);
+                        // Sonido de penal del rival
+                        if (!jAnterior.penalCantadoPor && j.penalCantadoPor) {
+                            const quienPenal = aRelativo(j.penalCantadoPor);
+                            if (quienPenal === 'rival') {
+                                reproducirSonido('penal');
+                                mostrarMensaje(`🥅 PENAL de ${estado.rivalNombre}`);
+                            }
+                        }
+                        // Sonido de gol del rival
+                        if (!jAnterior.golUsado && j.golUsado) {
+                            // Quien pidió gol es cantoPedidoPor
+                            if (j.cantoPedidoPor) {
+                                const quienGol = aRelativo(j.cantoPedidoPor);
+                                if (quienGol === 'rival') {
+                                    reproducirSonido('gol');
+                                    mostrarMensaje(`⚽ ¡GOL! de ${estado.rivalNombre}`);
                                 }
+                            }
+                        }
+                        // Sonido de golazo del rival
+                        if (!jAnterior.golazoUsado && j.golazoUsado) {
+                            if (j.cantoPedidoPor) {
+                                const quienGolazo = aRelativo(j.cantoPedidoPor);
+                                if (quienGolazo === 'rival') reproducirSonido('golazo');
+                            }
+                        }
+                        // Sonido de quiero/noquiero del rival
+                        if (jAnterior.esperandoRespuestaDe && !j.esperandoRespuestaDe) {
+                            // El rival respondió
+                            if (j.fase === 'penal_pedido' || j.fase === 'gol_pedido' || j.fase === 'golazo_pedido' || j.fase === 'var_decision') {
+                                // El rival respondió algo, pero no sabemos qué exactamente
+                                // Solo reproducimos si el que respondió fue el rival
+                            }
+                        }
+                        // Sonido de VAR del rival
+                        if (!jAnterior.varPedidoPor && j.varPedidoPor) {
+                            const quienVar = aRelativo(j.varPedidoPor);
+                            if (quienVar === 'rival') {
+                                reproducirSonido('var');
+                                mostrarMensaje(`📺 ${estado.rivalNombre} pide VAR`);
+                            }
+                        }
+                        // ============ MENSAJES DE RESPUESTAS DEL RIVAL ============
+                        // Detectar qué respondió el rival a un canto (quiero / no quiero / VAR / golazo)
+                        if (jAnterior.esperandoRespuestaDe === 'rival' && j.esperandoRespuestaDe !== 'rival') {
+                            if (!jAnterior.golazoUsado && j.golazoUsado) {
+                                mostrarMensaje(`💥 ${estado.rivalNombre} canta GOLAZO`);
+                            } else if (!jAnterior.varPedidoPor && j.varPedidoPor) {
+                                // Ya se muestra el mensaje de "pide VAR" arriba
+                            } else if (j.penalActivo || j.golActivo || j.cantoPendiente) {
+                                mostrarMensaje(`${estado.rivalNombre}: ✓ ¡Quiero!`);
+                            } else {
+                                mostrarMensaje(`${estado.rivalNombre}: ✗ No quiso`);
                             }
                         }
                         // Sonido de gol del rival (cuando se marca un gol)
@@ -2364,8 +2292,7 @@
             estado.juego.penalCantadoPor = 'jugador';
             sincronizarJuego();
             renderizarTodo();
-            registrarEventoCanto('penal');
-            reproducirSonido('penaljugador');
+            reproducirSonido('penal');
             mostrarMensaje(`🥅 PENAL de ${estado.nickname || 'Jugador'}`);
         }
 
@@ -2384,8 +2311,7 @@
             estado.juego.golUsado = true;
             sincronizarJuego();
             renderizarTodo();
-            registrarEventoCanto('gol');
-            reproducirSonido('goljugador');
+            reproducirSonido('gol');
             mostrarMensaje(`⚽ ¡GOL! de ${estado.nickname || 'Jugador'}`);
         }
 
@@ -2415,13 +2341,9 @@
                 if (estado.juego.fase === 'var_decision') {
                     if (resp === 'no_quiero') {
                         sumarPuntos(estado.juego.varPedidoPor, 1);
-                        registrarEventoCanto('var_rechaza');
-                        reproducirSonido('noquierojugador');
                         mostrarMensaje(`${estado.nickname || 'Jugador'}: ✗ No quiero el VAR`);
                         finalizarCanto();
                     } else {
-                        registrarEventoCanto('var_acepta');
-                        reproducirSonido('quierojugador');
                         mostrarMensaje(`${estado.nickname || 'Jugador'}: ✓ ¡Quiero el VAR!`);
                         iniciarVar();
                     }
@@ -2433,8 +2355,6 @@
                 const quienCanto = cantoPedidoPor;
                 const puntos = cantoActual === 'golazo' ? 2 : 1;
                 const golPorPuntos = sumarPuntos(quienCanto, puntos);
-                registrarEventoCanto('no_quiero');
-                reproducirSonido('noquierojugador');
                 mostrarMensaje(`${estado.nickname || 'Jugador'}: ✗ No quiso`);
                 if (golPorPuntos) setTimeout(finalizarMano, 2200);
                 else finalizarCanto();
@@ -2444,8 +2364,6 @@
                 estado.juego.esperandoRespuestaDe = 'rival';
                 sincronizarJuego();
                 renderizarTodo();
-                registrarEventoCanto('var');
-                reproducirSonido('varjugador');
                 mostrarMensaje(`📺 ${estado.nickname || 'Jugador'} pide VAR`);
             } else if (resp === 'golazo') {
                 estado.juego.fase = 'golazo_pedido';
@@ -2455,12 +2373,8 @@
                 estado.juego.golazoUsado = true;
                 sincronizarJuego();
                 renderizarTodo();
-                registrarEventoCanto('golazo');
-                reproducirSonido('golazojugador');
                 mostrarMensaje(`💥 ${estado.nickname || 'Jugador'} canta GOLAZO`);
             } else if (resp === 'quiero') {
-                registrarEventoCanto('quiero');
-                reproducirSonido('quierojugador');
                 mostrarMensaje(`${estado.nickname || 'Jugador'}: ✓ ¡Quiero!`);
                 ejecutarCanto(cantoActual, cantoPedidoPor);
             }
@@ -2585,7 +2499,7 @@
             estado.juego.varTurnoDeclarar = estado.juego.varPedidoPor;
             // Mostrar el panel VAR sincronizado para ambos jugadores
             estado.juego.varPanelVisible = true;
-            const dj = declaracionVarDe(estado.juego.manoJugador);
+            const dj = numeroMasAltoArqDel(estado.juego.manoJugador);
             estado.juego.varDeclaraciones.jugador = dj;
             if (dom.varPanel && dom.varPanelTexto) {
                 dom.varPanelTexto.textContent = `${estado.nickname || 'Jugador'} ${dj} vs ${estado.rivalNombre} ?`;
@@ -2599,7 +2513,7 @@
         }
 
         function declararVarJugador() {
-            const real = declaracionVarDe(estado.juego.manoJugador);
+            const real = numeroMasAltoArqDel(estado.juego.manoJugador);
             estado.juego.varDeclaraciones.jugador = real;
             const dr = estado.juego.varDeclaraciones.rival;
             if (dom.varPanel && dom.varPanelTexto) {
