@@ -722,6 +722,9 @@
     <!-- Mensaje flotante -->
     <div class="mensaje-flotante" id="mensajeFlotante"></div>
 
+    <!-- Badge de diagnóstico (borrar cuando se confirme el funcionamiento) -->
+    <div id="debugBadge" style="position:fixed;top:4px;left:4px;z-index:9999;background:rgba(0,0,0,.75);color:#0f0;font:11px monospace;padding:3px 6px;border-radius:6px;pointer-events:none;">v5</div>
+
     <!-- Audio -->
     <audio id="audioFondo" loop preload="auto"><source src="sounds/background.mp3" type="audio/mpeg"></audio>
     <audio id="sndCarta" preload="auto"><source src="sounds/carta.mp3" type="audio/mpeg"></audio>
@@ -1268,6 +1271,12 @@
             dom.golesCpu.textContent = estado.juego.golesRival;
             dom.minutoActual.textContent = MINUTOS[estado.juego.manoActual] || "0' a 10'";
             renderizarEstrellas();
+            const dbg = document.getElementById('debugBadge');
+            if (dbg) {
+                dbg.textContent = 'v5 | ' + estado.juego.fase + ' | resp:' + (estado.juego.esperandoRespuestaDe || '-') +
+                    ' | ⭐J:' + estado.juego.puntosJugador + ' R:' + estado.juego.puntosRival +
+                    ' | ⚽' + estado.juego.golesJugador + '-' + estado.juego.golesRival;
+            }
         }
 
         function actualizarIndicadorCanto() {
