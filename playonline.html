@@ -1762,42 +1762,16 @@
             }).catch(() => {});
         }
 
-        // Contadores de puntos/goles ya aplicados localmente por eventos del
-        // rival ("no quiero", VAR rechazado). Se consumen sin sonido cuando
-        // llega la sincronización del rival para no duplicar voces.
-        let puntosPendientesRivalParaMi = 0;
-        let golesPendientesRivalParaMi = 0;
-
-        // Aplicar puntos a mi favor localmente (con sonido y estrella al instante).
-        // El valor autoritativo llega luego por sincronización; los contadores
-        // pendientes evitan reproducir el sonido dos veces.
-        function aplicarPuntosLocales(cant) {
-            for (let i = 0; i < cant; i++) {
-                estado.juego.puntosJugador++;
-                puntosPendientesRivalParaMi++;
-                if (estado.juego.puntosJugador >= PUNTOS_PARA_GOL) {
-                    estado.juego.golesJugador++;
-                    estado.juego.puntosManoJugador += estado.juego.puntosJugador;
-                    estado.juego.puntosManoRival += estado.juego.puntosRival;
-                    estado.juego.puntosJugador = 0;
-                    estado.juego.puntosRival = 0;
-                    estado.juego.golEnMano = true;
-                    estado.juego.ganadorManoAnterior = 'jugador';
-                    mostrarMensaje('⚽ ¡GOL DE ' + (estado.nickname || 'Jugador').toUpperCase() + '!');
-
-                    reproducirSonido('golplayer');
-                    golesPendientesRivalParaMi++;
-                } else {
-                    reproducirSonido('puntoplayer');
-                }
-            }
-            renderizarMarcador();
-        }
+        // NOTA sobre los puntos por canto rechazado ("no quiero" / VAR rechazado):
+        // quien rechaza aplica los puntos con sumarPuntos() y los sincroniza a
+        // Firebase. El otro cliente los recibe por el listener (bloque de
+        // SONIDOS DE PUNTOS Y GOLES), que reproduce la voz y muestra la estrella.
+        // Los puntos NO se aplican localmente al recibir el evento de canto,
+        // porque eso duplicaba/revertía valores según el orden de llegada de
+        // los snapshots. La sincronización es la única fuente de verdad.
 
         // Reproducir el sonido y mensaje correspondiente a un canto del rival.
-        // Los puntos derivados de "no quiero"/VAR rechazado se aplican aquí
-        // localmente (garantiza que la estrella aparezca en ambas pantallas);
-        // la sincronización posterior confirma el valor sin sonidos duplicados.
+        // Solo voz y mensaje: los puntos derivados llegan por sincronización.
         function reproducirEventoRival(tipo, ev) {
             switch (tipo) {
                 case 'penal':
@@ -1819,9 +1793,9 @@
                 case 'no_quiero':
                     reproducirSonido('noquierocpu');
                     mostrarMensaje(`${estado.rivalNombre}: ✗ No quiso`);
-                    // El rival rechazó MI canto → +1 punto para mí (+2 si era golazo),
-                    // aplicado al instante para que la estrella aparezca ya
-                    aplicarPuntosLocales(ev && ev.canto === 'golazo' ? 2 : 1);
+                    // El rival rechazó MI canto → +1 punto para mí (+2 si era golazo).
+                    // Los puntos ya fueron aplicados por el rival en Firebase y
+                    // llegan por sincronización (sonido + estrella automáticos).
                     break;
                 case 'var':
                     reproducirSonido('pidoverelvarcpu');
@@ -1834,8 +1808,7 @@
                 case 'var_rechaza':
                     reproducirSonido('noquierocpu');
                     mostrarMensaje(`${estado.rivalNombre}: ✗ No quiero el VAR`);
-                    // El rival (atacante) rechazó el VAR que pedí → +1 para mí al instante
-                    aplicarPuntosLocales(1);
+                    // Punto correspondiente recibido por sincronización
                     break;
             }
         }
@@ -1990,24 +1963,12 @@
                             golesSyncR = estado.juego.golesRival;
                             syncInicializado = true;
                         } else {
-                            // Si algún valor bajó (nueva mano / reinicio de puntos),
-                            // limpiar los pendientes para no tragarse sonidos futuros
-                            if (estado.juego.puntosJugador < puntosSyncJ || estado.juego.puntosRival < puntosSyncR ||
-                                estado.juego.golesJugador < golesSyncJ || estado.juego.golesRival < golesSyncR) {
-                                puntosPendientesRivalParaMi = 0;
-                                golesPendientesRivalParaMi = 0;
-                            }
-                            while (golesSyncJ < estado.juego.golesJugador) {
-                                if (golesPendientesRivalParaMi > 0) { golesPendientesRivalParaMi--; }
-                                else { reproducirSonido('golplayer'); }
-                                golesSyncJ++;
-                            }
+                            // Cualquier aumento de puntos/goles hecho por el rival
+                            // (incluye "no quiero" y VAR rechazado de mis cantos)
+                            // suena y suma la estrella aquí automáticamente.
+                            while (golesSyncJ < estado.juego.golesJugador) { reproducirSonido('golplayer'); golesSyncJ++; }
                             while (golesSyncR < estado.juego.golesRival) { reproducirSonido('golcpu'); golesSyncR++; }
-                            while (puntosSyncJ < estado.juego.puntosJugador) {
-                                if (puntosPendientesRivalParaMi > 0) { puntosPendientesRivalParaMi--; }
-                                else { reproducirSonido('puntoplayer'); }
-                                puntosSyncJ++;
-                            }
+                            while (puntosSyncJ < estado.juego.puntosJugador) { reproducirSonido('puntoplayer'); puntosSyncJ++; }
                             while (puntosSyncR < estado.juego.puntosRival) { reproducirSonido('puntocpu'); puntosSyncR++; }
                             // Al reiniciar la mano los valores bajan: solo actualizar sin sonido
                             golesSyncJ = estado.juego.golesJugador;
