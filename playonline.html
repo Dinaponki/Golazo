@@ -2482,6 +2482,7 @@
             if (resp === 'no_quiero') {
                 const quienCanto = cantoPedidoPor;
                 const puntos = cantoActual === 'golazo' ? 2 : 1;
+                console.log('[GOLAZO DEBUG] No quiero:', { cantoActual, quienCanto, puntos });
                 const golPorPuntos = sumarPuntos(quienCanto, puntos);
                 registrarEventoCanto('no_quiero', cantoActual);
                 // Sincronizar los puntos aplicados para que el rival los reciba
