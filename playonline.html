@@ -1848,8 +1848,10 @@
         function claveEventoNueva(ev, evTs) {
             const clave = JSON.stringify({ q: ev.quien, t: ev.tipo, c: ev.canto || null, r: ev.resumen || null });
             if (clave === ultimaClaveEventoProcesada) return false;
-            // Solo aceptar si no es un evento muy viejo (replay de una partida anterior)
-            if (evTs < (ultimoEventoTs || 0) - 600000) return false;
+            // Solo aceptar eventos recientes: si es más viejo que 3 segundos
+            // respecto al último visto, es un evento viejo reenviado por una
+            // sincronización desactualizada (voces repetidas al tirar cartas).
+            if (evTs < (ultimoEventoTs || 0) - 3000) return false;
             ultimaClaveEventoProcesada = clave;
             return true;
         }
@@ -1861,6 +1863,12 @@
             estado.juego.ultimoEvento = { tipo, quien: estado.miLado, canto: canto || null, resumen: resumen || null, ts: Date.now() };
             update(ref(db, 'partidas/' + estado.partidaId + '/juego'), {
                 ultimoEvento: estado.juego.ultimoEvento
+            }).then(() => {
+                // Evento ya propagado: limpiarlo para que las siguientes
+                // sincronizaciones (tirar carta, etc.) NO reenvíen un evento
+                // viejo. Si no, el rival reproducía la voz del canto otra vez
+                // con cada tiro de carta.
+                estado.juego.ultimoEvento = null;
             }).catch(() => {});
         }
 
