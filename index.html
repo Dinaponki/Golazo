@@ -166,25 +166,154 @@
             max-width: 320px;
         }
 
-        .boton-jugar {
-            background: var(--dorado);
-            color: #1a2a10;
-            box-shadow: 0 6px 24px rgba(200, 168, 78, 0.35);
-            font-size: 22px;
-            padding: 20px 48px;
+        /* ---------- Botones principales (par destacado) ---------- */
+        /* Ambos comparten exactamente la misma estructura, tamaño,
+           tipografía y efectos. Solo cambia la paleta de cada uno. */
+        .boton-jugar,
+        .boton-online {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+            width: 100%;
+            max-width: 340px;
+            padding: 16px 36px 15px;
+            border-radius: 18px;
+            cursor: pointer;
+            text-decoration: none;
+            text-transform: none;
+            letter-spacing: normal;
+            position: relative;
+            overflow: hidden;
+            transition: transform var(--transicion), box-shadow var(--transicion), filter var(--transicion);
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .boton-jugar .boton-principal,
+        .boton-online .boton-principal {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            font-size: clamp(19px, 5vw, 22px);
+            font-weight: 900;
             letter-spacing: 0.06em;
+            text-transform: uppercase;
+            line-height: 1.15;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+        }
+
+        .boton-jugar .boton-subtitulo,
+        .boton-online .boton-subtitulo {
+            font-size: clamp(10px, 2.6vw, 11px);
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            opacity: 0.8;
+            line-height: 1.2;
+        }
+
+        /* Destello que barre el botón al pasar el mouse (idéntico en ambos) */
+        .boton-jugar::after,
+        .boton-online::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -90%;
+            width: 55%;
+            height: 100%;
+            background: linear-gradient(105deg, transparent 0%, rgba(255, 255, 255, 0.35) 50%, transparent 100%);
+            transform: skewX(-20deg);
+            transition: left 0.65s ease;
+            pointer-events: none;
+        }
+
+        .boton-jugar:hover::after,
+        .boton-online:hover::after {
+            left: 140%;
+        }
+
+        /* --- VS CPU: dorado --- */
+        .boton-jugar {
+            background: linear-gradient(135deg, #ddbe64 0%, var(--dorado) 50%, #b3943f 100%);
+            color: #1a2a10;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            box-shadow:
+                0 8px 26px rgba(200, 168, 78, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.35);
         }
 
         .boton-jugar:hover {
             transform: translateY(-3px);
-            box-shadow: 0 10px 32px rgba(200, 168, 78, 0.5);
-            background: #d4b356;
+            filter: brightness(1.06);
+            box-shadow:
+                0 12px 34px rgba(200, 168, 78, 0.55),
+                inset 0 1px 0 rgba(255, 255, 255, 0.35);
         }
 
         .boton-jugar:active {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 16px rgba(200, 168, 78, 0.3);
-            transition: 0.1s;
+            transform: translateY(-1px) scale(0.985);
+            box-shadow:
+                0 5px 16px rgba(200, 168, 78, 0.35),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+            transition-duration: 0.1s;
+        }
+
+        /* --- ONLINE: azul --- */
+        .boton-online {
+            background: linear-gradient(135deg, #3a9bdc 0%, #2980b9 50%, #1f6da0 100%);
+            color: var(--blanco);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            box-shadow:
+                0 8px 26px rgba(41, 128, 185, 0.45),
+                inset 0 1px 0 rgba(255, 255, 255, 0.35);
+        }
+
+        .boton-online:hover {
+            transform: translateY(-3px);
+            filter: brightness(1.08);
+            box-shadow:
+                0 12px 34px rgba(41, 128, 185, 0.6),
+                inset 0 1px 0 rgba(255, 255, 255, 0.35);
+        }
+
+        .boton-online:active {
+            transform: translateY(-1px) scale(0.985);
+            box-shadow:
+                0 5px 16px rgba(41, 128, 185, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+            transition-duration: 0.1s;
+        }
+
+        /* Accesibilidad: foco por teclado idéntico en ambos */
+        .boton-jugar:focus-visible,
+        .boton-online:focus-visible {
+            outline: 3px solid var(--blanco);
+            outline-offset: 3px;
+        }
+
+        /* Pulso sutil del ícono del botón online (sensación de "en vivo") */
+        .boton-online .icono-latido {
+            display: inline-block;
+            animation: latido-icono 2.2s ease-in-out infinite;
+        }
+
+        @keyframes latido-icono {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.15);
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .boton-online .icono-latido {
+                animation: none;
+            }
         }
 
         .boton-donar {
@@ -200,29 +329,6 @@
             border-color: var(--dorado);
             color: var(--dorado);
             background: rgba(200, 168, 78, 0.08);
-        }
-
-        .boton-online {
-            background: transparent;
-            color: var(--dorado);
-            border: 2px solid var(--dorado);
-            font-size: 15px;
-            padding: 12px 36px;
-            letter-spacing: 0.06em;
-            opacity: 0.75;
-            max-width: 320px;
-        }
-
-        .boton-online:hover {
-            background: rgba(200, 168, 78, 0.1);
-            border-color: var(--dorado-claro);
-            color: var(--dorado-claro);
-            opacity: 1;
-            transform: translateY(-2px);
-        }
-
-        .boton-online:active {
-            transform: translateY(0);
         }
 
         .footer {
@@ -1025,9 +1131,15 @@
                 max-width: 100%;
             }
 
-            .boton-jugar {
-                font-size: 20px;
-                padding: 18px 36px;
+            .boton-jugar,
+            .boton-online {
+                padding: 14px 24px 13px;
+                border-radius: 16px;
+            }
+
+            .boton-jugar .boton-principal,
+            .boton-online .boton-principal {
+                font-size: 18px;
             }
         }
 
@@ -1168,9 +1280,15 @@
             <div class="perfil-logros" id="miLogros"></div>
         </div>
 
-        <a href="play.html" class="boton boton-jugar" id="btnJugar">⚽ JUGAR VS. CPU</a>
+        <a href="play.html" class="boton boton-jugar" id="btnJugar">
+            <span class="boton-principal">⚽ JUGAR VS. CPU</span>
+            <span class="boton-subtitulo">Un jugador · Contra la máquina</span>
+        </a>
 
-        <a href="playonline.html" class="boton boton-online" id="btnOnline">🌐 JUGAR ONLINE</a>
+        <a href="playonline.html" class="boton boton-online" id="btnOnline">
+            <span class="boton-principal"><span class="icono-latido">🌐</span> JUGAR ONLINE</span>
+            <span class="boton-subtitulo">1 vs 1 · En tiempo real</span>
+        </a>
 
         <a href="rules.html" class="boton boton-donar">📖 REGLAS</a>
 
