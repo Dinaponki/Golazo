@@ -1589,12 +1589,18 @@
             estado.juego.fase = 'esperando_seleccion';
             estado.juego.turnoActual = estado.juego.turnoInicial;
             estado.juego.cartaSeleccionada = null;
+            // Sincronizar INMEDIATAMENTE, antes de cualquier await: si se espera
+            // al update de abajo, el eco del snapshot llega con los valores viejos
+            // (fase='repartiendo', cants=0/0) y el parse pisa el estado local ya
+            // completado, dejando al creador trabado sin dorsos y sin poder jugar.
+            // Entre estas líneas no hay awaits, así que ningún snapshot puede
+            // intercalarse: el sync es atómico respecto del estado local.
+            sincronizarJuego();
             try {
                 await update(juegoRefPartida(), { faseReparto: 'listo', repartoIntento: intento, mJoiner, ultimaActividad: Date.now() });
             } catch (error) {
                 console.error('Error completando reparto (creador):', error);
             }
-            sincronizarJuego();
             renderizarTodo();
         }
 
@@ -1616,6 +1622,9 @@
             estado.repartoSeguro.claveProcesadaM = clave;
             estado.juego.manoJugador = ordenarMano(miMano);
             estado.juego.manoRival = manoOculta(CARTAS_POR_JUGADOR);
+            // Sincronizar acá también: refleja en la DB las cantidades
+            // definitivas desde el lado del rival (mismo razonamiento anti-eco)
+            sincronizarJuego();
             renderizarTodo();
         }
 
