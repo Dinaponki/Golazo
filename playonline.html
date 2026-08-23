@@ -857,9 +857,9 @@
             enPartida: false, fase: 'lobby',
             partidaTerminada: false, // true cuando ya se mostró la pantalla de fin
             esPartidaRapida: false,
-            // Estado del reparto seguro (póker mental): exponentes secretos y
-            // marcas de pasos ya procesados por mano (evitan reprocesar snapshots)
-            repartoSeguro: { manoyPublicado: -1, envieZMano: -1, proceseZMano: -1, proceseMMano: -1, expA: null, expB: null },
+            // Estado del reparto seguro (póker mental): exponentes secretos,
+            // claves de pasos ya procesados ("mano:intento") y timer de reintento
+            repartoSeguro: { intento: 0, expA: null, expB: null, clavePublicada: '', claveEnviadaZ: '', claveProcesadaZ: '', claveProcesadaM: '', inicioReparto: 0, timer: null },
             sonidosActivados: true, musicaActivada: true,
             juego: {
                 manoJugador: [], manoRival: [],
@@ -1459,11 +1459,52 @@
             return ref(db, 'partidas/' + estado.partidaId + '/juego');
         }
 
+        // Normaliza un valor que debería ser array: RTDB puede entregar listas
+        // como objetos {0:..., 1:...} en ciertos casos, lo que rompería .map()
+        function comoArray(valor) {
+            if (Array.isArray(valor)) return valor;
+            if (valor && typeof valor === 'object') {
+                return Object.keys(valor).sort((x, y) => Number(x) - Number(y)).map(k => valor[k]);
+            }
+            return [];
+        }
+
+        // Clave "mano:intento" que identifica un ciclo de reparto concreto
+        function claveRepartoActual() {
+            return estado.juego.manoActual + ':' + (estado.repartoSeguro.intento || 0);
+        }
+
+        // Timer de auto-recuperación del reparto: si tras 15 segundos seguimos en
+        // fase 'repartiendo', el creador republica un mazo nuevo con otro
+        // exponente e intento incrementado. El rival reintenta automáticamente
+        // porque sus marcas de pasos incluyen el número de intento.
+        function iniciarTimerReparto() {
+            if (estado.repartoSeguro.timer) return;
+            estado.repartoSeguro.inicioReparto = Date.now();
+            estado.repartoSeguro.timer = setInterval(() => {
+                if (estado.fase !== 'jugando' || estado.juego.fase !== 'repartiendo') {
+                    clearInterval(estado.repartoSeguro.timer);
+                    estado.repartoSeguro.timer = null;
+                    return;
+                }
+                if (Date.now() - estado.repartoSeguro.inicioReparto > 15000 && estado.miLado === 'jugador') {
+                    estado.repartoSeguro.inicioReparto = Date.now();
+                    console.warn('Reparto seguro atascado, reintentando con intento', estado.repartoSeguro.intento + 1);
+                    mostrarMensaje('🔄 Resincronizando reparto...');
+                    dealerPublicarMazoCegado(true);
+                }
+            }, 3000);
+        }
+
         // Paso 1 (solo creador): publicar el mazo cegado con su exponente secreto
-        async function dealerPublicarMazoCegado() {
-            if (!estado.partidaId) return;
-            if (estado.repartoSeguro.manoyPublicado >= estado.juego.manoActual) return; // ya publicado para esta mano
-            estado.repartoSeguro.manoyPublicado = estado.juego.manoActual;
+        async function dealerPublicarMazoCegado(esReintento) {
+            if (!estado.partidaId || estado.miLado !== 'jugador') return;
+            if (esReintento) {
+                estado.repartoSeguro.intento = (estado.repartoSeguro.intento || 0) + 1;
+            } else if (estado.repartoSeguro.clavePublicada === claveRepartoActual()) {
+                return; // ya publicado para esta mano/intento
+            }
+            estado.repartoSeguro.clavePublicada = claveRepartoActual();
 
             // Mezclar, cegar y DESCARTAR el texto plano: el creador no debe poder
             // saber qué cartas corresponden a cada índice cegado.
@@ -1474,6 +1515,7 @@
             try {
                 await update(juegoRefPartida(), {
                     faseReparto: 'y_listo',
+                    repartoIntento: estado.repartoSeguro.intento || 0,
                     mazoY,
                     mazoZ: null,
                     yDealer: null,
@@ -1487,12 +1529,19 @@
 
         // Paso 2 (solo rival): doble cegado + mezcla + publicar
         async function joinerPublicarDobleCegado(j) {
-            if (estado.repartoSeguro.envieZMano === estado.juego.manoActual) return;
-            estado.repartoSeguro.envieZMano = estado.juego.manoActual;
+            if (!estado.partidaId || estado.miLado !== 'rival') return;
+            const intento = j.repartoIntento || 0;
+            const clave = estado.juego.manoActual + ':' + intento;
+            if (estado.repartoSeguro.claveEnviadaZ === clave) return;
             const b = generarExponenteSecreto();
             estado.repartoSeguro.expB = b;
             const bInv = inversoMod(b, PRIMO_REPARTO - 1n);
-            const mazoZ = (j.mazoY || []).map(y => modPow(BigInt(y), b, PRIMO_REPARTO).toString());
+            const mazoZ = comoArray(j.mazoY).map(y => modPow(BigInt(String(y)), b, PRIMO_REPARTO).toString());
+            if (mazoZ.length !== POSICIONES.length * NUMEROS.length) {
+                console.error('Reparto seguro: mazoY recibido inválido, esperando reintento');
+                return;
+            }
+            estado.repartoSeguro.claveEnviadaZ = clave;
             // Mezclar: el creador elegirá sus 4 cartas "a ciegas" sobre este orden
             for (let i = mazoZ.length - 1; i > 0; i--) {
                 const k = Math.floor(Math.random() * (i + 1));
@@ -1504,6 +1553,7 @@
             try {
                 await update(juegoRefPartida(), {
                     faseReparto: 'z_listo',
+                    repartoIntento: intento,
                     mazoZ,
                     yDealer,
                     ultimaActividad: Date.now()
@@ -1515,30 +1565,34 @@
 
         // Paso 3 (solo creador): leer su propia mano + preparar las del rival
         async function dealerCompletarReparto(j) {
-            if (estado.repartoSeguro.proceseZMano === estado.juego.manoActual) return;
-            estado.repartoSeguro.proceseZMano = estado.juego.manoActual;
+            if (estado.miLado !== 'jugador') return;
+            const intento = j.repartoIntento || 0;
+            if (intento !== (estado.repartoSeguro.intento || 0)) return; // respuesta de un intento viejo
+            const clave = estado.juego.manoActual + ':' + intento;
+            if (estado.repartoSeguro.claveProcesadaZ === clave) return;
             const a = estado.repartoSeguro.expA;
             if (!a) return;
             const aInv = inversoMod(a, PRIMO_REPARTO - 1n);
-            const miMano = (j.yDealer || [])
-                .map(v => numeroACarta(modPow(BigInt(v), aInv, PRIMO_REPARTO)))
+            const miMano = comoArray(j.yDealer)
+                .map(v => numeroACarta(modPow(BigInt(String(v)), aInv, PRIMO_REPARTO)))
                 .filter(Boolean);
             if (miMano.length !== CARTAS_POR_JUGADOR) {
-                console.error('Reparto seguro: mano del dealer incompleta', miMano.length);
-                return;
+                console.warn('Reparto seguro: mano del creador inválida (intento', intento, '), se reintentará');
+                return; // el timer de reintento generará un mazo nuevo
             }
+            estado.repartoSeguro.claveProcesadaZ = clave;
             estado.juego.manoJugador = ordenarMano(miMano);
             estado.juego.manoRival = manoOculta(CARTAS_POR_JUGADOR);
             // Índices 4..7 = mano del rival, dejados en forma m^b (ilegibles para
             // el creador; el rival los abrirá quitando su exponente)
-            const mJoiner = (j.mazoZ || []).slice(4, 8).map(z => modPow(BigInt(z), aInv, PRIMO_REPARTO).toString());
+            const mJoiner = comoArray(j.mazoZ).slice(4, 8).map(z => modPow(BigInt(String(z)), aInv, PRIMO_REPARTO).toString());
             estado.juego.fase = 'esperando_seleccion';
             estado.juego.turnoActual = estado.juego.turnoInicial;
             estado.juego.cartaSeleccionada = null;
             try {
-                await update(juegoRefPartida(), { faseReparto: 'listo', mJoiner, ultimaActividad: Date.now() });
+                await update(juegoRefPartida(), { faseReparto: 'listo', repartoIntento: intento, mJoiner, ultimaActividad: Date.now() });
             } catch (error) {
-                console.error('Error completando reparto (dealer):', error);
+                console.error('Error completando reparto (creador):', error);
             }
             sincronizarJuego();
             renderizarTodo();
@@ -1546,35 +1600,43 @@
 
         // Paso 4 (solo rival): leer su propia mano
         function joinerCompletarReparto(j) {
-            if (estado.repartoSeguro.proceseMMano === estado.juego.manoActual) return;
-            estado.repartoSeguro.proceseMMano = estado.juego.manoActual;
+            if (estado.miLado !== 'rival') return;
+            const clave = estado.juego.manoActual + ':' + (j.repartoIntento || 0);
+            if (estado.repartoSeguro.claveProcesadaM === clave) return;
             const b = estado.repartoSeguro.expB;
             if (!b) return;
             const bInv = inversoMod(b, PRIMO_REPARTO - 1n);
-            const miMano = (j.mJoiner || [])
-                .map(v => numeroACarta(modPow(BigInt(v), bInv, PRIMO_REPARTO)))
+            const miMano = comoArray(j.mJoiner)
+                .map(v => numeroACarta(modPow(BigInt(String(v)), bInv, PRIMO_REPARTO)))
                 .filter(Boolean);
             if (miMano.length !== CARTAS_POR_JUGADOR) {
-                console.error('Reparto seguro: mano del rival incompleta', miMano.length);
+                console.warn('Reparto seguro: mano del rival inválida, esperando reintento');
                 return;
             }
+            estado.repartoSeguro.claveProcesadaM = clave;
             estado.juego.manoJugador = ordenarMano(miMano);
             estado.juego.manoRival = manoOculta(CARTAS_POR_JUGADOR);
             renderizarTodo();
         }
 
-        // Máquina de estados del reparto, alimentada por el listener de Firebase
+        // Máquina de estados del reparto, alimentada por el listener de Firebase.
+        // Protegida con try/catch: un error acá NO debe tumbar el listener entero.
         function procesarEventosReparto(j) {
-            if (!estado.partidaId || !estado.miLado) return;
-            if (!j.faseReparto) return;
-            if ((j.manoActual || 0) !== estado.juego.manoActual) return; // snapshot viejo
-            const soyDealer = estado.miLado === 'jugador';
-            if (!soyDealer && j.faseReparto === 'y_listo' && Array.isArray(j.mazoY) && j.mazoY.length === POSICIONES.length * NUMEROS.length) {
-                joinerPublicarDobleCegado(j);
-            } else if (soyDealer && j.faseReparto === 'z_listo' && Array.isArray(j.mazoZ) && j.yDealer) {
-                dealerCompletarReparto(j);
-            } else if (!soyDealer && j.faseReparto === 'listo' && j.mJoiner) {
-                joinerCompletarReparto(j);
+            try {
+                if (!estado.partidaId || !estado.miLado) return;
+                if (!j.faseReparto) return;
+                if ((j.manoActual || 0) !== estado.juego.manoActual) return; // snapshot viejo
+                const soyDealer = estado.miLado === 'jugador';
+                if (!soyDealer && j.faseReparto === 'y_listo' && j.mazoY) {
+                    joinerPublicarDobleCegado(j);
+                } else if (soyDealer && j.faseReparto === 'z_listo' && j.yDealer) {
+                    dealerCompletarReparto(j);
+                } else if (!soyDealer && j.faseReparto === 'listo' && j.mJoiner) {
+                    joinerCompletarReparto(j);
+                }
+            } catch (error) {
+                console.error('Error en el reparto seguro:', error);
+                mostrarMensaje('⚠ Error de reparto, reintentando...');
             }
         }
 
@@ -2224,12 +2286,15 @@
                 estado.juego.turnoInicial = 'jugador';
                 estado.juego.turnoActual = 'jugador';
                 estado.juego.fase = 'repartiendo';
+                estado.repartoSeguro.intento = 0;
+                estado.repartoSeguro.clavePublicada = '';
                 await dealerPublicarMazoCegado();
             }
 
+            iniciarTimerReparto();
             reproducirAudioFondo();
             renderizarTodo();
-            mostrarMensaje('¡Partida comenzada!');
+            mostrarMensaje('¡Partida comenzada! 🃏 Repartiendo...');
         }
 
         // ============ RESOLUCIÓN DE RONDA ============
@@ -2560,8 +2625,11 @@
             estado.juego.turnoActual = nuevoTurnoInicial;
             estado.juego.fase = 'repartiendo';
             if (estado.miLado === 'jugador') {
+                estado.repartoSeguro.intento = 0;
+                estado.repartoSeguro.clavePublicada = '';
                 dealerPublicarMazoCegado();
             }
+            iniciarTimerReparto();
             sincronizarJuego();
             renderizarTodo();
         }
