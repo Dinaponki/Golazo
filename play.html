@@ -1199,6 +1199,22 @@
     <audio id="sndEmpate" preload="auto"><source src="sounds/empate.mp3" type="audio/mpeg"></audio>
     <audio id="sndPerder" preload="auto"><source src="sounds/perder.mp3" type="audio/mpeg"></audio>
 
+    <!-- Sonidos de cantos del jugador -->
+    <audio id="sndPenaljugador" preload="auto"><source src="sounds/penaljugador.mp3" type="audio/mpeg"></audio>
+    <audio id="sndQuierojugador" preload="auto"><source src="sounds/quierojugador.mp3" type="audio/mpeg"></audio>
+    <audio id="sndNoquierojugador" preload="auto"><source src="sounds/noquierojugador.mp3" type="audio/mpeg"></audio>
+    <audio id="sndVarjugador" preload="auto"><source src="sounds/varjugador.mp3" type="audio/mpeg"></audio>
+    <audio id="sndGoljugador" preload="auto"><source src="sounds/goljugador.mp3" type="audio/mpeg"></audio>
+    <audio id="sndGolazojugador" preload="auto"><source src="sounds/golazojugador.mp3" type="audio/mpeg"></audio>
+
+    <!-- Sonidos de cantos del CPU -->
+    <audio id="sndPenalcpu" preload="auto"><source src="sounds/penalcpu.mp3" type="audio/mpeg"></audio>
+    <audio id="sndQuierocpu" preload="auto"><source src="sounds/quierocpu.mp3" type="audio/mpeg"></audio>
+    <audio id="sndNoquierocpu" preload="auto"><source src="sounds/noquierocpu.mp3" type="audio/mpeg"></audio>
+    <audio id="sndPidoverelvarcpu" preload="auto"><source src="sounds/pidoverelvarcpu.mp3" type="audio/mpeg"></audio>
+    <audio id="sndGolcpucanto" preload="auto"><source src="sounds/golcpucanto.mp3" type="audio/mpeg"></audio>
+    <audio id="sndGolazocpu" preload="auto"><source src="sounds/golazocpu.mp3" type="audio/mpeg"></audio>
+
     <!-- Contenedor del juego -->
     <div class="juego" id="juego">
         <!-- Zona CPU -->
@@ -1610,7 +1626,23 @@
                 dom.audioGanar = document.getElementById('sndGanar');
                 dom.audioEmpate = document.getElementById('sndEmpate');
                 dom.audioPerder = document.getElementById('sndPerder');
-                
+
+                // Sonidos de cantos del jugador
+                dom.audioPenaljugador = document.getElementById('sndPenaljugador');
+                dom.audioQuierojugador = document.getElementById('sndQuierojugador');
+                dom.audioNoquierojugador = document.getElementById('sndNoquierojugador');
+                dom.audioVarjugador = document.getElementById('sndVarjugador');
+                dom.audioGoljugador = document.getElementById('sndGoljugador');
+                dom.audioGolazojugador = document.getElementById('sndGolazojugador');
+
+                // Sonidos de cantos del CPU
+                dom.audioPenalcpu = document.getElementById('sndPenalcpu');
+                dom.audioQuierocpu = document.getElementById('sndQuierocpu');
+                dom.audioNoquierocpu = document.getElementById('sndNoquierocpu');
+                dom.audioPidoverelvarcpu = document.getElementById('sndPidoverelvarcpu');
+                dom.audioGolcpucanto = document.getElementById('sndGolcpucanto');
+                dom.audioGolazocpu = document.getElementById('sndGolazocpu');
+
                 // Mapeo de sonidos
                 dom.sonidos = {
                     'carta': dom.audioCarta,
@@ -1628,6 +1660,18 @@
                     'ganar': dom.audioGanar,
                     'empate': dom.audioEmpate,
                     'perder': dom.audioPerder,
+                    'penaljugador': dom.audioPenaljugador,
+                    'quierojugador': dom.audioQuierojugador,
+                    'noquierojugador': dom.audioNoquierojugador,
+                    'varjugador': dom.audioVarjugador,
+                    'goljugador': dom.audioGoljugador,
+                    'golazojugador': dom.audioGolazojugador,
+                    'penalcpu': dom.audioPenalcpu,
+                    'quierocpu': dom.audioQuierocpu,
+                    'noquierocpu': dom.audioNoquierocpu,
+                    'pidoverelvarcpu': dom.audioPidoverelvarcpu,
+                    'golcpucanto': dom.audioGolcpucanto,
+                    'golazocpu': dom.audioGolazocpu,
                 };
             }
 
@@ -3079,6 +3123,7 @@
                 estado.penalUsado = true;
                 estado.penalCantadoPor = 'jugador';
                 renderizarTodo();
+                reproducirSonidoCpu('penaljugador');
                 mostrarMensaje(`🥅 PENAL de ${estado.nombreJugador}`);
                 setTimeout(() => procesarRespuestaCpu(iaResponderCanto('penal')), 800 + Math.random() * 600);
             }
@@ -3092,7 +3137,7 @@
                 estado.penalUsado = true;
                 estado.penalCantadoPor = 'cpu';
                 renderizarTodo();
-                reproducirSonidoCpu('penal');
+                reproducirSonidoCpu('penalcpu');
                 mostrarMensaje('🥅 PENAL de CPU');
             }
 
@@ -3104,6 +3149,7 @@
                 estado.esperandoRespuestaDe = 'cpu';
                 estado.golUsado = true;
                 renderizarTodo();
+                reproducirSonidoCpu('goljugador');
                 mostrarMensaje(`⚽ ¡GOL! de ${estado.nombreJugador}`);
                 setTimeout(() => procesarRespuestaCpu(iaResponderCanto('gol')), 800 + Math.random() * 600);
             }
@@ -3116,7 +3162,7 @@
                 estado.esperandoRespuestaDe = 'jugador';
                 estado.golUsado = true;
                 renderizarTodo();
-                reproducirSonidoCpu('gol');
+                reproducirSonidoCpu('golcpucanto');
                 mostrarMensaje('⚽ ¡GOL! de CPU');
             }
 
@@ -3143,10 +3189,12 @@
                     if (resp === 'no_quiero') {
                         // Atacante rechaza VAR → defensor (quien pidió VAR) +1 punto
                         sumarPuntos(estado.varPedidoPor, 1);
+                        reproducirSonidoCpu('noquierojugador');
                         mostrarMensaje(`${estado.nombreJugador}: No quiero el VAR`);
                         finalizarCanto();
                     } else {
                         // Atacante acepta VAR
+                        reproducirSonidoCpu('quierojugador');
                         mostrarMensaje(`${estado.nombreJugador}: ¡Quiero el VAR!`);
                         iniciarVar();
                     }
@@ -3158,6 +3206,7 @@
                     const quienCanto = cantoPedidoPor === 'cpu' ? 'cpu' : 'jugador';
                     const puntos = cantoActual === 'golazo' ? 2 : 1;
                     const golPorPuntos = sumarPuntos(quienCanto, puntos);
+                    reproducirSonidoCpu('noquierojugador');
                     mostrarMensaje(`${estado.nombreJugador}: ✗ No quiso`);
                     if (golPorPuntos) {
                         setTimeout(finalizarMano, 2200);
@@ -3170,6 +3219,7 @@
                     estado.varPedidoPor = 'jugador';
                     estado.esperandoRespuestaDe = 'cpu';
                     renderizarTodo();
+                    reproducirSonidoCpu('varjugador');
                     mostrarMensaje(`📺 ${estado.nombreJugador} pide VAR`);
                     setTimeout(() => procesarRespuestaCpu(iaDecidirVar()), 800);
                 } else if (resp === 'golazo') {
@@ -3179,9 +3229,11 @@
                     estado.esperandoRespuestaDe = 'cpu';
                     estado.golazoUsado = true;
                     renderizarTodo();
+                    reproducirSonidoCpu('golazojugador');
                     mostrarMensaje(`💥 ${estado.nombreJugador} canta GOLAZO`);
                     setTimeout(() => procesarRespuestaCpu(iaResponderCanto('golazo')), 800);
                 } else if (resp === 'quiero') {
+                    reproducirSonidoCpu('quierojugador');
                     mostrarMensaje(`${estado.nombreJugador}: ✓ ¡Quiero!`);
                     ejecutarCanto(cantoActual, cantoPedidoPor);
                 }
@@ -3193,10 +3245,12 @@
                     if (resp === 'no_quiero') {
                         // Atacante rechaza VAR → defensor (quien pidió VAR) +1 punto
                         sumarPuntos(estado.varPedidoPor, 1);
+                        reproducirSonidoCpu('noquierocpu');
                         mostrarMensaje('CPU: ✗ No quiero el VAR');
                         finalizarCanto();
                     } else {
                         // Atacante acepta VAR
+                        reproducirSonidoCpu('quierocpu');
                         mostrarMensaje('CPU: ✓ ¡Quiero el VAR!');
                         iniciarVar();
                     }
@@ -3209,14 +3263,14 @@
                     const puntos = cantoActual === 'golazo' ? 2 : 1;
                     const golPorPuntos = sumarPuntos(quienCanto, puntos);
                     mostrarMensaje('CPU: No quiero');
-                    reproducirSonidoCpu('noquiero');
+                    reproducirSonidoCpu('noquierocpu');
                     if (golPorPuntos) {
                         setTimeout(finalizarMano, 2200);
                     } else {
                         finalizarCanto();
                     }
                 } else if (resp === 'quiero') {
-                    reproducirSonidoQuiero();
+                    reproducirSonidoCpu('quierocpu');
                     mostrarMensaje('CPU: ✓ ¡Quiero!');
                     ejecutarCanto(cantoActual, cantoPedidoPor);
                 } else if (resp === 'var') {
@@ -3226,7 +3280,7 @@
                     estado.esperandoRespuestaDe = 'jugador';
                     renderizarTodo();
                     mostrarMensaje('📺 CPU pide VAR');
-                    setTimeout(() => reproducirSonidoCpu('var'), 300);
+                    setTimeout(() => reproducirSonidoCpu('pidoverelvarcpu'), 300);
                 } else if (resp === 'golazo') {
                     estado.fase = 'golazo_pedido';
                     estado.cantoActual = 'golazo';
@@ -3234,7 +3288,7 @@
                     estado.esperandoRespuestaDe = 'jugador';
                     estado.golazoUsado = true;
                     renderizarTodo();
-                    reproducirSonidoCpu('golazo');
+                    reproducirSonidoCpu('golazocpu');
                     mostrarMensaje('💥 CPU canta GOLAZO');
                 }
             }
