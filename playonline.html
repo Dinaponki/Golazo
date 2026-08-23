@@ -3065,6 +3065,14 @@
         function inicializar() {
             cacheDom();
             actualizarEscalado();
+            // Marca de versión escrita por JS: si el cartel muestra la hora,
+            // el código nuevo está corriendo; si muestra solo "v5", la página
+            // está cacheada/vieja.
+            const dbgInit = document.getElementById('debugBadge');
+            if (dbgInit) {
+                const t = new Date();
+                dbgInit.textContent = 'v5 ⏱' + t.toLocaleTimeString() + ' | cargando...';
+            }
 
             onAuthStateChanged(auth, (user) => {
                 estado.usuario = user;
