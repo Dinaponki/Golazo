@@ -1365,7 +1365,11 @@
                 case 'esperando_seleccion':
                     if (esMiTurno && quedan) {
                         if (estado.juego.rondaActual === 0 && !estado.juego.penalUsado && !estado.juego.penalCantadoPor && !estado.juego.penalActivo && !estado.juego.golActivo) dom.btnPenal.disabled = false;
-                        if (estado.juego.rondaActual >= 1 && !estado.juego.golUsado && !estado.juego.penalActivo && !estado.juego.golActivo && rivalTieneCartas) dom.btnGol.disabled = false;
+                        // Gol: se puede cantar desde la ronda 1, o también inmediatamente
+                        // después de que se haya cantado/ejecutado el penal (aunque la
+                        // ronda actual siga en 0, porque el penal no cuenta como ronda).
+                        const penalYaCantado = estado.juego.penalUsado || estado.juego.penalCantadoPor;
+                        if ((estado.juego.rondaActual >= 1 || penalYaCantado) && !estado.juego.golUsado && !estado.juego.penalActivo && !estado.juego.golActivo && rivalTieneCartas) dom.btnGol.disabled = false;
                     }
                     break;
                 case 'penal_pedido':
@@ -2577,7 +2581,11 @@
         function jugadorPideGol() {
             if (estado.fase !== 'jugando') return;
             if (estado.juego.fase !== 'esperando_seleccion') return;
-            if (estado.juego.rondaActual < 1) return;
+            // Gol permitido desde la ronda 1, o inmediatamente después de
+            // cantar/ejecutar el penal (aunque la ronda siga en 0, porque el
+            // penal no cuenta como ronda jugada).
+            const penalYaCantado = estado.juego.penalUsado || estado.juego.penalCantadoPor;
+            if (estado.juego.rondaActual < 1 && !penalYaCantado) return;
             if (estado.juego.golUsado) return;
             if (estado.juego.manoJugador.length === 0 || estado.juego.manoRival.length === 0) return;
             if (estado.juego.turnoActual !== 'jugador') return;
