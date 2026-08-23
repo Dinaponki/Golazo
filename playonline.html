@@ -1791,6 +1791,35 @@
         let golesSyncJ = 0, golesSyncR = 0;
         let syncInicializado = false;
 
+        // Protección anti-regresión de puntos/goles: dentro de la misma mano,
+        // los valores nunca pueden bajar. Esto evita que una escritura
+        // desactualizada (por ejemplo, un sincronizarJuego en vuelo del rival
+        // hecho antes del rechazo del canto) llegue después y revierta el
+        // marcador, haciendo que la estrella recién ganada desaparezca.
+        // Los valores solo se reinician legítimamente al comenzar una mano
+        // nueva (manoActual cambia).
+        let proteccionMano = -1;
+        let puntosMaximosJ = 0, puntosMaximosR = 0;
+        let golesMaximosJ = 0, golesMaximosR = 0;
+        function protegerPuntosYGoles() {
+            if (proteccionMano !== estado.juego.manoActual) {
+                proteccionMano = estado.juego.manoActual;
+                puntosMaximosJ = estado.juego.puntosJugador;
+                puntosMaximosR = estado.juego.puntosRival;
+                golesMaximosJ = estado.juego.golesJugador;
+                golesMaximosR = estado.juego.golesRival;
+                return;
+            }
+            if (estado.juego.puntosJugador > puntosMaximosJ) puntosMaximosJ = estado.juego.puntosJugador;
+            else estado.juego.puntosJugador = puntosMaximosJ;
+            if (estado.juego.puntosRival > puntosMaximosR) puntosMaximosR = estado.juego.puntosRival;
+            else estado.juego.puntosRival = puntosMaximosR;
+            if (estado.juego.golesJugador > golesMaximosJ) golesMaximosJ = estado.juego.golesJugador;
+            else estado.juego.golesJugador = golesMaximosJ;
+            if (estado.juego.golesRival > golesMaximosR) golesMaximosR = estado.juego.golesRival;
+            else estado.juego.golesRival = golesMaximosR;
+        }
+
         // Detecta si un evento es nuevo aunque los relojes de los dispositivos
         // estén desincronizados: compara el contenido del evento contra el
         // último procesado (tolerancia de 10 minutos de diferencia de reloj).
@@ -1845,8 +1874,12 @@
             estado.juego.puntosRival = pR;
             estado.juego.golesJugador = gJ;
             estado.juego.golesRival = gR;
-            puntosSyncJ = pJ; puntosSyncR = pR;
-            golesSyncJ = gJ; golesSyncR = gR;
+            // No permitir regresiones dentro de la misma mano (estrella persistente)
+            protegerPuntosYGoles();
+            puntosSyncJ = Math.max(puntosSyncJ, estado.juego.puntosJugador);
+            puntosSyncR = Math.max(puntosSyncR, estado.juego.puntosRival);
+            golesSyncJ = Math.max(golesSyncJ, estado.juego.golesJugador);
+            golesSyncR = Math.max(golesSyncR, estado.juego.golesRival);
             renderizarMarcador();
         }
 
@@ -2006,6 +2039,10 @@
                     }));
                     estado.juego.golesInicioManoJugador = estado.miLado === 'jugador' ? (j.golesInicioManoJugador || 0) : (j.golesInicioManoRival || 0);
                     estado.juego.golesInicioManoRival = estado.miLado === 'jugador' ? (j.golesInicioManoRival || 0) : (j.golesInicioManoJugador || 0);
+
+                    // Evitar que puntos/goles retrocedan dentro de la misma mano
+                    // (la estrella del canto rechazado debe permanecer encendida)
+                    protegerPuntosYGoles();
 
                     // ============ REPRODUCIR SONIDOS DEL RIVAL ============
                     if (jAnterior) {
