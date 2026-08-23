@@ -857,6 +857,9 @@
             enPartida: false, fase: 'lobby',
             partidaTerminada: false, // true cuando ya se mostró la pantalla de fin
             esPartidaRapida: false,
+            // Estado del reparto seguro (póker mental): exponentes secretos y
+            // marcas de pasos ya procesados por mano (evitan reprocesar snapshots)
+            repartoSeguro: { manoyPublicado: -1, envieZMano: -1, proceseZMano: -1, proceseMMano: -1, expA: null, expB: null },
             sonidosActivados: true, musicaActivada: true,
             juego: {
                 manoJugador: [], manoRival: [],
@@ -1362,13 +1365,230 @@
             return valor;
         }
 
+        // ============================================================
+        // REPARTO SEGURO DE CARTAS ("PÓKER MENTAL" - Shamir/Rivest/Adleman)
+        // ------------------------------------------------------------
+        // Antes, el creador repartía y escribía AMBAS manos en Firebase en
+        // texto plano: cualquiera con DevTools o la URL de la RTDB veía las
+        // cartas del rival. Ahora la baraja se reparte con cifrado
+        // conmutativo exponencial (n^a^b = n^b^a mod P):
+        //
+        //   1. El creador ("dealer") mezcla los 40 números de carta y publica
+        //      mazoY[i] = n_i^a mod P, con exponente "a" secreto SOLO en su
+        //      memoria. El texto plano se descarta: ni el propio creador sabe
+        //      qué cartas le tocarán.
+        //   2. El rival eleva todo a su exponente secreto "b", MEZCLA el
+        //      resultado y publica mazoZ. Ya nadie puede relacionar valores
+        //      con cartas concretas.
+        //   3. Convención sobre el mazoZ mezclado:
+        //      índices 0..3 = mano del creador, índices 4..7 = mano del rival.
+        //      - El rival devuelve yDealer[i] = mazoZ[i]^(b^-1): vuelve a la
+        //        forma "y" (ilegible para el rival); el creador le quita "a"
+        //        y descubre SOLO su propia mano.
+        //      - El creador devuelve mJoiner[k] = mazoZ[4+k]^(a^-1): ilegible
+        //        para él; el rival le quita "b" y descubre su propia mano.
+        //   Resultado: cada jugador conoce únicamente su propia mano,
+        //   sin necesidad de servidor autoritativo.
+        // Se usa el primo seguro de 1024 bits del Grupo 2 de Oakley (RFC 2409):
+        // suficiente frente a tramposos casuales y mantiene los mensajes chicos.
+        // ============================================================
+        const PRIMO_REPARTO = BigInt('0x' +
+            'FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020BBEA6' +
+            '3B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245' +
+            'E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7EDEE386BFB5A899FA5AE9F2411' +
+            '7C4B1FE649286651ECE65381FFFFFFFFFFFFFFFF');
+
+        function modPow(base, exp, mod) {
+            let resultado = 1n;
+            let b = ((base % mod) + mod) % mod;
+            let e = exp;
+            while (e > 0n) {
+                if (e & 1n) resultado = (resultado * b) % mod;
+                b = (b * b) % mod;
+                e >>= 1n;
+            }
+            return resultado;
+        }
+
+        function mcdBigInt(a, b) {
+            while (b !== 0n) { const t = a % b; a = b; b = t; }
+            return a < 0n ? -a : a;
+        }
+
+        function inversoMod(a, m) {
+            let oldR = ((a % m) + m) % m, r = m;
+            let oldS = 1n, s = 0n;
+            while (r !== 0n) {
+                const q = oldR / r;
+                [oldR, r] = [r, oldR - q * r];
+                [oldS, s] = [s, oldS - q * s];
+            }
+            return ((oldS % m) + m) % m;
+        }
+
+        function generarExponenteSecreto() {
+            // Exponente impar aleatorio de ~128 bits, coprimo con P-1
+            while (true) {
+                let e = 1n;
+                for (let i = 0; i < 4; i++) e = (e << 32n) | BigInt(Math.floor(Math.random() * 4294967296));
+                e |= 1n;
+                if (mcdBigInt(e, PRIMO_REPARTO - 1n) === 1n) return e;
+            }
+        }
+
+        function cartaANumero(carta) {
+            return BigInt(POSICIONES.indexOf(carta.posicion) * 10 + NUMEROS.indexOf(carta.numero) + 2);
+        }
+
+        function numeroACarta(n) {
+            const i = Number(n) - 2;
+            if (i < 0 || i >= POSICIONES.length * NUMEROS.length) return null;
+            return crearCarta(POSICIONES[Math.floor(i / 10)], NUMEROS[i % 10]);
+        }
+
+        // Fichas ocultas para representar la mano del rival (solo cantidad)
+        function manoOculta(cantidad) {
+            const fichas = [];
+            for (let i = 0; i < cantidad; i++) {
+                fichas.push({ id: 'oculta' + i, posicion: '?', numero: 0, nombre: 'oculta', imagen: RUTA_DORSO, oculta: true });
+            }
+            return fichas;
+        }
+
+        function juegoRefPartida() {
+            return ref(db, 'partidas/' + estado.partidaId + '/juego');
+        }
+
+        // Paso 1 (solo creador): publicar el mazo cegado con su exponente secreto
+        async function dealerPublicarMazoCegado() {
+            if (!estado.partidaId) return;
+            if (estado.repartoSeguro.manoyPublicado >= estado.juego.manoActual) return; // ya publicado para esta mano
+            estado.repartoSeguro.manoyPublicado = estado.juego.manoActual;
+
+            // Mezclar, cegar y DESCARTAR el texto plano: el creador no debe poder
+            // saber qué cartas corresponden a cada índice cegado.
+            const baraja = mezclarMazo(crearMazo());
+            const a = generarExponenteSecreto();
+            estado.repartoSeguro.expA = a;
+            const mazoY = baraja.map(c => modPow(cartaANumero(c), a, PRIMO_REPARTO).toString());
+            try {
+                await update(juegoRefPartida(), {
+                    faseReparto: 'y_listo',
+                    mazoY,
+                    mazoZ: null,
+                    yDealer: null,
+                    mJoiner: null,
+                    ultimaActividad: Date.now()
+                });
+            } catch (error) {
+                console.error('Error publicando mazo cegado:', error);
+            }
+        }
+
+        // Paso 2 (solo rival): doble cegado + mezcla + publicar
+        async function joinerPublicarDobleCegado(j) {
+            if (estado.repartoSeguro.envieZMano === estado.juego.manoActual) return;
+            estado.repartoSeguro.envieZMano = estado.juego.manoActual;
+            const b = generarExponenteSecreto();
+            estado.repartoSeguro.expB = b;
+            const bInv = inversoMod(b, PRIMO_REPARTO - 1n);
+            const mazoZ = (j.mazoY || []).map(y => modPow(BigInt(y), b, PRIMO_REPARTO).toString());
+            // Mezclar: el creador elegirá sus 4 cartas "a ciegas" sobre este orden
+            for (let i = mazoZ.length - 1; i > 0; i--) {
+                const k = Math.floor(Math.random() * (i + 1));
+                [mazoZ[i], mazoZ[k]] = [mazoZ[k], mazoZ[i]];
+            }
+            // Índices 0..3 = mano del creador, devueltos a forma "y" (el rival no
+            // puede leerlas; el creador sí al quitar su exponente)
+            const yDealer = mazoZ.slice(0, 4).map(z => modPow(BigInt(z), bInv, PRIMO_REPARTO).toString());
+            try {
+                await update(juegoRefPartida(), {
+                    faseReparto: 'z_listo',
+                    mazoZ,
+                    yDealer,
+                    ultimaActividad: Date.now()
+                });
+            } catch (error) {
+                console.error('Error publicando doble cegado:', error);
+            }
+        }
+
+        // Paso 3 (solo creador): leer su propia mano + preparar las del rival
+        async function dealerCompletarReparto(j) {
+            if (estado.repartoSeguro.proceseZMano === estado.juego.manoActual) return;
+            estado.repartoSeguro.proceseZMano = estado.juego.manoActual;
+            const a = estado.repartoSeguro.expA;
+            if (!a) return;
+            const aInv = inversoMod(a, PRIMO_REPARTO - 1n);
+            const miMano = (j.yDealer || [])
+                .map(v => numeroACarta(modPow(BigInt(v), aInv, PRIMO_REPARTO)))
+                .filter(Boolean);
+            if (miMano.length !== CARTAS_POR_JUGADOR) {
+                console.error('Reparto seguro: mano del dealer incompleta', miMano.length);
+                return;
+            }
+            estado.juego.manoJugador = ordenarMano(miMano);
+            estado.juego.manoRival = manoOculta(CARTAS_POR_JUGADOR);
+            // Índices 4..7 = mano del rival, dejados en forma m^b (ilegibles para
+            // el creador; el rival los abrirá quitando su exponente)
+            const mJoiner = (j.mazoZ || []).slice(4, 8).map(z => modPow(BigInt(z), aInv, PRIMO_REPARTO).toString());
+            estado.juego.fase = 'esperando_seleccion';
+            estado.juego.turnoActual = estado.juego.turnoInicial;
+            estado.juego.cartaSeleccionada = null;
+            try {
+                await update(juegoRefPartida(), { faseReparto: 'listo', mJoiner, ultimaActividad: Date.now() });
+            } catch (error) {
+                console.error('Error completando reparto (dealer):', error);
+            }
+            sincronizarJuego();
+            renderizarTodo();
+        }
+
+        // Paso 4 (solo rival): leer su propia mano
+        function joinerCompletarReparto(j) {
+            if (estado.repartoSeguro.proceseMMano === estado.juego.manoActual) return;
+            estado.repartoSeguro.proceseMMano = estado.juego.manoActual;
+            const b = estado.repartoSeguro.expB;
+            if (!b) return;
+            const bInv = inversoMod(b, PRIMO_REPARTO - 1n);
+            const miMano = (j.mJoiner || [])
+                .map(v => numeroACarta(modPow(BigInt(v), bInv, PRIMO_REPARTO)))
+                .filter(Boolean);
+            if (miMano.length !== CARTAS_POR_JUGADOR) {
+                console.error('Reparto seguro: mano del rival incompleta', miMano.length);
+                return;
+            }
+            estado.juego.manoJugador = ordenarMano(miMano);
+            estado.juego.manoRival = manoOculta(CARTAS_POR_JUGADOR);
+            renderizarTodo();
+        }
+
+        // Máquina de estados del reparto, alimentada por el listener de Firebase
+        function procesarEventosReparto(j) {
+            if (!estado.partidaId || !estado.miLado) return;
+            if (!j.faseReparto) return;
+            if ((j.manoActual || 0) !== estado.juego.manoActual) return; // snapshot viejo
+            const soyDealer = estado.miLado === 'jugador';
+            if (!soyDealer && j.faseReparto === 'y_listo' && Array.isArray(j.mazoY) && j.mazoY.length === POSICIONES.length * NUMEROS.length) {
+                joinerPublicarDobleCegado(j);
+            } else if (soyDealer && j.faseReparto === 'z_listo' && Array.isArray(j.mazoZ) && j.yDealer) {
+                dealerCompletarReparto(j);
+            } else if (!soyDealer && j.faseReparto === 'listo' && j.mJoiner) {
+                joinerCompletarReparto(j);
+            }
+        }
+
+
         // ============ SINCRONIZACIÓN ============
         function sincronizarJuego() {
             if (!estado.partidaId) return;
             const juegoRef = ref(db, 'partidas/' + estado.partidaId + '/juego');
             const datos = {
-                manoJugador: estado.miLado === 'jugador' ? estado.juego.manoJugador : estado.juego.manoRival,
-                manoRival: estado.miLado === 'jugador' ? estado.juego.manoRival : estado.juego.manoJugador,
+                // IMPORTANTE: las manos NUNCA se escriben a Firebase (reparto seguro).
+                // Solo se sincronizan las cantidades para renderizar dorsos y
+                // validar lógica de fin de mano.
+                cantJugador: estado.miLado === 'jugador' ? estado.juego.manoJugador.length : estado.juego.manoRival.length,
+                cantRival: estado.miLado === 'jugador' ? estado.juego.manoRival.length : estado.juego.manoJugador.length,
                 golesJugador: estado.miLado === 'jugador' ? estado.juego.golesJugador : estado.juego.golesRival,
                 golesRival: estado.miLado === 'jugador' ? estado.juego.golesRival : estado.juego.golesJugador,
                 puntosJugador: estado.miLado === 'jugador' ? estado.juego.puntosJugador : estado.juego.puntosRival,
@@ -1751,8 +1971,16 @@
                     ultimoEstadoJuego = j;
 
                     // Convertir datos absolutos a relativos
-                    estado.juego.manoJugador = estado.miLado === 'jugador' ? (j.manoJugador || []) : (j.manoRival || []);
-                    estado.juego.manoRival = estado.miLado === 'jugador' ? (j.manoRival || []) : (j.manoJugador || []);
+                    // Las manos NUNCA viajan por Firebase (reparto seguro).
+                    // La mano propia vive solo en la memoria de este navegador;
+                    // la del rival se representa con fichas ocultas según la
+                    // cantidad sincronizada.
+                    const cantAbsJ = j.cantJugador || 0;
+                    const cantAbsR = j.cantRival || 0;
+                    const cantRivalRelativo = estado.miLado === 'jugador' ? cantAbsR : cantAbsJ;
+                    if (estado.juego.manoRival.length !== cantRivalRelativo) {
+                        estado.juego.manoRival = manoOculta(cantRivalRelativo);
+                    }
                     estado.juego.golesJugador = estado.miLado === 'jugador' ? (j.golesJugador || 0) : (j.golesRival || 0);
                     estado.juego.golesRival = estado.miLado === 'jugador' ? (j.golesRival || 0) : (j.golesJugador || 0);
                     estado.juego.puntosJugador = estado.miLado === 'jugador' ? (j.puntosJugador || 0) : (j.puntosRival || 0);
@@ -1943,6 +2171,9 @@
                         }
                     }
 
+                    // ============ REPARTO SEGURO: pasos del protocolo ============
+                    procesarEventosReparto(j);
+
                     renderizarTodo();
                 }
 
@@ -1961,22 +2192,21 @@
             dom.etiquetaCpu.textContent = 'Turno de ' + estado.rivalNombre;
             dom.etiquetaJugador.textContent = 'Turno de ' + (estado.nickname || 'Jugador');
 
-            // El creador reparte las cartas
+            // El creador inicializa el estado compartido SIN cartas y arranca el
+            // reparto seguro. Las manos NUNCA se escriben a Firebase: cada jugador
+            // recibe las suyas cifradas vía póker mental y las descifra en local.
             if (estado.miLado === 'jugador') {
-                const mazo = mezclarMazo(crearMazo());
-                const { manoJ, manoR } = repartir(mazo);
-                const manoJugadorOrdenada = ordenarMano(manoJ);
-                const manoRivalOrdenada = ordenarMano(manoR);
                 const partidaRef = ref(db, 'partidas/' + estado.partidaId);
                 await update(partidaRef, {
                     juego: {
-                        manoJugador: manoJugadorOrdenada, manoRival: manoRivalOrdenada,
                         golesJugador: 0, golesRival: 0,
                         puntosJugador: 0, puntosRival: 0,
                         puntosManoJugador: 0, puntosManoRival: 0,
                         manoActual: 0, rondaActual: 0,
                         turnoInicial: 'jugador', turnoActual: 'jugador',
-                        cartasEnMesa: [], fase: 'esperando_seleccion',
+                        cartasEnMesa: [], fase: 'repartiendo',
+                        cantJugador: 0, cantRival: 0,
+                        faseReparto: 'esperando_y',
                         penalUsado: false, penalCantadoPor: null,
                         penalActivo: false, penalAtacante: null, penalCartas: [],
                         golActivo: false, golAtacante: null, golCartas: [],
@@ -1991,10 +2221,10 @@
                     },
                     ultimaActividad: Date.now()
                 });
-                estado.juego.manoJugador = manoJugadorOrdenada;
-                estado.juego.manoRival = manoRivalOrdenada;
+                estado.juego.turnoInicial = 'jugador';
                 estado.juego.turnoActual = 'jugador';
-                estado.juego.fase = 'esperando_seleccion';
+                estado.juego.fase = 'repartiendo';
+                await dealerPublicarMazoCegado();
             }
 
             reproducirAudioFondo();
@@ -2238,6 +2468,10 @@
         }
 
         async function finalizarMano() {
+            // Evitar doble ejecución: ambos clientes pueden llegar acá casi al
+            // mismo tiempo (ambos resuelven las rondas localmente)
+            if (estado.juego.manoFinalizandose) return;
+            estado.juego.manoFinalizandose = true;
             // Ocultar el panel VAR al finalizar la mano (sincronizado para ambos)
             estado.juego.varPanelVisible = false;
             if (dom.varPanel) dom.varPanel.classList.remove('visible');
@@ -2280,6 +2514,10 @@
         }
 
         function iniciarNuevaMano() {
+            // Evitar doble arranque: ambos clientes pueden llegar acá casi al mismo
+            // tiempo (ambos resuelven la mano localmente). El primero que entre
+            // fija la fase 'repartiendo' y el segundo sale sin tocar nada.
+            if (estado.juego.fase === 'repartiendo') return;
             const nuevoTurnoInicial = estado.juego.ganadorManoAnterior || estado.juego.turnoInicial;
             estado.juego.golesInicioManoJugador = estado.juego.golesJugador;
             estado.juego.golesInicioManoRival = estado.juego.golesRival;
@@ -2312,13 +2550,18 @@
             estado.juego.ganadorManoAnterior = null;
             if (dom.varPanel) dom.varPanel.classList.remove('visible');
 
-            const mazo = mezclarMazo(crearMazo());
-            const { manoJ, manoR } = repartir(mazo);
-            estado.juego.manoJugador = ordenarMano(manoJ);
-            estado.juego.manoRival = ordenarMano(manoR);
+            // Reparto seguro: las manos se obtienen con póker mental. Las manos
+            // locales quedan vacías hasta que cada jugador reciba las suyas;
+            // la fase 'repartiendo' mantiene los botones bloqueados mientras tanto.
+            estado.juego.manoJugador = [];
+            estado.juego.manoRival = [];
+            estado.juego.manoFinalizandose = false;
             estado.juego.turnoInicial = nuevoTurnoInicial;
-            estado.juego.turnoActual = estado.juego.turnoInicial;
-            estado.juego.fase = 'esperando_seleccion';
+            estado.juego.turnoActual = nuevoTurnoInicial;
+            estado.juego.fase = 'repartiendo';
+            if (estado.miLado === 'jugador') {
+                dealerPublicarMazoCegado();
+            }
             sincronizarJuego();
             renderizarTodo();
         }
