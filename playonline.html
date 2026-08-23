@@ -1871,7 +1871,11 @@
                         }
                         // ============ MENSAJES DE RESPUESTAS DEL RIVAL ============
                         // Detectar qué respondió el rival a un canto (quiero / no quiero / VAR / golazo)
-                        if (jAnterior.esperandoRespuestaDe === 'rival' && j.esperandoRespuestaDe !== 'rival') {
+                        // IMPORTANTE: se convierte a lado relativo con aRelativo() para que cada
+                        // cliente solo detecte las respuestas del OPONENTE. Sin esta conversión,
+                        // el jugador unido (lado absoluto 'rival') detectaba su propia respuesta
+                        // reflejada desde Firebase y se escuchaban las dos voces.
+                        if (aRelativo(jAnterior.esperandoRespuestaDe) === 'rival' && aRelativo(j.esperandoRespuestaDe) !== 'rival') {
                             if (!jAnterior.golazoUsado && j.golazoUsado) {
                                 mostrarMensaje(`💥 ${estado.rivalNombre} canta GOLAZO`);
                             } else if (!jAnterior.varPedidoPor && j.varPedidoPor) {
