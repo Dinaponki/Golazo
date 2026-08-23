@@ -1754,12 +1754,48 @@
 
         // Registrar un evento de canto en Firebase para que el rival
         // lo escuche aunque los cambios de estado lleguen combinados.
-        function registrarEventoCanto(tipo, canto) {
+        function registrarEventoCanto(tipo, canto, resumen) {
             if (!estado.partidaId) return;
-            estado.juego.ultimoEvento = { tipo, quien: estado.miLado, canto: canto || null, ts: Date.now() };
+            estado.juego.ultimoEvento = { tipo, quien: estado.miLado, canto: canto || null, resumen: resumen || null, ts: Date.now() };
             update(ref(db, 'partidas/' + estado.partidaId + '/juego'), {
                 ultimoEvento: estado.juego.ultimoEvento
             }).catch(() => {});
+        }
+
+        // Totales absolutos actuales (para adjuntar a un evento y que el rival
+        // aplique exactamente los mismos valores, sin depender del orden de llegada)
+        function resumenAbsolutoActual() {
+            return {
+                pJ: estado.miLado === 'jugador' ? estado.juego.puntosJugador : estado.juego.puntosRival,
+                pR: estado.miLado === 'jugador' ? estado.juego.puntosRival : estado.juego.puntosJugador,
+                gJ: estado.miLado === 'jugador' ? estado.juego.golesJugador : estado.juego.golesRival,
+                gR: estado.miLado === 'jugador' ? estado.juego.golesRival : estado.juego.golesJugador
+            };
+        }
+
+        // Aplicar los totales que trae un evento del rival (canto rechazado).
+        // Determinista e idempotente: suena según el delta contra las líneas
+        // base y fija el marcador al valor del resumen, pase lo que pase con
+        // el orden de los snapshots de sincronización.
+        let ultimoResumenTs = 0;
+        function aplicarResumenRival(resumen, ts) {
+            if (!resumen || !ts || ts <= ultimoResumenTs) return;
+            ultimoResumenTs = ts;
+            const pJ = estado.miLado === 'jugador' ? (resumen.pJ || 0) : (resumen.pR || 0);
+            const pR = estado.miLado === 'jugador' ? (resumen.pR || 0) : (resumen.pJ || 0);
+            const gJ = estado.miLado === 'jugador' ? (resumen.gJ || 0) : (resumen.gR || 0);
+            const gR = estado.miLado === 'jugador' ? (resumen.gR || 0) : (resumen.gJ || 0);
+            while (golesSyncJ < gJ) { reproducirSonido('golplayer'); golesSyncJ++; }
+            while (golesSyncR < gR) { reproducirSonido('golcpu'); golesSyncR++; }
+            while (puntosSyncJ < pJ) { reproducirSonido('puntoplayer'); puntosSyncJ++; }
+            while (puntosSyncR < pR) { reproducirSonido('puntocpu'); puntosSyncR++; }
+            estado.juego.puntosJugador = pJ;
+            estado.juego.puntosRival = pR;
+            estado.juego.golesJugador = gJ;
+            estado.juego.golesRival = gR;
+            puntosSyncJ = pJ; puntosSyncR = pR;
+            golesSyncJ = gJ; golesSyncR = gR;
+            renderizarMarcador();
         }
 
         // NOTA sobre los puntos por canto rechazado ("no quiero" / VAR rechazado):
@@ -1947,6 +1983,9 @@
                                 ultimoEventoTs = evTs;
                                 if (j.ultimoEvento.quien !== estado.miLado) {
                                     reproducirEventoRival(j.ultimoEvento.tipo, j.ultimoEvento);
+                                    // Aplicar de forma determinista los totales que
+                                    // trae el evento (canto rechazado → punto al que cantó)
+                                    aplicarResumenRival(j.ultimoEvento.resumen, evTs);
                                 }
                             }
                         }
@@ -2463,7 +2502,7 @@
                 if (estado.juego.fase === 'var_decision') {
                     if (resp === 'no_quiero') {
                         sumarPuntos(estado.juego.varPedidoPor, 1);
-                        registrarEventoCanto('var_rechaza');
+                        registrarEventoCanto('var_rechaza', null, resumenAbsolutoActual());
                         // Sincronizar los puntos aplicados para que el rival los reciba
                         sincronizarJuego();
                         reproducirSonido('noquierojugador');
@@ -2484,7 +2523,7 @@
                 const puntos = cantoActual === 'golazo' ? 2 : 1;
                 console.log('[GOLAZO DEBUG] No quiero:', { cantoActual, quienCanto, puntos });
                 const golPorPuntos = sumarPuntos(quienCanto, puntos);
-                registrarEventoCanto('no_quiero', cantoActual);
+                registrarEventoCanto('no_quiero', cantoActual, resumenAbsolutoActual());
                 // Sincronizar los puntos aplicados para que el rival los reciba
                 sincronizarJuego();
                 reproducirSonido('noquierojugador');
