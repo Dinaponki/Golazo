@@ -321,8 +321,20 @@
         }
 
         .panel-marcador .estrellas { display: flex; gap: 5px; font-size: clamp(15px, 3.8vmin, 20px); }
-        .panel-marcador .estrellas .estrella { color: rgba(255, 255, 255, 0.2); transition: var(--transicion); }
+        .panel-marcador .estrellas .estrella { color: rgba(255, 255, 255, 0.2); transition: var(--transicion); display: inline-block; }
         .panel-marcador .estrellas .estrella.encendida { color: var(--dorado); text-shadow: 0 0 8px rgba(200, 168, 78, 0.5); }
+
+        /* Destello cuando se enciende una estrella nueva (punto por canto rechazado, ronda ganada, etc.) */
+        @keyframes popEstrella {
+            0% { transform: scale(1); }
+            40% { transform: scale(1.9); }
+            100% { transform: scale(1); }
+        }
+        .panel-marcador .estrellas .estrella.recien {
+            color: var(--dorado);
+            text-shadow: 0 0 14px rgba(200, 168, 78, 0.95);
+            animation: popEstrella 0.6s ease;
+        }
 
         .panel-marcador .centro-marcador {
             font-size: clamp(14px, 3.2vmin, 18px);
@@ -1262,8 +1274,26 @@
         function renderizarEstrellas() {
             const pJ = estado.juego.puntosJugador;
             const pR = estado.juego.puntosRival;
-            dom.estrellasJugador.querySelectorAll('.estrella').forEach((el, i) => el.classList.toggle('encendida', i < pJ));
-            dom.estrellasCpu.querySelectorAll('.estrella').forEach((el, i) => el.classList.toggle('encendida', i < pR));
+            // Detectar estrellas recién encendidas para el destello.
+            // Funciona en ambas pantallas: al sumar puntos localmente
+            // ("no quiero" del rival, ronda ganada, etc.) y al recibirlos
+            // por sincronización de Firebase (renderizarTodo → renderizarMarcador).
+            dom.estrellasJugador.querySelectorAll('.estrella').forEach((el, i) => {
+                const encendida = i < pJ;
+                if (encendida && !el.classList.contains('encendida')) {
+                    el.classList.add('recien');
+                    setTimeout(() => el.classList.remove('recien'), 650);
+                }
+                el.classList.toggle('encendida', encendida);
+            });
+            dom.estrellasCpu.querySelectorAll('.estrella').forEach((el, i) => {
+                const encendida = i < pR;
+                if (encendida && !el.classList.contains('encendida')) {
+                    el.classList.add('recien');
+                    setTimeout(() => el.classList.remove('recien'), 650);
+                }
+                el.classList.toggle('encendida', encendida);
+            });
         }
 
         function renderizarMarcador() {
