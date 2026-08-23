@@ -748,7 +748,7 @@
     <audio id="sndGoljugador" preload="auto"><source src="sounds/goljugador.mp3" type="audio/mpeg"></audio>
     <audio id="sndGolazojugador" preload="auto"><source src="sounds/golazojugador.mp3" type="audio/mpeg"></audio>
 
-    <!-- Sonidos de cantos del rival (CPU) -->
+    <!-- Sonidos de cantos del CPU (usados para el rival en online) -->
     <audio id="sndPenalcpu" preload="auto"><source src="sounds/penalcpu.mp3" type="audio/mpeg"></audio>
     <audio id="sndQuierocpu" preload="auto"><source src="sounds/quierocpu.mp3" type="audio/mpeg"></audio>
     <audio id="sndNoquierocpu" preload="auto"><source src="sounds/noquierocpu.mp3" type="audio/mpeg"></audio>
@@ -974,7 +974,7 @@
             dom.audioGoljugador = document.getElementById('sndGoljugador');
             dom.audioGolazojugador = document.getElementById('sndGolazojugador');
 
-            // Sonidos de cantos del rival (CPU)
+            // Sonidos de cantos del CPU (usados para el rival en online)
             dom.audioPenalcpu = document.getElementById('sndPenalcpu');
             dom.audioQuierocpu = document.getElementById('sndQuierocpu');
             dom.audioNoquierocpu = document.getElementById('sndNoquierocpu');
@@ -990,12 +990,14 @@
                 'puntocpu': dom.audioPuntocpu, 'puntoplayer': dom.audioPuntoplayer,
                 'var': dom.audioVar, 'ganar': dom.audioGanar,
                 'empate': dom.audioEmpate, 'perder': dom.audioPerder,
+                // Cantos del jugador
                 'penaljugador': dom.audioPenaljugador,
                 'quierojugador': dom.audioQuierojugador,
                 'noquierojugador': dom.audioNoquierojugador,
                 'varjugador': dom.audioVarjugador,
                 'goljugador': dom.audioGoljugador,
                 'golazojugador': dom.audioGolazojugador,
+                // Cantos del CPU (rival)
                 'penalcpu': dom.audioPenalcpu,
                 'quierocpu': dom.audioQuierocpu,
                 'noquierocpu': dom.audioNoquierocpu,
@@ -1851,6 +1853,14 @@
                                 if (quienGolazo === 'rival') reproducirSonido('golazocpu');
                             }
                         }
+                        // Sonido de quiero/noquiero del rival
+                        if (jAnterior.esperandoRespuestaDe && !j.esperandoRespuestaDe) {
+                            // El rival respondió
+                            if (j.fase === 'penal_pedido' || j.fase === 'gol_pedido' || j.fase === 'golazo_pedido' || j.fase === 'var_decision') {
+                                // El rival respondió algo, pero no sabemos qué exactamente
+                                // Solo reproducimos si el que respondió fue el rival
+                            }
+                        }
                         // Sonido de VAR del rival
                         if (!jAnterior.varPedidoPor && j.varPedidoPor) {
                             const quienVar = aRelativo(j.varPedidoPor);
@@ -1859,15 +1869,14 @@
                                 mostrarMensaje(`📺 ${estado.rivalNombre} pide VAR`);
                             }
                         }
-                        // ============ RESPUESTAS DEL RIVAL ============
+                        // ============ MENSAJES DE RESPUESTAS DEL RIVAL ============
                         // Detectar qué respondió el rival a un canto (quiero / no quiero / VAR / golazo)
                         if (jAnterior.esperandoRespuestaDe === 'rival' && j.esperandoRespuestaDe !== 'rival') {
                             if (!jAnterior.golazoUsado && j.golazoUsado) {
-                                reproducirSonido('golazocpu');
                                 mostrarMensaje(`💥 ${estado.rivalNombre} canta GOLAZO`);
                             } else if (!jAnterior.varPedidoPor && j.varPedidoPor) {
-                                // Ya se reproduce y muestra el mensaje de "pide VAR" arriba
-                            } else if (j.penalActivo || j.golActivo || j.cantoPendiente) {
+                                // Ya se muestra el mensaje de "pide VAR" arriba
+                            } else if (j.fase === 'var_pedido' || j.penalActivo || j.golActivo || j.cantoPendiente) {
                                 reproducirSonido('quierocpu');
                                 mostrarMensaje(`${estado.rivalNombre}: ✓ ¡Quiero!`);
                             } else {
