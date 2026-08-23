@@ -880,6 +880,7 @@
                 varTurnoDeclarar: null,
                 varPanelVisible: false,
                 esperandoRespuestaDe: null,
+                ultimoEvento: null,
                 historialManos: [], inicioRonda: 0,
                 ganadorManoAnterior: null,
                 golEnMano: false,
@@ -1401,6 +1402,9 @@
                 varTurnoDeclarar: aAbsoluto(estado.juego.varTurnoDeclarar),
                 varPanelVisible: estado.juego.varPanelVisible,
                 esperandoRespuestaDe: aAbsoluto(estado.juego.esperandoRespuestaDe),
+                // Incluir el último evento de canto para que el rival lo reciba
+                // aunque la siguiente sincronización lo sobrescriba con null
+                ultimoEvento: estado.juego.ultimoEvento || null,
                 historialManos: estado.juego.historialManos.map(h => ({
                     ...h,
                     turnoInicial: aAbsoluto(h.turnoInicial),
@@ -1752,8 +1756,9 @@
         // lo escuche aunque los cambios de estado lleguen combinados.
         function registrarEventoCanto(tipo, canto) {
             if (!estado.partidaId) return;
+            estado.juego.ultimoEvento = { tipo, quien: estado.miLado, canto: canto || null, ts: Date.now() };
             update(ref(db, 'partidas/' + estado.partidaId + '/juego'), {
-                ultimoEvento: { tipo, quien: estado.miLado, canto: canto || null, ts: Date.now() }
+                ultimoEvento: estado.juego.ultimoEvento
             }).catch(() => {});
         }
 
@@ -2043,6 +2048,7 @@
                         varPedidoPor: null,
                         varDeclaraciones: { jugador: null, rival: null },
                         varTurnoDeclarar: null, esperandoRespuestaDe: null,
+                        ultimoEvento: null,
                         historialManos: [], inicioRonda: 0,
                         ganadorManoAnterior: null, golEnMano: false,
                         golesInicioManoJugador: 0, golesInicioManoRival: 0,
@@ -2449,6 +2455,8 @@
                     if (resp === 'no_quiero') {
                         sumarPuntos(estado.juego.varPedidoPor, 1);
                         registrarEventoCanto('var_rechaza');
+                        // Sincronizar los puntos aplicados para que el rival los reciba
+                        sincronizarJuego();
                         reproducirSonido('noquierojugador');
                         mostrarMensaje(`${estado.nickname || 'Jugador'}: ✗ No quiero el VAR`);
                         finalizarCanto();
@@ -2467,6 +2475,8 @@
                 const puntos = cantoActual === 'golazo' ? 2 : 1;
                 const golPorPuntos = sumarPuntos(quienCanto, puntos);
                 registrarEventoCanto('no_quiero', cantoActual);
+                // Sincronizar los puntos aplicados para que el rival los reciba
+                sincronizarJuego();
                 reproducirSonido('noquierojugador');
                 mostrarMensaje(`${estado.nickname || 'Jugador'}: ✗ No quiso`);
                 if (golPorPuntos) setTimeout(finalizarMano, 2200);
