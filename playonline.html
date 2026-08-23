@@ -1271,15 +1271,36 @@
             dom.mesaCartas.appendChild(filaMesa);
         }
 
+        // Estrellas visibles: monótonas dentro de cada mano. Una vez que una
+        // estrella se enciende (punto por canto rechazado, ronda ganada, etc.),
+        // permanece encendida hasta que comienza una mano nueva, sin importar
+        // fluctuaciones del estado sincronizado. Esto garantiza que la estrella
+        // se vea en ambas pantallas de forma persistente.
+        // Estrellas visibles: monótonas dentro de cada "segmento" de juego.
+        // Un segmento termina (y las estrellas se reinician legítimamente) solo
+        // cuando cambia la mano o cuando se convierte un gol (los goles suben).
+        // Dentro del segmento, una vez que una estrella se enciende (punto por
+        // canto rechazado, ronda ganada, etc.), permanece encendida sin importar
+        // fluctuaciones del estado sincronizado.
+        let estrellasVisiblesJ = 0, estrellasVisiblesR = 0, estrellasSegmento = null;
+
         function renderizarEstrellas() {
-            const pJ = estado.juego.puntosJugador;
-            const pR = estado.juego.puntosRival;
+            const segmento = estado.juego.manoActual + '|' + estado.juego.golesJugador + '-' + estado.juego.golesRival;
+            if (segmento !== estrellasSegmento) {
+                estrellasSegmento = segmento;
+                estrellasVisiblesJ = estado.juego.puntosJugador;
+                estrellasVisiblesR = estado.juego.puntosRival;
+            } else {
+                if (estado.juego.puntosJugador > estrellasVisiblesJ) estrellasVisiblesJ = estado.juego.puntosJugador;
+                if (estado.juego.puntosRival > estrellasVisiblesR) estrellasVisiblesR = estado.juego.puntosRival;
+            }
+
             // Detectar estrellas recién encendidas para el destello.
             // Funciona en ambas pantallas: al sumar puntos localmente
             // ("no quiero" del rival, ronda ganada, etc.) y al recibirlos
             // por sincronización de Firebase (renderizarTodo → renderizarMarcador).
             dom.estrellasJugador.querySelectorAll('.estrella').forEach((el, i) => {
-                const encendida = i < pJ;
+                const encendida = i < estrellasVisiblesJ;
                 if (encendida && !el.classList.contains('encendida')) {
                     el.classList.add('recien');
                     setTimeout(() => el.classList.remove('recien'), 650);
@@ -1287,7 +1308,7 @@
                 el.classList.toggle('encendida', encendida);
             });
             dom.estrellasCpu.querySelectorAll('.estrella').forEach((el, i) => {
-                const encendida = i < pR;
+                const encendida = i < estrellasVisiblesR;
                 if (encendida && !el.classList.contains('encendida')) {
                     el.classList.add('recien');
                     setTimeout(() => el.classList.remove('recien'), 650);
@@ -1303,8 +1324,8 @@
             renderizarEstrellas();
             const dbg = document.getElementById('debugBadge');
             if (dbg) {
-                dbg.textContent = 'v5 | ' + estado.juego.fase + ' | resp:' + (estado.juego.esperandoRespuestaDe || '-') +
-                    ' | ⭐J:' + estado.juego.puntosJugador + ' R:' + estado.juego.puntosRival +
+                dbg.textContent = 'v6 | ' + estado.juego.fase + ' | resp:' + (estado.juego.esperandoRespuestaDe || '-') +
+                    ' | ⭐J:' + estado.juego.puntosJugador + '(' + estrellasVisiblesJ + ') R:' + estado.juego.puntosRival + '(' + estrellasVisiblesR + ')' +
                     ' | ⚽' + estado.juego.golesJugador + '-' + estado.juego.golesRival;
             }
         }
@@ -3151,7 +3172,7 @@
             const dbgInit = document.getElementById('debugBadge');
             if (dbgInit) {
                 const t = new Date();
-                dbgInit.textContent = 'v5 ⏱' + t.toLocaleTimeString() + ' | cargando...';
+                dbgInit.textContent = 'v6 ⏱' + t.toLocaleTimeString() + ' | cargando...';
             }
 
             onAuthStateChanged(auth, (user) => {
