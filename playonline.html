@@ -1719,17 +1719,26 @@
 
         // Intenta reclamar (ATÓMICAMENTE) una entrada de la cola de matchmaking
         // y unirse a su partida. Devuelve true si la unión fue exitosa.
-        // Dos transacciones encadenadas garantizan que aunque varios jugadores
-        // lean al mismo candidato simultáneamente, SOLO uno completa la unión:
-        // 1) Reclamo de cola_rapido/{key}: se borra solo si aún existe. Si otro
-        //    jugador ya la reclamó, la transacción aborta (committed=false).
+        // IMPORTANTE: el snapshot de una transacción es el valor POST-escritura,
+        // por eso el reclamo MARCA la entrada (reclamadoPor) en vez de borrarla:
+        // así el snapshot conserva uid y partidaId para poder unirse después.
+        // 1) Reclamo de cola_rapido/{key}: marca reclamadoPor=miUid. Aborta si la
+        //    entrada no existe, ya fue reclamada por otro, o por SIMETRÍA: entre
+        //    dos jugadores esperando a la vez, SOLO el de uid mayor inicia la
+        //    unión (evita que cada uno se una a la partida del otro y ambos
+        //    queden esperando infinitamente).
         // 2) Escritura de 'unido' en la partida: solo procede si sigue con
         //    estado 'esperando' y sin rival. Si otro llegó primero, aborta.
         async function intentarUnirseRapido(rivalKey) {
             try {
                 const entradaRef = ref(db, 'cola_rapido/' + rivalKey);
-                const claim = await runTransaction(entradaRef, (actual) => (actual === null ? undefined : null));
-                if (!claim.committed) return false; // otro jugador se llevó esta entrada
+                const miUid = estado.usuario ? estado.usuario.uid : '';
+                const claim = await runTransaction(entradaRef, (actual) => {
+                    if (!actual || !actual.partidaId || actual.reclamadoPor) return undefined;
+                    if (actual.uid && miUid && actual.uid >= miUid) return undefined;
+                    return { ...actual, reclamadoPor: miUid };
+                });
+                if (!claim.committed) return false; // otro jugador se llevó esta entrada o no califica
                 const datos = claim.snapshot.val() || {};
                 if (!datos.partidaId) return false;
 
@@ -1741,9 +1750,14 @@
                     partida.ultimaActividad = Date.now();
                     return partida;
                 });
+
+                // La entrada ya cumplió su ciclo: borrarla SIEMPRE acá (haya
+                // funcionado o no), así nunca queda un fantasma en la cola
+                // apuntando a una partida que ya no acepta rivales.
+                remove(entradaRef).catch(() => {});
                 if (!(resultado.committed && resultado.snapshot.exists())) return false;
 
-                // Éxito: sacar mi propia entrada de la cola (si quedaba) y entrar
+                // Éxito: sacar también MI propia entrada de la cola (si quedaba) y entrar
                 remove(ref(db, 'cola_rapido/' + estado.usuario.uid)).catch(() => {});
                 estado.partidaId = datos.partidaId;
                 estado.miLado = 'rival';
