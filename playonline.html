@@ -1658,6 +1658,8 @@
                 estado.miLado = 'jugador';
                 estado.fase = 'esperando';
                 estado.esPartidaRapida = false;
+                // Si me desconecto durante la espera, borrar partida y cola solos
+                registrarLimpiezaEspera(codigo);
                 dom.overlayLobby.classList.add('oculto');
                 dom.overlayEsperando.classList.remove('oculto');
                 dom.codigoPartida.textContent = codigo;
@@ -1695,6 +1697,9 @@
                 estado.partidaId = codigo;
                 estado.miLado = 'rival';
                 estado.fase = 'esperando';
+                // Registrar salida repentina YA: si cierro la pestaña antes de
+                // que el creador reparta, el ve mi abandono y no queda solo
+                registrarSalidaRepentina();
                 dom.overlayLobby.classList.add('oculto');
                 dom.overlayEsperando.classList.add('oculto');
                 dom.nombreRivalEtiqueta.textContent = partida.creador.nickname || 'Rival';
@@ -1790,6 +1795,9 @@
                 estado.miLado = 'jugador';
                 estado.fase = 'esperando';
                 estado.esPartidaRapida = true;
+                // Si me desconecto durante la búsqueda, borrar partida y cola
+                // solos para no dejar una partida fantasma en el matchmaking
+                registrarLimpiezaEspera(codigo);
                 dom.overlayLobby.classList.add('oculto');
                 dom.overlayEsperando.classList.remove('oculto');
                 dom.codigoPartida.textContent = codigo;
@@ -1860,6 +1868,8 @@
                 estado.miLado = 'rival';
                 estado.fase = 'esperando';
                 estado.esPartidaRapida = true;
+                // Registrar salida repentina YA (ver comentario en unirsePartida)
+                registrarSalidaRepentina();
                 dom.overlayLobby.classList.add('oculto');
                 dom.overlayEsperando.classList.add('oculto');
                 estado.rivalNombre = rivalNickname;
@@ -1878,6 +1888,7 @@
         let ultimoEstadoJuego = null;
         let varYaResolviendo = false;
         let salidaRepentinaRegistrada = false;
+        let limpiezaEsperaRegistrada = null;
 
         // Suelta la escucha sobre la cola de matchmaking (si quedó activa).
         // Sin esto, el creador de una partida rápida seguía escuchando la cola
@@ -1893,18 +1904,45 @@
         // 'abandonadoPor' y puede finalizar la partida como abandono.
         function registrarSalidaRepentina() {
             if (!estado.partidaId || !estado.miLado || salidaRepentinaRegistrada) return;
+            // Anular primero la limpieza de la etapa de espera (remove de la
+            // partida): ya no aplica, ahora marcamos abandono en vez de borrar
+            cancelarLimpiezaEspera();
             salidaRepentinaRegistrada = true;
             const partidaRef = ref(db, 'partidas/' + estado.partidaId);
             onDisconnect(partidaRef).update({ abandonadoPor: estado.miLado })
                 .catch((e) => console.error('Error registrando salida repentina:', e));
         }
 
-        // Cancela el registro de desconexión (al terminar la partida limpiamente,
-        // para que navegar fuera no marque un abandono falso)
-        function cancelarSalidaRepentina() {
-            if (!estado.partidaId || !salidaRepentinaRegistrada) return;
-            salidaRepentinaRegistrada = false;
-            try { onDisconnect(ref(db, 'partidas/' + estado.partidaId)).cancel(); } catch (e) { /* noop */ }
+        // Limpieza de la ETAPA DE ESPERA: si me desconecto mientras busco rival
+        // (cerré la pestaña, perdí internet, mataron la app...), Firebase borra
+        // solito la partida y mi entrada de la cola. Así NADIE encuentra una
+        // partida fantasma en el matchmaking y queda esperando infinitamente.
+        function registrarLimpiezaEspera(codigo) {
+            try {
+                const pRef = ref(db, 'partidas/' + codigo);
+                const cRef = estado.usuario ? ref(db, 'cola_rapido/' + estado.usuario.uid) : null;
+                onDisconnect(pRef).remove().catch(() => {});
+                if (cRef) onDisconnect(cRef).remove().catch(() => {});
+                limpiezaEsperaRegistrada = { pRef, cRef };
+            } catch (e) { console.error('Error registrando limpieza de espera:', e); }
+        }
+
+        function cancelarLimpiezaEspera() {
+            if (!limpiezaEsperaRegistrada) return;
+            const { pRef, cRef } = limpiezaEsperaRegistrada;
+            limpiezaEsperaRegistrada = null;
+            try { onDisconnect(pRef).cancel(); } catch (e) { /* noop */ }
+            if (cRef) { try { onDisconnect(cRef).cancel(); } catch (e) { /* noop */ } }
+        }
+
+        // Cancela TODOS los registros de desconexión (al terminar la partida o
+        // salir limpiamente, para que navegar fuera no dispare limpieza vieja)
+        function cancelarRegistroDesconexion() {
+            if (salidaRepentinaRegistrada && estado.partidaId) {
+                salidaRepentinaRegistrada = false;
+                try { onDisconnect(ref(db, 'partidas/' + estado.partidaId)).cancel(); } catch (e) { /* noop */ }
+            }
+            cancelarLimpiezaEspera();
         }
 
         // Finaliza la partida localmente porque EL RIVAL abandonó (desconexión
@@ -1967,10 +2005,18 @@
             const partidaRef = ref(db, 'partidas/' + codigo);
             partidaListener = onValue(partidaRef, (snap) => {
                 if (!snap.exists()) {
-                    // La partida fue borrada (p.ej. el rival la eliminó desde
-                    // afuera): tratarlo como abandono del rival para que el que
-                    // quedó no se quede colgado sin pantalla de fin.
-                    if (estado.enPartida && !estado.partidaTerminada && estado.fase !== 'fin') {
+                    // La partida desapareció de Firebase
+                    if (estaEsperando()) {
+                        // Estábamos esperando rival y alguien borró la partida
+                        // (p.ej. el rival cerró la pestaña y la limpieza
+                        // automática la eliminó): volver al lobby, no quedarse
+                        // esperando eternamente.
+                        mostrarMensaje('La búsqueda fue cancelada');
+                        volverAlLobbyDeEspera();
+                    } else if (estado.enPartida && !estado.partidaTerminada && estado.fase !== 'fin') {
+                        // La partida fue borrada en plena partida: tratarlo como
+                        // abandono del rival para que el que quedó no se quede
+                        // colgado sin pantalla de fin.
                         finalizarPorAbandonoDelRival(estado.miLado === 'jugador' ? 'rival' : 'jugador');
                     } else {
                         mostrarMensaje('La partida terminó');
@@ -1978,6 +2024,16 @@
                     return;
                 }
                 const partida = snap.val();
+
+                // Me uní a una partida cuyo creador murió ANTES de repartir:
+                // estado 'jugando', sin 'juego' y sin actividad reciente.
+                // Volver al lobby en vez de esperar indefinidamente.
+                if (estaEsperando() && partida.estado === 'jugando' && !partida.juego &&
+                    (!partida.ultimaActividad || Date.now() - partida.ultimaActividad > 30000)) {
+                    mostrarMensaje('El rival no respondió');
+                    volverAlLobbyDeEspera();
+                    return;
+                }
                 // Detectar si es una partida rápida (para el ranking online)
                 estado.esPartidaRapida = partida.rapida === true;
 
@@ -3135,9 +3191,9 @@
             // esta pantalla ni registrar un abandono.
             estado.partidaTerminada = true;
             dom.overlayFin.classList.remove('oculto');
-            // Cancelar el registro de desconexión: la partida ya terminó bien y
-            // salir de la página no debe marcar un abandono falso.
-            cancelarSalidaRepentina();
+            // Cancelar TODOS los registros de desconexión: la partida ya terminó
+            // bien y salir de la página no debe disparar limpiezas ni abandonos falsos.
+            cancelarRegistroDesconexion();
             // Convertir goles absolutos a relativos
             const gJ = estado.miLado === 'jugador' ? (resultado.golesJugador || 0) : (resultado.golesRival || 0);
             const gR = estado.miLado === 'jugador' ? (resultado.golesRival || 0) : (resultado.golesJugador || 0);
@@ -3205,9 +3261,10 @@
                 } catch (error) { console.error('Error abandonando partida:', error); }
             }
             // Limpieza simétrica (vale para el creador y para el que se unió):
-            // soltar la escucha de la cola de matchmaking y borrar nuestra
-            // entrada de la cola si quedó alguna.
+            // soltar la escucha de la cola de matchmaking, anular los registros
+            // de desconexión pendientes y borrar nuestra entrada de la cola.
             detenerEscuchaColaRapido();
+            cancelarRegistroDesconexion();
             if (estado.usuario) remove(ref(db, 'cola_rapido/' + estado.usuario.uid)).catch(() => {});
             // Las estadísticas se guardan automáticamente en cada cliente vía
             // mostrarFinPartido(): el que abandona registra derrota (-5 pts) y
@@ -3216,17 +3273,14 @@
         }
 
         // ============ CANCELAR ESPERA ============
-        async function cancelarEspera() {
-            if (estado.partidaId && estado.miLado === 'jugador') {
-                try { await remove(ref(db, 'partidas/' + estado.partidaId)); }
-                catch (error) { console.error('Error cancelando partida:', error); }
-            }
-            // Limpieza de matchmaking: si esto era una partida rápida, sacar
-            // nuestra entrada de la cola (si queda un fantasma en cola_rapido,
-            // otros jugadores intentan unirse a una partida que ya no existe)
-            // y soltar la escucha de la cola para no ser emparejado después.
+        // Vuelve al lobby desde la espera, con toda la limpieza (listeners,
+        // registros de desconexión, estado e historial). Se usa tanto al
+        // cancelar manualmente como cuando la partida desaparece sola.
+        function volverAlLobbyDeEspera() {
             detenerEscuchaColaRapido();
-            if (estado.usuario) remove(ref(db, 'cola_rapido/' + estado.usuario.uid)).catch(() => {});
+            cancelarRegistroDesconexion();
+            if (partidaListener) { partidaListener(); partidaListener = null; }
+            ultimoEstadoJuego = null;
             estado.partidaId = null;
             estado.miLado = null;
             estado.fase = 'lobby';
@@ -3240,6 +3294,18 @@
                 esperaPushHecha = false;
                 try { history.back(); } catch (e) { /* noop */ }
             }
+        }
+
+        async function cancelarEspera() {
+            if (estado.partidaId && estado.miLado === 'jugador') {
+                try { await remove(ref(db, 'partidas/' + estado.partidaId)); }
+                catch (error) { console.error('Error cancelando partida:', error); }
+            }
+            // Limpieza de matchmaking: si esto era una partida rápida, sacar
+            // nuestra entrada de la cola (si queda un fantasma en cola_rapido,
+            // otros jugadores intentan unirse a una partida que ya no existe)
+            if (estado.usuario) remove(ref(db, 'cola_rapido/' + estado.usuario.uid)).catch(() => {});
+            volverAlLobbyDeEspera();
         }
 
         // ============ INICIALIZACIÓN ============
