@@ -1372,7 +1372,6 @@
                 // (evita race conditions con registrarAbandono)
                 const camposActualizar = {
                     nickname: (datos.nickname && datos.nickname.length > 0) ? datos.nickname : (user.displayName || 'Jugador'),
-                    email: datos.email || (user.email || ''),
                     fotoURL: user.photoURL || (datos.fotoURL || ''),
                     partidosJugados,
                     partidosGanados,

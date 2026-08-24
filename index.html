@@ -1739,7 +1739,6 @@
                 if (!snap.exists()) {
                     await set(userRef, {
                         nickname: '',
-                        email: user.email || '',
                         fotoURL: user.photoURL || '',
                         partidosJugados: 0,
                         partidosGanados: 0,
@@ -1750,6 +1749,10 @@
                         rachaActual: 0,
                         mejorRacha: 0,
                         ultimaActualizacion: serverTimestamp()
+                    });
+                    // Email en nodo PRIVADO: solo legible/escribible por su dueño
+                    await set(ref(db, 'usuarios_privados/' + user.uid), {
+                        email: user.email || ''
                     });
                 }
             } catch (error) {
