@@ -857,9 +857,6 @@
             enPartida: false, fase: 'lobby',
             partidaTerminada: false, // true cuando ya se mostró la pantalla de fin
             esPartidaRapida: false,
-            // Estado del reparto seguro (póker mental): exponentes secretos,
-            // claves de pasos ya procesados ("mano:intento") y timer de reintento
-            repartoSeguro: { intento: 0, expA: null, expB: null, clavePublicada: '', claveEnviadaZ: '', claveProcesadaZ: '', claveProcesadaM: '', inicioReparto: 0, timer: null },
             sonidosActivados: true, musicaActivada: true,
             juego: {
                 manoJugador: [], manoRival: [],
@@ -1365,301 +1362,160 @@
             return valor;
         }
 
-        // ============================================================
-        // REPARTO SEGURO DE CARTAS ("PÓKER MENTAL" - Shamir/Rivest/Adleman)
-        // ------------------------------------------------------------
-        // Antes, el creador repartía y escribía AMBAS manos en Firebase en
-        // texto plano: cualquiera con DevTools o la URL de la RTDB veía las
-        // cartas del rival. Ahora la baraja se reparte con cifrado
-        // conmutativo exponencial (n^a^b = n^b^a mod P):
-        //
-        //   1. El creador ("dealer") mezcla los 40 números de carta y publica
-        //      mazoY[i] = n_i^a mod P, con exponente "a" secreto SOLO en su
-        //      memoria. El texto plano se descarta: ni el propio creador sabe
-        //      qué cartas le tocarán.
-        //   2. El rival eleva todo a su exponente secreto "b", MEZCLA el
-        //      resultado y publica mazoZ. Ya nadie puede relacionar valores
-        //      con cartas concretas.
-        //   3. Convención sobre el mazoZ mezclado:
-        //      índices 0..3 = mano del creador, índices 4..7 = mano del rival.
-        //      - El rival devuelve yDealer[i] = mazoZ[i]^(b^-1): vuelve a la
-        //        forma "y" (ilegible para el rival); el creador le quita "a"
-        //        y descubre SOLO su propia mano.
-        //      - El creador devuelve mJoiner[k] = mazoZ[4+k]^(a^-1): ilegible
-        //        para él; el rival le quita "b" y descubre su propia mano.
-        //   Resultado: cada jugador conoce únicamente su propia mano,
-        //   sin necesidad de servidor autoritativo.
-        // Se usa el primo seguro de 1024 bits del Grupo 2 de Oakley (RFC 2409):
-        // suficiente frente a tramposos casuales y mantiene los mensajes chicos.
-        // ============================================================
-        const PRIMO_REPARTO = BigInt('0x' +
-            'FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020BBEA6' +
-            '3B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245' +
-            'E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7EDEE386BFB5A899FA5AE9F2411' +
-            '7C4B1FE649286651ECE65381FFFFFFFFFFFFFFFF');
+        // ============ CIFRADO DE MANOS (Web Crypto) 1/2 ============
+        // Las cartas ocultas NUNCA viajan en texto plano por Firebase.
+        // - Cada jugador genera una clave AES-256 aleatoria que SOLO existe en su
+        //   memoria: nunca se publica. Su mano siempre se guarda cifrada con ella.
+        // - La mano inicial del rival viaja como un "regalo" cifrado con ECDH
+        //   efímero + la clave pública estática del receptor: solo el dueño puede
+        //   abrirlo y la clave efímera se descarta tras el reparto.
+        // Limitación inherente sin servidor: quien mezcla conoce la mano inicial
+        // del rival en ese momento; después pierde todo acceso a sus cartas.
+        const clavesCrypto = {
+            lista: false, parEstatico: null, claveManoAES: null,
+            inicializando: null, ultimaFirmaVista: null
+        };
+        let tokenManoRemota = 0;
 
-        function modPow(base, exp, mod) {
-            let resultado = 1n;
-            let b = ((base % mod) + mod) % mod;
-            let e = exp;
-            while (e > 0n) {
-                if (e & 1n) resultado = (resultado * b) % mod;
-                b = (b * b) % mod;
-                e >>= 1n;
+        function u8aABase64(bytes) { let s = ''; for (const b of bytes) s += String.fromCharCode(b); return btoa(s); }
+        function base64AU8a(b64) { const s = atob(b64); const out = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i); return out; }
+
+        // Mano "fantasma": solo la CANTIDAD de cartas del rival (nunca cuáles son)
+        function crearManoFantasma(n) {
+            return Array.from({ length: n }, () => ({ id: '', posicion: '', numero: 0, nombre: '', imagen: '' }));
+        }
+
+        async function esperarDato(ruta, tiempoMaxMs = 20000) {
+            const inicio = Date.now();
+            while (Date.now() - inicio < tiempoMaxMs) {
+                const snap = await get(ref(db, ruta));
+                if (snap.exists()) return snap.val();
+                await new Promise(r => setTimeout(r, 300));
             }
-            return resultado;
+            throw new Error('Tiempo agotado esperando ' + ruta);
         }
 
-        function mcdBigInt(a, b) {
-            while (b !== 0n) { const t = a % b; a = b; b = t; }
-            return a < 0n ? -a : a;
+        async function cifrarCon(clave, texto) {
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const cifrado = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, clave, new TextEncoder().encode(texto));
+            return { d: u8aABase64(new Uint8Array(cifrado)), i: u8aABase64(iv) };
         }
 
-        function inversoMod(a, m) {
-            let oldR = ((a % m) + m) % m, r = m;
-            let oldS = 1n, s = 0n;
-            while (r !== 0n) {
-                const q = oldR / r;
-                [oldR, r] = [r, oldR - q * r];
-                [oldS, s] = [s, oldS - q * s];
-            }
-            return ((oldS % m) + m) % m;
+        async function descifrarTexto(clave, paquete) {
+            const plano = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: base64AU8a(paquete.i) }, clave, base64AU8a(paquete.d));
+            return new TextDecoder().decode(plano);
         }
 
-        function generarExponenteSecreto() {
-            // Exponente impar aleatorio de ~128 bits, coprimo con P-1
-            while (true) {
-                let e = 1n;
-                for (let i = 0; i < 4; i++) e = (e << 32n) | BigInt(Math.floor(Math.random() * 4294967296));
-                e |= 1n;
-                if (mcdBigInt(e, PRIMO_REPARTO - 1n) === 1n) return e;
-            }
-        }
-
-        function cartaANumero(carta) {
-            return BigInt(POSICIONES.indexOf(carta.posicion) * 10 + NUMEROS.indexOf(carta.numero) + 2);
-        }
-
-        function numeroACarta(n) {
-            const i = Number(n) - 2;
-            if (i < 0 || i >= POSICIONES.length * NUMEROS.length) return null;
-            return crearCarta(POSICIONES[Math.floor(i / 10)], NUMEROS[i % 10]);
-        }
-
-        // Fichas ocultas para representar la mano del rival (solo cantidad)
-        function manoOculta(cantidad) {
-            const fichas = [];
-            for (let i = 0; i < cantidad; i++) {
-                fichas.push({ id: 'oculta' + i, posicion: '?', numero: 0, nombre: 'oculta', imagen: RUTA_DORSO, oculta: true });
-            }
-            return fichas;
-        }
-
-        function juegoRefPartida() {
-            return ref(db, 'partidas/' + estado.partidaId + '/juego');
-        }
-
-        // Normaliza un valor que debería ser array: RTDB puede entregar listas
-        // como objetos {0:..., 1:...} en ciertos casos, lo que rompería .map()
-        function comoArray(valor) {
-            if (Array.isArray(valor)) return valor;
-            if (valor && typeof valor === 'object') {
-                return Object.keys(valor).sort((x, y) => Number(x) - Number(y)).map(k => valor[k]);
-            }
-            return [];
-        }
-
-        // Clave "mano:intento" que identifica un ciclo de reparto concreto
-        function claveRepartoActual() {
-            return estado.juego.manoActual + ':' + (estado.repartoSeguro.intento || 0);
-        }
-
-        // Timer de auto-recuperación del reparto: si tras 15 segundos seguimos en
-        // fase 'repartiendo', el creador republica un mazo nuevo con otro
-        // exponente e intento incrementado. El rival reintenta automáticamente
-        // porque sus marcas de pasos incluyen el número de intento.
-        function iniciarTimerReparto() {
-            if (estado.repartoSeguro.timer) return;
-            estado.repartoSeguro.inicioReparto = Date.now();
-            estado.repartoSeguro.timer = setInterval(() => {
-                if (estado.fase !== 'jugando' || estado.juego.fase !== 'repartiendo') {
-                    clearInterval(estado.repartoSeguro.timer);
-                    estado.repartoSeguro.timer = null;
-                    return;
+        // Genera mi par ECDH estático (publica solo la clave PÚBLICA) y mi clave
+        // AES local para mis manos (esta jamás sale de este dispositivo)
+        function asegurarClavesCifradas() {
+            if (!estado.usuario || !estado.partidaId || !estado.miLado) return Promise.resolve();
+            if (clavesCrypto.lista) return Promise.resolve();
+            if (clavesCrypto.inicializando) return clavesCrypto.inicializando;
+            clavesCrypto.inicializando = (async () => {
+                if (!clavesCrypto.parEstatico) {
+                    clavesCrypto.parEstatico = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
+                    const pubRaw = new Uint8Array(await crypto.subtle.exportKey('raw', clavesCrypto.parEstatico.publicKey));
+                    await set(ref(db, 'partidas/' + estado.partidaId + '/clavesPub/' + estado.miLado), u8aABase64(pubRaw));
+                    const bytes = crypto.getRandomValues(new Uint8Array(32));
+                    clavesCrypto.claveManoAES = await crypto.subtle.importKey('raw', bytes, 'AES-GCM', false, ['encrypt', 'decrypt']);
                 }
-                if (Date.now() - estado.repartoSeguro.inicioReparto > 15000 && estado.miLado === 'jugador') {
-                    estado.repartoSeguro.inicioReparto = Date.now();
-                    console.warn('Reparto seguro atascado, reintentando con intento', estado.repartoSeguro.intento + 1);
-                    mostrarMensaje('🔄 Resincronizando reparto...');
-                    dealerPublicarMazoCegado(true);
-                }
-            }, 3000);
+                clavesCrypto.lista = true;
+            })();
+            const promesa = clavesCrypto.inicializando.finally(() => { clavesCrypto.inicializando = null; });
+            promesa.catch(() => {});
+            return promesa;
         }
 
-        // Paso 1 (solo creador): publicar el mazo cegado con su exponente secreto
-        async function dealerPublicarMazoCegado(esReintento) {
-            if (!estado.partidaId || estado.miLado !== 'jugador') return;
-            if (esReintento) {
-                estado.repartoSeguro.intento = (estado.repartoSeguro.intento || 0) + 1;
-            } else if (estado.repartoSeguro.clavePublicada === claveRepartoActual()) {
-                return; // ya publicado para esta mano/intento
-            }
-            estado.repartoSeguro.clavePublicada = claveRepartoActual();
-
-            // Mezclar, cegar y DESCARTAR el texto plano: el creador no debe poder
-            // saber qué cartas corresponden a cada índice cegado.
-            const baraja = mezclarMazo(crearMazo());
-            const a = generarExponenteSecreto();
-            estado.repartoSeguro.expA = a;
-            const mazoY = baraja.map(c => modPow(cartaANumero(c), a, PRIMO_REPARTO).toString());
-            try {
-                await update(juegoRefPartida(), {
-                    faseReparto: 'y_listo',
-                    repartoIntento: estado.repartoSeguro.intento || 0,
-                    mazoY,
-                    mazoZ: null,
-                    yDealer: null,
-                    mJoiner: null,
-                    ultimaActividad: Date.now()
-                });
-            } catch (error) {
-                console.error('Error publicando mazo cegado:', error);
-            }
+        async function cifrarManoPropia(mano) {
+            await asegurarClavesCifradas();
+            return cifrarCon(clavesCrypto.claveManoAES, JSON.stringify(mano));
         }
 
-        // Paso 2 (solo rival): doble cegado + mezcla + publicar
-        async function joinerPublicarDobleCegado(j) {
-            if (!estado.partidaId || estado.miLado !== 'rival') return;
-            const intento = j.repartoIntento || 0;
-            const clave = estado.juego.manoActual + ':' + intento;
-            if (estado.repartoSeguro.claveEnviadaZ === clave) return;
-            const b = generarExponenteSecreto();
-            estado.repartoSeguro.expB = b;
-            const bInv = inversoMod(b, PRIMO_REPARTO - 1n);
-            const mazoZ = comoArray(j.mazoY).map(y => modPow(BigInt(String(y)), b, PRIMO_REPARTO).toString());
-            if (mazoZ.length !== POSICIONES.length * NUMEROS.length) {
-                console.error('Reparto seguro: mazoY recibido inválido, esperando reintento');
+        // ============ CIFRADO DE MANOS (Web Crypto) 2/2 ============
+        // "Regalo" del reparto: cifra la mano del rival con una clave efímera ECDH
+        // que solo el destinatario puede derivar con su clave privada. La privada
+        // efímera se descarta acá: ni el repartidor puede volver a abrir el sobre.
+        async function cifrarRegalo(mano, ladoDestino) {
+            await asegurarClavesCifradas();
+            const pubDestinoRaw = await esperarDato('partidas/' + estado.partidaId + '/clavesPub/' + ladoDestino);
+            const pubDestino = await crypto.subtle.importKey('raw', base64AU8a(pubDestinoRaw), { name: 'ECDH', namedCurve: 'P-256' }, true, []);
+            const efimera = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
+            const bits = await crypto.subtle.deriveBits({ name: 'ECDH', public: pubDestino }, efimera.privateKey, 256);
+            const claveRegalo = await crypto.subtle.importKey('raw', bits, 'AES-GCM', false, ['encrypt']);
+            const paquete = await cifrarCon(claveRegalo, JSON.stringify(mano));
+            const epk = u8aABase64(new Uint8Array(await crypto.subtle.exportKey('raw', efimera.publicKey)));
+            return { tipo: 'regalo', epk, d: paquete.d, i: paquete.i };
+        }
+
+        async function cifrarAmbasManos(mia, delRival) {
+            const ladoRival = estado.miLado === 'jugador' ? 'rival' : 'jugador';
+            return {
+                ['manos/' + estado.miLado]: await cifrarManoPropia(mia),
+                ['manos/' + ladoRival]: await cifrarRegalo(delRival, ladoRival)
+            };
+        }
+
+        async function descifrarManoPropia(paquete) {
+            if (paquete.tipo === 'regalo') {
+                const epk = await crypto.subtle.importKey('raw', base64AU8a(paquete.epk), { name: 'ECDH', namedCurve: 'P-256' }, true, []);
+                const bits = await crypto.subtle.deriveBits({ name: 'ECDH', public: epk }, clavesCrypto.parEstatico.privateKey, 256);
+                const claveRegalo = await crypto.subtle.importKey('raw', bits, 'AES-GCM', false, ['decrypt']);
+                return JSON.parse(await descifrarTexto(claveRegalo, paquete));
+            }
+            await asegurarClavesCifradas();
+            return JSON.parse(await descifrarTexto(clavesCrypto.claveManoAES, paquete));
+        }
+
+        // Descifra (con reintento) la mano propia cuando llega una versión nueva
+        // cifrada desde Firebase. La mano propia JAMÁS se lee en claro.
+        function intentarDescifrarManoRemota(paquete, intento = 0) {
+            if (!paquete || !paquete.d) return;
+            const firma = paquete.d + '|' + paquete.i;
+            if (firma === clavesCrypto.ultimaFirmaVista) return;
+            if (!clavesCrypto.lista || !clavesCrypto.parEstatico) {
+                if (intento < 60) setTimeout(() => intentarDescifrarManoRemota(paquete, intento + 1), 500);
                 return;
             }
-            estado.repartoSeguro.claveEnviadaZ = clave;
-            // Mezclar: el creador elegirá sus 4 cartas "a ciegas" sobre este orden
-            for (let i = mazoZ.length - 1; i > 0; i--) {
-                const k = Math.floor(Math.random() * (i + 1));
-                [mazoZ[i], mazoZ[k]] = [mazoZ[k], mazoZ[i]];
-            }
-            // Índices 0..3 = mano del creador, devueltos a forma "y" (el rival no
-            // puede leerlas; el creador sí al quitar su exponente)
-            const yDealer = mazoZ.slice(0, 4).map(z => modPow(BigInt(z), bInv, PRIMO_REPARTO).toString());
-            try {
-                await update(juegoRefPartida(), {
-                    faseReparto: 'z_listo',
-                    repartoIntento: intento,
-                    mazoZ,
-                    yDealer,
-                    ultimaActividad: Date.now()
-                });
-            } catch (error) {
-                console.error('Error publicando doble cegado:', error);
-            }
+            clavesCrypto.ultimaFirmaVista = firma;
+            const token = ++tokenManoRemota;
+            descifrarManoPropia(paquete).then((mano) => {
+                if (token !== tokenManoRemota || !Array.isArray(mano) || !mano.length) return;
+                estado.juego.manoJugador = mano;
+                // Si era el regalo del reparto, sobrescribirlo con mi mano cifrada
+                // con MI clave local para no dejar el sobre efímero en Firebase
+                if (paquete.tipo === 'regalo') { reescribirManoPropia().catch(() => {}); }
+                if (estado.fase === 'jugando' || estado.fase === 'fin') renderizarTodo();
+            }).catch((err) => console.warn('No se pudo descifrar la mano propia:', err));
         }
 
-        // Paso 3 (solo creador): leer su propia mano + preparar las del rival
-        async function dealerCompletarReparto(j) {
-            if (estado.miLado !== 'jugador') return;
-            const intento = j.repartoIntento || 0;
-            if (intento !== (estado.repartoSeguro.intento || 0)) return; // respuesta de un intento viejo
-            const clave = estado.juego.manoActual + ':' + intento;
-            if (estado.repartoSeguro.claveProcesadaZ === clave) return;
-            const a = estado.repartoSeguro.expA;
-            if (!a) return;
-            const aInv = inversoMod(a, PRIMO_REPARTO - 1n);
-            const miMano = comoArray(j.yDealer)
-                .map(v => numeroACarta(modPow(BigInt(String(v)), aInv, PRIMO_REPARTO)))
-                .filter(Boolean);
-            if (miMano.length !== CARTAS_POR_JUGADOR) {
-                console.warn('Reparto seguro: mano del creador inválida (intento', intento, '), se reintentará');
-                return; // el timer de reintento generará un mazo nuevo
-            }
-            estado.repartoSeguro.claveProcesadaZ = clave;
-            estado.juego.manoJugador = ordenarMano(miMano);
-            estado.juego.manoRival = manoOculta(CARTAS_POR_JUGADOR);
-            // Índices 4..7 = mano del rival, dejados en forma m^b (ilegibles para
-            // el creador; el rival los abrirá quitando su exponente)
-            const mJoiner = comoArray(j.mazoZ).slice(4, 8).map(z => modPow(BigInt(String(z)), aInv, PRIMO_REPARTO).toString());
-            estado.juego.fase = 'esperando_seleccion';
-            estado.juego.turnoActual = estado.juego.turnoInicial;
-            estado.juego.cartaSeleccionada = null;
-            // Sincronizar INMEDIATAMENTE, antes de cualquier await: si se espera
-            // al update de abajo, el eco del snapshot llega con los valores viejos
-            // (fase='repartiendo', cants=0/0) y el parse pisa el estado local ya
-            // completado, dejando al creador trabado sin dorsos y sin poder jugar.
-            // Entre estas líneas no hay awaits, así que ningún snapshot puede
-            // intercalarse: el sync es atómico respecto del estado local.
-            sincronizarJuego();
-            try {
-                await update(juegoRefPartida(), { faseReparto: 'listo', repartoIntento: intento, mJoiner, ultimaActividad: Date.now() });
-            } catch (error) {
-                console.error('Error completando reparto (creador):', error);
-            }
-            renderizarTodo();
+        // Reescribe mi mano cifrada con MI clave (reemplaza cualquier regalo)
+        function reescribirManoPropia() {
+            return cifrarManoPropia(estado.juego.manoJugador).then((cifrada) => {
+                if (!estado.partidaId) return;
+                return update(ref(db, 'partidas/' + estado.partidaId + '/juego'), { ['manos/' + estado.miLado]: cifrada });
+            });
         }
-
-        // Paso 4 (solo rival): leer su propia mano
-        function joinerCompletarReparto(j) {
-            if (estado.miLado !== 'rival') return;
-            const clave = estado.juego.manoActual + ':' + (j.repartoIntento || 0);
-            if (estado.repartoSeguro.claveProcesadaM === clave) return;
-            const b = estado.repartoSeguro.expB;
-            if (!b) return;
-            const bInv = inversoMod(b, PRIMO_REPARTO - 1n);
-            const miMano = comoArray(j.mJoiner)
-                .map(v => numeroACarta(modPow(BigInt(String(v)), bInv, PRIMO_REPARTO)))
-                .filter(Boolean);
-            if (miMano.length !== CARTAS_POR_JUGADOR) {
-                console.warn('Reparto seguro: mano del rival inválida, esperando reintento');
-                return;
-            }
-            estado.repartoSeguro.claveProcesadaM = clave;
-            estado.juego.manoJugador = ordenarMano(miMano);
-            estado.juego.manoRival = manoOculta(CARTAS_POR_JUGADOR);
-            // Sincronizar acá también: refleja en la DB las cantidades
-            // definitivas desde el lado del rival (mismo razonamiento anti-eco)
-            sincronizarJuego();
-            renderizarTodo();
-        }
-
-        // Máquina de estados del reparto, alimentada por el listener de Firebase.
-        // Protegida con try/catch: un error acá NO debe tumbar el listener entero.
-        function procesarEventosReparto(j) {
-            try {
-                if (!estado.partidaId || !estado.miLado) return;
-                if (!j.faseReparto) return;
-                if ((j.manoActual || 0) !== estado.juego.manoActual) return; // snapshot viejo
-                const soyDealer = estado.miLado === 'jugador';
-                if (!soyDealer && j.faseReparto === 'y_listo' && j.mazoY) {
-                    joinerPublicarDobleCegado(j);
-                } else if (soyDealer && j.faseReparto === 'z_listo' && j.yDealer) {
-                    dealerCompletarReparto(j);
-                } else if (!soyDealer && j.faseReparto === 'listo' && j.mJoiner) {
-                    joinerCompletarReparto(j);
-                }
-            } catch (error) {
-                console.error('Error en el reparto seguro:', error);
-                mostrarMensaje('⚠ Error de reparto, reintentando...');
-            }
-        }
-
 
         // ============ SINCRONIZACIÓN ============
-        function sincronizarJuego() {
+        let colaSync = Promise.resolve();
+        function sincronizarJuego(manosCifradas) {
+            colaSync = colaSync.then(() => escribirEstadoJuego(manosCifradas))
+                .catch((error) => console.error('Error sincronizando:', error));
+        }
+
+        async function escribirEstadoJuego(manosCifradas) {
             if (!estado.partidaId) return;
+            await asegurarClavesCifradas();
             const juegoRef = ref(db, 'partidas/' + estado.partidaId + '/juego');
-            const datos = {
-                // IMPORTANTE: las manos NUNCA se escriben a Firebase (reparto seguro).
-                // Solo se sincronizan las cantidades para renderizar dorsos y
-                // validar lógica de fin de mano.
-                cantJugador: estado.miLado === 'jugador' ? estado.juego.manoJugador.length : estado.juego.manoRival.length,
-                cantRival: estado.miLado === 'jugador' ? estado.juego.manoRival.length : estado.juego.manoJugador.length,
+            const datos = {};
+            // Manos: cada cliente escribe SOLO la suya, cifrada con su clave local.
+            // Del rival solo se publica cuántas cartas le quedan, nunca cuáles son.
+            if (manosCifradas) Object.assign(datos, manosCifradas);
+            else datos['manos/' + estado.miLado] = await cifrarManoPropia(estado.juego.manoJugador);
+            datos.nCartasJugador = estado.miLado === 'jugador' ? estado.juego.manoJugador.length : estado.juego.manoRival.length;
+            datos.nCartasRival = estado.miLado === 'jugador' ? estado.juego.manoRival.length : estado.juego.manoJugador.length;
+            Object.assign(datos, {
                 golesJugador: estado.miLado === 'jugador' ? estado.juego.golesJugador : estado.juego.golesRival,
                 golesRival: estado.miLado === 'jugador' ? estado.juego.golesRival : estado.juego.golesJugador,
                 puntosJugador: estado.miLado === 'jugador' ? estado.juego.puntosJugador : estado.juego.puntosRival,
@@ -1705,10 +1561,10 @@
                 ganadorManoAnterior: aAbsoluto(estado.juego.ganadorManoAnterior),
                 golEnMano: estado.juego.golEnMano,
                 golesInicioManoJugador: estado.miLado === 'jugador' ? estado.juego.golesInicioManoJugador : estado.juego.golesInicioManoRival,
-                golesInicioManoRival: estado.miLado === 'jugador' ? estado.juego.golesInicioManoRival : estado.juego.golesInicioManoJugador,
-                ultimaActividad: Date.now()
-            };
-            update(juegoRef, datos).catch((error) => console.error('Error sincronizando:', error));
+                golesInicioManoRival: estado.miLado === 'jugador' ? estado.juego.golesInicioManoRival : estado.juego.golesInicioManoJugador
+            });
+            datos.ultimaActividad = Date.now();
+            await update(juegoRef, datos);
         }
 
         // ============ ACCIONES DE JUEGO ============
@@ -2012,6 +1868,11 @@
                 // Detectar si es una partida rápida (para el ranking online)
                 estado.esPartidaRapida = partida.rapida === true;
 
+                // Publicar mis claves de cifrado apenas haya rival (las manos viajan cifradas)
+                if (partida.unido && estado.miLado && partida.estado !== 'terminada') {
+                    asegurarClavesCifradas().catch((e) => console.error('Error publicando claves:', e));
+                }
+
                 // El creador detecta que el rival se unió
                 if (estado.miLado === 'jugador' && partida.unido && estado.fase === 'esperando') {
                     estado.fase = 'jugando';
@@ -2042,16 +1903,11 @@
                     ultimoEstadoJuego = j;
 
                     // Convertir datos absolutos a relativos
-                    // Las manos NUNCA viajan por Firebase (reparto seguro).
-                    // La mano propia vive solo en la memoria de este navegador;
-                    // la del rival se representa con fichas ocultas según la
-                    // cantidad sincronizada.
-                    const cantAbsJ = j.cantJugador || 0;
-                    const cantAbsR = j.cantRival || 0;
-                    const cantRivalRelativo = estado.miLado === 'jugador' ? cantAbsR : cantAbsJ;
-                    if (estado.juego.manoRival.length !== cantRivalRelativo) {
-                        estado.juego.manoRival = manoOculta(cantRivalRelativo);
-                    }
+                    // Cartas ocultas: la mano propia NUNCA se lee en claro de Firebase
+                    // (llega cifrada y se descifra más abajo). Del rival solo se sabe
+                    // CUÁNTAS cartas le quedan, nunca cuáles son.
+                    const nCartasRival = estado.miLado === 'jugador' ? (j.nCartasRival || 0) : (j.nCartasJugador || 0);
+                    estado.juego.manoRival = crearManoFantasma(nCartasRival);
                     estado.juego.golesJugador = estado.miLado === 'jugador' ? (j.golesJugador || 0) : (j.golesRival || 0);
                     estado.juego.golesRival = estado.miLado === 'jugador' ? (j.golesRival || 0) : (j.golesJugador || 0);
                     estado.juego.puntosJugador = estado.miLado === 'jugador' ? (j.puntosJugador || 0) : (j.puntosRival || 0);
@@ -2106,6 +1962,10 @@
                     }));
                     estado.juego.golesInicioManoJugador = estado.miLado === 'jugador' ? (j.golesInicioManoJugador || 0) : (j.golesInicioManoRival || 0);
                     estado.juego.golesInicioManoRival = estado.miLado === 'jugador' ? (j.golesInicioManoRival || 0) : (j.golesInicioManoJugador || 0);
+
+                    // Descifrar la mano propia si llegó una versión nueva cifrada
+                    // (incluye el "regalo" del reparto inicial, que solo yo puedo abrir)
+                    if (j.manos && j.manos[estado.miLado]) intentarDescifrarManoRemota(j.manos[estado.miLado]);
 
                     // ============ REPRODUCIR SONIDOS DEL RIVAL ============
                     if (jAnterior) {
@@ -2242,9 +2102,6 @@
                         }
                     }
 
-                    // ============ REPARTO SEGURO: pasos del protocolo ============
-                    procesarEventosReparto(j);
-
                     renderizarTodo();
                 }
 
@@ -2263,21 +2120,23 @@
             dom.etiquetaCpu.textContent = 'Turno de ' + estado.rivalNombre;
             dom.etiquetaJugador.textContent = 'Turno de ' + (estado.nickname || 'Jugador');
 
-            // El creador inicializa el estado compartido SIN cartas y arranca el
-            // reparto seguro. Las manos NUNCA se escriben a Firebase: cada jugador
-            // recibe las suyas cifradas vía póker mental y las descifra en local.
+            // El creador reparte las cartas. Cada mano viaja CIFRADA: la propia con
+            // mi clave local, la del rival como regalo que solo él puede abrir.
             if (estado.miLado === 'jugador') {
+                const mazo = mezclarMazo(crearMazo());
+                const { manoJ, manoR } = repartir(mazo);
+                const manoJugadorOrdenada = ordenarMano(manoJ);
+                const manoRivalOrdenada = ordenarMano(manoR);
                 const partidaRef = ref(db, 'partidas/' + estado.partidaId);
                 await update(partidaRef, {
                     juego: {
+                        nCartasJugador: CARTAS_POR_JUGADOR, nCartasRival: CARTAS_POR_JUGADOR,
                         golesJugador: 0, golesRival: 0,
                         puntosJugador: 0, puntosRival: 0,
                         puntosManoJugador: 0, puntosManoRival: 0,
                         manoActual: 0, rondaActual: 0,
                         turnoInicial: 'jugador', turnoActual: 'jugador',
-                        cartasEnMesa: [], fase: 'repartiendo',
-                        cantJugador: 0, cantRival: 0,
-                        faseReparto: 'esperando_y',
+                        cartasEnMesa: [], fase: 'esperando_seleccion',
                         penalUsado: false, penalCantadoPor: null,
                         penalActivo: false, penalAtacante: null, penalCartas: [],
                         golActivo: false, golAtacante: null, golCartas: [],
@@ -2292,18 +2151,22 @@
                     },
                     ultimaActividad: Date.now()
                 });
-                estado.juego.turnoInicial = 'jugador';
+                try {
+                    const manosCifradas = await cifrarAmbasManos(manoJugadorOrdenada, manoRivalOrdenada);
+                    await update(ref(db, 'partidas/' + estado.partidaId + '/juego'), manosCifradas);
+                } catch (error) {
+                    console.error('Error cifrando manos:', error);
+                    mostrarMensaje('⚠ No se pudieron cifrar las manos');
+                }
+                estado.juego.manoJugador = manoJugadorOrdenada;
+                estado.juego.manoRival = crearManoFantasma(CARTAS_POR_JUGADOR);
                 estado.juego.turnoActual = 'jugador';
-                estado.juego.fase = 'repartiendo';
-                estado.repartoSeguro.intento = 0;
-                estado.repartoSeguro.clavePublicada = '';
-                await dealerPublicarMazoCegado();
+                estado.juego.fase = 'esperando_seleccion';
             }
 
-            iniciarTimerReparto();
             reproducirAudioFondo();
             renderizarTodo();
-            mostrarMensaje('¡Partida comenzada! 🃏 Repartiendo...');
+            mostrarMensaje('¡Partida comenzada!');
         }
 
         // ============ RESOLUCIÓN DE RONDA ============
@@ -2542,10 +2405,6 @@
         }
 
         async function finalizarMano() {
-            // Evitar doble ejecución: ambos clientes pueden llegar acá casi al
-            // mismo tiempo (ambos resuelven las rondas localmente)
-            if (estado.juego.manoFinalizandose) return;
-            estado.juego.manoFinalizandose = true;
             // Ocultar el panel VAR al finalizar la mano (sincronizado para ambos)
             estado.juego.varPanelVisible = false;
             if (dom.varPanel) dom.varPanel.classList.remove('visible');
@@ -2587,11 +2446,7 @@
             iniciarNuevaMano();
         }
 
-        function iniciarNuevaMano() {
-            // Evitar doble arranque: ambos clientes pueden llegar acá casi al mismo
-            // tiempo (ambos resuelven la mano localmente). El primero que entre
-            // fija la fase 'repartiendo' y el segundo sale sin tocar nada.
-            if (estado.juego.fase === 'repartiendo') return;
+        async function iniciarNuevaMano() {
             const nuevoTurnoInicial = estado.juego.ganadorManoAnterior || estado.juego.turnoInicial;
             estado.juego.golesInicioManoJugador = estado.juego.golesJugador;
             estado.juego.golesInicioManoRival = estado.juego.golesRival;
@@ -2624,22 +2479,20 @@
             estado.juego.ganadorManoAnterior = null;
             if (dom.varPanel) dom.varPanel.classList.remove('visible');
 
-            // Reparto seguro: las manos se obtienen con póker mental. Las manos
-            // locales quedan vacías hasta que cada jugador reciba las suyas;
-            // la fase 'repartiendo' mantiene los botones bloqueados mientras tanto.
-            estado.juego.manoJugador = [];
-            estado.juego.manoRival = [];
-            estado.juego.manoFinalizandose = false;
+            const mazo = mezclarMazo(crearMazo());
+            const { manoJ, manoR } = repartir(mazo);
+            estado.juego.manoJugador = ordenarMano(manoJ);
+            estado.juego.manoRival = crearManoFantasma(manoR.length);
             estado.juego.turnoInicial = nuevoTurnoInicial;
-            estado.juego.turnoActual = nuevoTurnoInicial;
-            estado.juego.fase = 'repartiendo';
-            if (estado.miLado === 'jugador') {
-                estado.repartoSeguro.intento = 0;
-                estado.repartoSeguro.clavePublicada = '';
-                dealerPublicarMazoCegado();
+            estado.juego.turnoActual = estado.juego.turnoInicial;
+            estado.juego.fase = 'esperando_seleccion';
+            try {
+                // Ambas manos cifradas: la mía con mi clave, la del rival como regalo
+                sincronizarJuego(await cifrarAmbasManos(estado.juego.manoJugador, ordenarMano(manoR)));
+            } catch (error) {
+                console.error('Error cifrando nueva mano:', error);
+                sincronizarJuego();
             }
-            iniciarTimerReparto();
-            sincronizarJuego();
             renderizarTodo();
         }
 
