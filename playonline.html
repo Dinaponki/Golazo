@@ -1745,6 +1745,14 @@
                 if (!datos || !datos.partidaId || !datos.uid || datos.uid === miUid) return false;
                 if (datos.uid > miUid) return false; // simetría: solo rivales con uid menor
 
+                // Pre-chequeo: la partida del rival debe existir, estar 'esperando'
+                // y sin rival ANTES de liberar la mía (evita liberarme al pedo si
+                // la entrada de la cola apunta a una partida ya tomada/borrada)
+                const preSnap = await get(ref(db, 'partidas/' + datos.partidaId));
+                const pre = preSnap.val();
+                if (!pre || pre.estado !== 'esperando' || (pre.unido && pre.unido.uid) ||
+                    !pre.creador) return false;
+
                 // PASO 1 (solo anfitriones): liberar MI partida sin rivales
                 if (estado.partidaId && estado.miLado === 'jugador') {
                     cancelarRegistroDesconexion();
@@ -1770,14 +1778,17 @@
                     estado.fase = 'lobby';
                 }
 
-                // PASO 2: ocupar el hueco de 'unido' en la partida del rival
+                // PASO 2: ocupar el hueco de 'unido' con una transacción SOBRE
+                // ESE CAMPO ÚNICAMENTE. NUNCA sobre la partida completa: las
+                // reglas .validate exigen que quien escriba 'creador/uid' sea
+                // el propio creador, así que una reescritura completa del nodo
+                // hecha por el rival sería rechazada con PERMISSION_DENIED.
+                // El campo 'unido' SÍ puede escribirlo el rival según las reglas.
                 const partidaRef = ref(db, 'partidas/' + datos.partidaId);
-                const resultado = await runTransaction(partidaRef, (partida) => {
-                    if (!partida || partida.estado !== 'esperando' || partida.unido) return undefined;
-                    partida.unido = { uid: miUid, nickname: estado.nickname || 'Jugador', fotoURL: estado.fotoURL || '', listo: true };
-                    partida.estado = 'jugando';
-                    partida.ultimaActividad = Date.now();
-                    return partida;
+                const unidoRef = ref(db, 'partidas/' + datos.partidaId + '/unido');
+                const resultado = await runTransaction(unidoRef, (actual) => {
+                    if (actual) return undefined; // ya hay rival: abortar
+                    return { uid: miUid, nickname: estado.nickname || 'Jugador', fotoURL: estado.fotoURL || '', listo: true };
                 });
                 if (!(resultado.committed && resultado.snapshot.exists())) {
                     // El hueco se cerró entre medias: seguir buscando (si liberé
@@ -1785,6 +1796,18 @@
                     if (libereMiPartida) setTimeout(() => jugarRapido(), 50);
                     return false;
                 }
+                // Confirmar que la partida sigue viva (si fue borrada justo
+                // antes, nuestra escritura habría recreado un nodo parcial:
+                // limpiarlo y seguir buscando) y marcarla como 'jugando'.
+                const confirmaSnap = await get(partidaRef);
+                const confirma = confirmaSnap.val();
+                if (!confirma || !confirma.creador) {
+                    await remove(partidaRef).catch(() => {});
+                    if (libereMiPartida) setTimeout(() => jugarRapido(), 50);
+                    return false;
+                }
+                await update(partidaRef, { estado: 'jugando', ultimaActividad: Date.now() })
+                    .catch((e) => console.error('Error marcando partida jugando:', e));
 
                 // Éxito: limpiar entradas de la cola (la mía siempre; la del rival
                 // mejor-esfuerzo, por si las reglas impiden borrar la ajena)

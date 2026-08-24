@@ -110,6 +110,13 @@
           "jugador": { ".validate": "newData.isString()" },
           "rival": { ".validate": "newData.isString()" }
         },
+        "latidos": {
+          ".read": "auth != null",
+          "jugador": { ".validate": "newData.isNumber()" },
+          "rival": { ".validate": "newData.isNumber()" }
+        },
+        "abandonadoPor": { ".validate": "newData.val() === 'jugador' || newData.val() === 'rival'" },
+        "penalidadAbandono": { ".validate": "newData.isBoolean()" },
         "$other": { ".validate": false }
       }
     },
