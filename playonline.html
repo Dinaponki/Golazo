@@ -1510,10 +1510,11 @@
             await asegurarClavesCifradas();
             const juegoRef = ref(db, 'partidas/' + estado.partidaId + '/juego');
             const datos = {};
-            // Manos: cada cliente escribe SOLO la suya, cifrada con su clave local.
-            // Del rival solo se publica cuántas cartas le quedan, nunca cuáles son.
-            if (manosCifradas) Object.assign(datos, manosCifradas);
-            else datos['manos/' + estado.miLado] = await cifrarManoPropia(estado.juego.manoJugador);
+            // IMPORTANTE: el snapshot del estado se toma ANTES de los await largos
+            // (cifrado de manos, más abajo). Si se cifrara primero, un evento del
+            // listener podría modificar el estado a mitad de camino y esta
+            // escritura publicaría un estado mezclado/desactualizado (puntos que
+            // vuelven atrás y se vuelven a sumar).
             datos.nCartasJugador = estado.miLado === 'jugador' ? estado.juego.manoJugador.length : estado.juego.manoRival.length;
             datos.nCartasRival = estado.miLado === 'jugador' ? estado.juego.manoRival.length : estado.juego.manoJugador.length;
             Object.assign(datos, {
@@ -1566,6 +1567,10 @@
                 golesInicioManoRival: estado.miLado === 'jugador' ? estado.juego.golesInicioManoRival : estado.juego.golesInicioManoJugador
             });
             datos.ultimaActividad = Date.now();
+            // Manos: cada cliente escribe SOLO la suya, cifrada con su clave local.
+            // Del rival solo se publica cuántas cartas le quedan, nunca cuáles son.
+            if (manosCifradas) Object.assign(datos, manosCifradas);
+            else datos['manos/' + estado.miLado] = await cifrarManoPropia(estado.juego.manoJugador);
             await update(juegoRef, datos);
         }
 
@@ -1579,20 +1584,34 @@
 
         let finManoProgramado = false;
         let resolucionProgramadaClave = null;
+        let ultimaClaveResuelta = null;
 
-        // Identifica de forma única el "momento" a resolver: si ya se programó
-        // una resolución para este mismo estado, no volver a programarla (evita
-        // que los echos del propio listener de Firebase la disparen dos veces).
+        // Identifica de forma única la RONDA a resolver por su CONTENIDO
+        // (minuto + inicio de ronda + cantidad de cartas en mesa).
+        // NO se usa rondaActual: resolverRonda la incrementa ANTES de que
+        // continuarFlujo avance inicioRonda, y con ella en la clave cada eco
+        // del listener parecía "una ronda nueva sin resolver" → puntos infinitos.
         function claveResolucionActual() {
-            return estado.juego.manoActual + ':' + estado.juego.rondaActual + ':' + estado.juego.cartasEnMesa.length;
+            return estado.juego.manoActual + ':' + (estado.juego.inicioRonda || 0) + ':' + estado.juego.cartasEnMesa.length;
         }
 
         function programarResolucion(ms = 500) {
             if (!esAutoridad()) return; // el invitado espera la resolución sincronizada
             const clave = claveResolucionActual();
-            if (clave === resolucionProgramadaClave) return;
+            if (clave === resolucionProgramadaClave || clave === ultimaClaveResuelta) return;
             resolucionProgramadaClave = clave;
-            setTimeout(resolverRonda, ms);
+            setTimeout(() => {
+                resolucionProgramadaClave = null;
+                // resolverRonda revalida fase, clave y que la ronda esté completa
+                if (estado.juego.fase === 'resolviendo') resolverRonda();
+            }, ms);
+        }
+
+        // Marca la ronda actual como YA RESUELTA: aunque el estado quede un
+        // tiempo en 'resolviendo' (la fase sigue hasta que continuarFlujo o
+        // finalizarMano la cambian), ningún eco del listener puede re-resolverla.
+        function consumirResolucionActual() {
+            ultimaClaveResuelta = claveResolucionActual();
         }
 
         // El invitado no cierra manos: pide la finalización y espera a que la
@@ -1895,6 +1914,7 @@
         let partidaListener = null;
         let ultimoEstadoJuego = null;
         let varYaResolviendo = false;
+        let varEpisodioResuelto = false; // evita re-resolver el mismo episodio de VAR desde el listener
 
         function escucharPartida(codigo) {
             if (partidaListener) { partidaListener(); partidaListener = null; }
@@ -2139,6 +2159,7 @@
 
                     // ============ VAR: DECLARACIÓN Y RESOLUCIÓN AUTOMÁTICA ============
                     // Si estamos en fase var_pedido
+                    if (estado.juego.fase !== 'var_pedido') varEpisodioResuelto = false;
                     if (estado.juego.fase === 'var_pedido' && !varYaResolviendo) {
                         const miDeclare = estado.juego.varDeclaraciones.jugador;
                         const rivalDeclare = estado.juego.varDeclaraciones.rival;
@@ -2155,8 +2176,11 @@
                             declararVarJugador();
                             varYaResolviendo = false;
                         } else if (rivalDeclare !== null && rivalDeclare !== undefined) {
-                            // Ambos ya declaramos → solo el declarante resuelve
-                            if (estado.juego.varTurnoDeclarar === 'jugador') {
+                            // Ambos ya declaramos → solo el declarante resuelve,
+                            // y UNA sola vez por episodio de VAR (si la fase se
+                            // queda en 'var_pedido' esperando finalizarMano, los
+                            // echos del listener NO deben volver a sumar puntos)
+                            if (estado.juego.varTurnoDeclarar === 'jugador' && !varEpisodioResuelto) {
                                 varYaResolviendo = true;
                                 verificarVarResolucion();
                                 varYaResolviendo = false;
@@ -2251,13 +2275,21 @@
         function resolverRonda() {
             // Autoridad única: solo el creador resuelve la ronda
             if (!esAutoridad()) return;
-            if (estado.juego.penalActivo) { resolverPenal(); return; }
-            if (estado.juego.golActivo) { resolverGol(); return; }
+            // Solo se resuelve un estado 'resolviendo' y cada ronda UNA sola vez
+            if (estado.juego.fase !== 'resolviendo') return;
+            const clave = claveResolucionActual();
+            if (clave === ultimaClaveResuelta) return;
+
+            if (estado.juego.penalActivo) { consumirResolucionActual(); resolverPenal(); return; }
+            if (estado.juego.golActivo) { consumirResolucionActual(); resolverGol(); return; }
 
             const cartasRonda = cartasDeRondaActual();
             const uj = cartasRonda.filter(c => c.origen === 'jugador').pop();
             const ur = cartasRonda.filter(c => c.origen === 'rival').pop();
             if (!uj || !ur) return;
+            // Consumir la clave ANTES de mutar puntos: a partir de acá ningún
+            // eco del listener puede re-resolver esta misma ronda
+            consumirResolucionActual();
 
             if (uj.carta.numero > ur.carta.numero) {
                 estado.juego.puntosJugador++;
@@ -2521,6 +2553,10 @@
             // recibe su nueva mano cifrada vía la sincronización.
             if (!esAutoridad()) return;
             estado.juego.finManoSolicitado = false;
+            // Nueva mano → nueva ronda de resolución desde cero
+            ultimaClaveResuelta = null;
+            resolucionProgramadaClave = null;
+            varEpisodioResuelto = false;
             const nuevoTurnoInicial = estado.juego.ganadorManoAnterior || estado.juego.turnoInicial;
             estado.juego.golesInicioManoJugador = estado.juego.golesJugador;
             estado.juego.golesInicioManoRival = estado.juego.golesRival;
@@ -2653,8 +2689,16 @@
                 const golPorPuntos = sumarPuntos(quienCanto, puntos);
                 reproducirSonido('noquierojugador');
                 mostrarMensaje(`${estado.nickname || 'Jugador'}: ✗ No quiso`);
-                if (golPorPuntos) setTimeout(finalizarMano, 2200);
-                else finalizarCanto();
+                if (golPorPuntos) {
+                    // Cerrar la respuesta del canto para que no se pueda volver
+                    // a responder (y volver a sumar) mientras se agenda la mano
+                    estado.juego.esperandoRespuestaDe = null;
+                    sincronizarJuego();
+                    renderizarTodo();
+                    setTimeout(finalizarMano, 2200);
+                } else {
+                    finalizarCanto();
+                }
             } else if (resp === 'var') {
                 estado.juego.fase = 'var_decision';
                 estado.juego.varPedidoPor = 'jugador';
@@ -2837,6 +2881,7 @@
         }
 
         function resolverVar(dj, dr) {
+            varEpisodioResuelto = true; // este episodio de VAR se resuelve una sola vez
             const varPedidoPor = estado.juego.varPedidoPor;
             const cantoPedidoPor = estado.juego.cantoPedidoPor;
 
