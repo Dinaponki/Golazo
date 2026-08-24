@@ -1925,6 +1925,56 @@
                     .update({ abandonoPendiente: true, abandonoPendienteEn: Date.now() })
                     .catch((e) => console.error('Error registrando abandono pendiente:', e));
             }
+            // Además del marcador abandonadoPor, arrancar MI latido y el vigilante
+            // del rival: si por cualquier motivo el marcador no llegara (reglas,
+            // desconexión silenciosa, etc.), el vigilante termina la partida solo.
+            iniciarLatidoYVigilancia();
+        }
+
+        // ============ LATIDO (HEARTBEAT) Y VIGILANTE DE RIVAL ============
+        // Cada jugador escribe su latido cada 5 segundos mientras está en partida.
+        // El vigilante local revisa el último latido conocido DEL RIVAL: si hace
+        // más de 30 segundos que no late (pestaña cerrada, app matada, sin red),
+        // finaliza el partido automáticamente dando la victoria al que se quedó.
+        // Esto GARANTIZA que nadie quede esperando infinitamente, incluso si el
+        // marcador abandonadoPor de onDisconnect nunca llegara a escribirse.
+        const LATIDO_INTERVALO_MS = 5000;
+        const LATIDO_TIMEOUT_MS = 30000;
+        let latidoTimer = null;
+        let watchdogTimer = null;
+        let ultimoLatidoRival = 0;
+        let vigilanciaIniciadaEn = 0;
+
+        function iniciarLatidoYVigilancia() {
+            detenerLatidoYVigilancia();
+            if (!estado.partidaId || !estado.miLado) return;
+            ultimoLatidoRival = 0;
+            vigilanciaIniciadaEn = Date.now();
+            const miBeatRef = ref(db, 'partidas/' + estado.partidaId + '/latidos/' + estado.miLado);
+            const latir = () => { set(miBeatRef, Date.now()).catch(() => {}); };
+            latir();
+            latidoTimer = setInterval(latir, LATIDO_INTERVALO_MS);
+            const ladoRivalAbs = estado.miLado === 'jugador' ? 'rival' : 'jugador';
+            watchdogTimer = setInterval(() => {
+                // Solo actúa en plena partida
+                if (!estado.enPartida || estado.fase !== 'jugando' || estado.partidaTerminada) return;
+                // Caso A: nunca vimos latir al rival → dar margen de gracia de 60s
+                // desde que arrancó la vigilancia y si tampoco apareció, cerrar.
+                // Caso B: ya latía pero hace más de 30s que no → cerrar.
+                if (!ultimoLatidoRival) {
+                    if (Date.now() - vigilanciaIniciadaEn < 60000) return;
+                } else if (Date.now() - ultimoLatidoRival <= LATIDO_TIMEOUT_MS) {
+                    return;
+                }
+                console.warn('Vigilante: el rival dejó de responder, cerrando por abandono');
+                mostrarMensaje('Tu rival se desconectó');
+                finalizarPorAbandonoDelRival(ladoRivalAbs);
+            }, 5000);
+        }
+
+        function detenerLatidoYVigilancia() {
+            if (latidoTimer) { clearInterval(latidoTimer); latidoTimer = null; }
+            if (watchdogTimer) { clearInterval(watchdogTimer); watchdogTimer = null; }
         }
 
         // Limpieza de la ETAPA DE ESPERA: si me desconecto mientras busco rival
@@ -1960,6 +2010,8 @@
                 try { onDisconnect(ref(db, 'usuarios/' + estado.usuario.uid + '/onlineStats')).cancel(); } catch (e) { /* noop */ }
             }
             cancelarLimpiezaEspera();
+            // Cortar mi latido y el vigilante: la partida ya terminó o salimos
+            detenerLatidoYVigilancia();
         }
 
         // Finaliza la partida porque EL RIVAL abandonó (cerró la pestaña o perdió
@@ -1981,14 +2033,19 @@
                 golesRival: estado.miLado === 'jugador' ? gR : gJ,
                 abandono: true
             };
+            // MOSTRAR LA PANTALLA PRIMERO: el cierre local nunca depende de
+            // escrituras a Firebase, así que el que se quedó ve la victoria
+            // al instante aunque la red esté caída o una escritura se cuelgue.
+            mostrarFinPartido(resultado);
+            // Persistir (best effort): marcar terminada en Firebase para que
+            // cualquier otro cliente también lo vea...
             try {
                 await update(ref(db, 'partidas/' + estado.partidaId), {
                     estado: 'terminada', resultado, ultimaActividad: Date.now()
                 });
             } catch (error) { console.error('Error marcando abandono del rival:', error); }
-            // Aplicar el castigo del abandonador YA (no depende de que vuelva)
+            // ...y aplicar el castigo del abandonador YA (no depende de que vuelva)
             await aplicarPenalizacionAbandono(ladoQueAbandono);
-            mostrarFinPartido(resultado);
         }
 
         // Aplica la derrota por abandono al jugador que cerró la pestaña,
@@ -2138,6 +2195,16 @@
                 }
                 // Detectar si es una partida rápida (para el ranking online)
                 estado.esPartidaRapida = partida.rapida === true;
+
+                // Registrar el último latido conocido DEL RIVAL (lo usa el
+                // vigilante para cerrar la partida si el rival desaparece)
+                if (estado.miLado && estado.enPartida) {
+                    const ladoRivalAbs = estado.miLado === 'jugador' ? 'rival' : 'jugador';
+                    const beatRival = ((partida.latidos || {})[ladoRivalAbs]) || 0;
+                    if (typeof beatRival === 'number' && beatRival > ultimoLatidoRival) {
+                        ultimoLatidoRival = beatRival;
+                    }
+                }
 
                 // Salida repentina del RIVAL (cerró la pestaña o perdió conexión):
                 // vale por igual para el creador y para el que se une después.
