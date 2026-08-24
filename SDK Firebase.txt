@@ -109,7 +109,15 @@ recursos (quota hijacking). Por eso es importante restringirla por dominio.
         },
         "estado": { ".validate": "newData.isString() && (newData.val() === 'esperando' || newData.val() === 'jugando' || newData.val() === 'terminada')" },
         "creadoEn": { ".validate": "newData.isNumber()" },
-        "ultimaActividad": { ".validate": "newData.isNumber()" }
+        "ultimaActividad": { ".validate": "newData.isNumber()" },
+        // Presencia online: cada jugador pone su lado en true al empezar y
+        // Firebase lo pone en false automáticamente si se desconecta
+        // (onDisconnect). Sirve para detectar rivales desconectados.
+        "online": {
+          ".read": "auth != null",
+          "jugador": { ".validate": "newData.isBoolean()" },
+          "rival": { ".validate": "newData.isBoolean()" }
+        }
       }
     },
     // Cola de matchmaking para "Jugar rápido": solo usuarios autenticados

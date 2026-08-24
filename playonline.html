@@ -821,7 +821,7 @@
         // ============================================================
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
-        import { getDatabase, ref, get, set, update, onValue, remove, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-database.js";
+        import { getDatabase, ref, get, set, update, onValue, remove, onDisconnect, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDsgQ2dwokGq3umlptHtMCVgFISLe8ySM0",
@@ -880,7 +880,6 @@
                 historialManos: [], inicioRonda: 0,
                 ganadorManoAnterior: null,
                 golEnMano: false,
-                finManoSolicitado: false,
                 golesInicioManoJugador: 0, golesInicioManoRival: 0,
             }
         };
@@ -1415,11 +1414,38 @@
             if (clavesCrypto.inicializando) return clavesCrypto.inicializando;
             clavesCrypto.inicializando = (async () => {
                 if (!clavesCrypto.parEstatico) {
-                    clavesCrypto.parEstatico = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
+                    // Restaurar claves guardadas en esta pestaña (sessionStorage):
+                    // permite reconectar tras recargar la página y seguir
+                    // descifrando la mano propia que ya está cifrada en Firebase.
+                    const guardadas = sessionStorage.getItem('golazo_claves_' + estado.partidaId);
+                    let restauradas = false;
+                    if (guardadas) {
+                        try {
+                            const c = JSON.parse(guardadas);
+                            const pub = await crypto.subtle.importKey('raw', base64AU8a(c.pub), { name: 'ECDH', namedCurve: 'P-256' }, true, []);
+                            const priv = await crypto.subtle.importKey('pkcs8', base64AU8a(c.priv), { name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
+                            const aes = await crypto.subtle.importKey('raw', base64AU8a(c.aes), 'AES-GCM', true, ['encrypt', 'decrypt']);
+                            clavesCrypto.parEstatico = { publicKey: pub, privateKey: priv };
+                            clavesCrypto.claveManoAES = aes;
+                            restauradas = true;
+                        } catch (e) { console.warn('No se pudieron restaurar las claves:', e); }
+                    }
+                    if (!restauradas) {
+                        clavesCrypto.parEstatico = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
+                        const bytes = crypto.getRandomValues(new Uint8Array(32));
+                        clavesCrypto.claveManoAES = await crypto.subtle.importKey('raw', bytes, 'AES-GCM', true, ['encrypt', 'decrypt']);
+                        // Persistir las claves SOLO en sessionStorage (mueren al
+                        // cerrar la pestaña: cerrarla sigue siendo un abandono)
+                        try {
+                            sessionStorage.setItem('golazo_claves_' + estado.partidaId, JSON.stringify({
+                                pub: u8aABase64(new Uint8Array(await crypto.subtle.exportKey('raw', clavesCrypto.parEstatico.publicKey))),
+                                priv: u8aABase64(new Uint8Array(await crypto.subtle.exportKey('pkcs8', clavesCrypto.parEstatico.privateKey))),
+                                aes: u8aABase64(new Uint8Array(await crypto.subtle.exportKey('raw', clavesCrypto.claveManoAES)))
+                            }));
+                        } catch (e) { console.warn('No se pudieron guardar las claves:', e); }
+                    }
                     const pubRaw = new Uint8Array(await crypto.subtle.exportKey('raw', clavesCrypto.parEstatico.publicKey));
                     await set(ref(db, 'partidas/' + estado.partidaId + '/clavesPub/' + estado.miLado), u8aABase64(pubRaw));
-                    const bytes = crypto.getRandomValues(new Uint8Array(32));
-                    clavesCrypto.claveManoAES = await crypto.subtle.importKey('raw', bytes, 'AES-GCM', false, ['encrypt', 'decrypt']);
                 }
                 clavesCrypto.lista = true;
             })();
@@ -1510,11 +1536,10 @@
             await asegurarClavesCifradas();
             const juegoRef = ref(db, 'partidas/' + estado.partidaId + '/juego');
             const datos = {};
-            // IMPORTANTE: el snapshot del estado se toma ANTES de los await largos
-            // (cifrado de manos, más abajo). Si se cifrara primero, un evento del
-            // listener podría modificar el estado a mitad de camino y esta
-            // escritura publicaría un estado mezclado/desactualizado (puntos que
-            // vuelven atrás y se vuelven a sumar).
+            // Manos: cada cliente escribe SOLO la suya, cifrada con su clave local.
+            // Del rival solo se publica cuántas cartas le quedan, nunca cuáles son.
+            if (manosCifradas) Object.assign(datos, manosCifradas);
+            else datos['manos/' + estado.miLado] = await cifrarManoPropia(estado.juego.manoJugador);
             datos.nCartasJugador = estado.miLado === 'jugador' ? estado.juego.manoJugador.length : estado.juego.manoRival.length;
             datos.nCartasRival = estado.miLado === 'jugador' ? estado.juego.manoRival.length : estado.juego.manoJugador.length;
             Object.assign(datos, {
@@ -1562,65 +1587,11 @@
                 inicioRonda: estado.juego.inicioRonda,
                 ganadorManoAnterior: aAbsoluto(estado.juego.ganadorManoAnterior),
                 golEnMano: estado.juego.golEnMano,
-                finManoSolicitado: estado.juego.finManoSolicitado || false,
                 golesInicioManoJugador: estado.miLado === 'jugador' ? estado.juego.golesInicioManoJugador : estado.juego.golesInicioManoRival,
                 golesInicioManoRival: estado.miLado === 'jugador' ? estado.juego.golesInicioManoRival : estado.juego.golesInicioManoJugador
             });
             datos.ultimaActividad = Date.now();
-            // Manos: cada cliente escribe SOLO la suya, cifrada con su clave local.
-            // Del rival solo se publica cuántas cartas le quedan, nunca cuáles son.
-            if (manosCifradas) Object.assign(datos, manosCifradas);
-            else datos['manos/' + estado.miLado] = await cifrarManoPropia(estado.juego.manoJugador);
             await update(juegoRef, datos);
-        }
-
-        // ============ AUTORIDAD ÚNICA DE RESOLUCIÓN ============
-        // Solo el creador (lado absoluto 'jugador') resuelve rondas, finaliza
-        // manos y reparte nuevas manos. El invitado solo envía sus jugadas y
-        // respuestas, escucha la sincronización y renderiza. Esto elimina la
-        // doble resolución, los puntos duplicados, el historial duplicado y los
-        // repartos divergentes por azar local.
-        const esAutoridad = () => estado.miLado === 'jugador';
-
-        let finManoProgramado = false;
-        let resolucionProgramadaClave = null;
-        let ultimaClaveResuelta = null;
-
-        // Identifica de forma única la RONDA a resolver por su CONTENIDO
-        // (minuto + inicio de ronda + cantidad de cartas en mesa).
-        // NO se usa rondaActual: resolverRonda la incrementa ANTES de que
-        // continuarFlujo avance inicioRonda, y con ella en la clave cada eco
-        // del listener parecía "una ronda nueva sin resolver" → puntos infinitos.
-        function claveResolucionActual() {
-            return estado.juego.manoActual + ':' + (estado.juego.inicioRonda || 0) + ':' + estado.juego.cartasEnMesa.length;
-        }
-
-        function programarResolucion(ms = 500) {
-            if (!esAutoridad()) return; // el invitado espera la resolución sincronizada
-            const clave = claveResolucionActual();
-            if (clave === resolucionProgramadaClave || clave === ultimaClaveResuelta) return;
-            resolucionProgramadaClave = clave;
-            setTimeout(() => {
-                resolucionProgramadaClave = null;
-                // resolverRonda revalida fase, clave y que la ronda esté completa
-                if (estado.juego.fase === 'resolviendo') resolverRonda();
-            }, ms);
-        }
-
-        // Marca la ronda actual como YA RESUELTA: aunque el estado quede un
-        // tiempo en 'resolviendo' (la fase sigue hasta que continuarFlujo o
-        // finalizarMano la cambian), ningún eco del listener puede re-resolverla.
-        function consumirResolucionActual() {
-            ultimaClaveResuelta = claveResolucionActual();
-        }
-
-        // El invitado no cierra manos: pide la finalización y espera a que la
-        // autoridad la ejecute y sincronice el nuevo estado.
-        function solicitarFinMano() {
-            if (!estado.enPartida || estado.partidaTerminada) return;
-            if (estado.juego.finManoSolicitado) return;
-            estado.juego.finManoSolicitado = true;
-            sincronizarJuego();
         }
 
         // ============ ACCIONES DE JUEGO ============
@@ -1645,7 +1616,7 @@
                     estado.juego.fase = 'resolviendo';
                     sincronizarJuego();
                     renderizarTodo();
-                    programarResolucion(500);
+                    setTimeout(resolverRonda, 500);
                 } else {
                     estado.juego.fase = 'esperando_rival';
                     estado.juego.turnoActual = 'rival';
@@ -1662,7 +1633,7 @@
                     estado.juego.fase = 'resolviendo';
                     sincronizarJuego();
                     renderizarTodo();
-                    programarResolucion(500);
+                    setTimeout(resolverRonda, 500);
                 } else {
                     estado.juego.fase = 'esperando_rival';
                     estado.juego.turnoActual = 'rival';
@@ -1677,7 +1648,7 @@
                 estado.juego.fase = 'resolviendo';
                 sincronizarJuego();
                 renderizarTodo();
-                programarResolucion(500);
+                setTimeout(resolverRonda, 500);
             } else {
                 estado.juego.fase = 'esperando_rival';
                 estado.juego.turnoActual = 'rival';
@@ -1910,11 +1881,119 @@
             }
         }
 
+        // ============ SESIÓN DE RECONEXIÓN ============
+        // Guarda los datos mínimos en sessionStorage para poder retomar la
+        // partida si se recarga la página (sessionStorage muere al cerrar la
+        // pestaña, así que cerrarla sigue contando como abandono).
+        function guardarSesionReconexion() {
+            if (!estado.partidaId || !estado.miLado) return;
+            try { sessionStorage.setItem('golazo_partida', JSON.stringify({ partidaId: estado.partidaId, miLado: estado.miLado })); } catch (e) {}
+        }
+
+        function limpiarSesionReconexion() {
+            try { sessionStorage.removeItem('golazo_partida'); } catch (e) {}
+        }
+
+        async function intentarReconexion() {
+            let guardada = null;
+            try { guardada = JSON.parse(sessionStorage.getItem('golazo_partida')); } catch (e) {}
+            if (!guardada || !guardada.partidaId || !guardada.miLado) return;
+            try {
+                const snap = await get(ref(db, 'partidas/' + guardada.partidaId));
+                if (!snap.exists()) { limpiarSesionReconexion(); return; }
+                const partida = snap.val();
+                // Solo se retoman partidas EN CURSO. Si terminó o fue borrada,
+                // se limpia la sesión y se vuelve al lobby normalmente.
+                if (partida.estado !== 'jugando') { limpiarSesionReconexion(); return; }
+                estado.partidaId = guardada.partidaId;
+                estado.miLado = guardada.miLado;
+                estado.esPartidaRapida = partida.rapida === true;
+                const datosRival = guardada.miLado === 'jugador' ? partida.unido : partida.creador;
+                estado.rivalNombre = (datosRival && datosRival.nickname) || 'Rival';
+                dom.nombreRivalEtiqueta.textContent = estado.rivalNombre;
+                dom.overlayLobby.classList.add('oculto');
+                dom.overlayEsperando.classList.add('oculto');
+                escucharPartida(estado.partidaId);
+            } catch (error) { console.error('Error reconectando a la partida:', error); }
+        }
+
+        // ============ PRESENCIA / DESCONEXIÓN DEL RIVAL ============
+        // Cada jugador publica partidas/<id>/online/<lado> = true y programa con
+        // onDisconnect() que Firebase lo ponga en false solo si su conexión cae
+        // (pestaña cerrada, pérdida de internet, etc.). El listener del rival lo
+        // detecta y, tras un margen de gracia, permite reclamar la victoria.
+        let presenciaArmadaPara = null;
+        let timeoutDesconexion = null;
+
+        function armarPresencia() {
+            if (presenciaArmadaPara === estado.partidaId) return;
+            if (!estado.usuario || !estado.partidaId || !estado.miLado) return;
+            if (estado.fase === 'fin' || estado.partidaTerminada) return;
+            const miPresenciaRef = ref(db, 'partidas/' + estado.partidaId + '/online/' + estado.miLado);
+            onDisconnect(miPresenciaRef).set(false)
+                .then(() => { presenciaArmadaPara = estado.partidaId; return set(miPresenciaRef, true); })
+                .catch((e) => console.warn('Error armando presencia:', e));
+        }
+
+        function verificarRivalEnLinea(partida) {
+            if (estado.fase === 'fin' || estado.partidaTerminada || !estado.enPartida) return;
+            if (!partida.online) return;
+            const ladoRivalAbs = estado.miLado === 'jugador' ? 'rival' : 'jugador';
+            const rivalConectado = partida.online[ladoRivalAbs] !== false;
+            if (rivalConectado) {
+                // Volvió (o nunca se fue): cancelar cualquier reclamo pendiente
+                if (timeoutDesconexion) { clearTimeout(timeoutDesconexion); timeoutDesconexion = null; }
+                return;
+            }
+            if (timeoutDesconexion) return;
+            mostrarMensaje('⚠ ' + estado.rivalNombre + ' se desconectó...');
+            // Margen de gracia por si es una caída momentánea; luego se re-verifica
+            timeoutDesconexion = setTimeout(reclamarVictoriaPorDesconexion, 10000);
+        }
+
+        async function reclamarVictoriaPorDesconexion() {
+            timeoutDesconexion = null;
+            if (estado.fase === 'fin' || estado.partidaTerminada || !estado.enPartida) return;
+            try {
+                const snap = await get(ref(db, 'partidas/' + estado.partidaId));
+                if (!snap.exists()) return;
+                const partida = snap.val();
+                if (partida.estado !== 'jugando') return;
+                const ladoRivalAbs = estado.miLado === 'jugador' ? 'rival' : 'jugador';
+                if (!partida.online || partida.online[ladoRivalAbs] !== false) return;
+                // Confirmado: el rival sigue desconectado → gano la partida
+                await terminarPartidaConAbandono(estado.miLado, partida);
+            } catch (error) { console.error('Error reclamando victoria por desconexión:', error); }
+        }
+
+        // Termina la partida registrándola como abandono del lado perdedor.
+        // Se usa tanto cuando abandono yo como cuando el rival se desconecta.
+        // Llama a mostrarFinPartido() LOCALMENTE también: así quien provoca el
+        // fin pasa por el registro de su propio resultado (derrota -5 pts o
+        // victoria +3 pts) aunque el listener de Firebase tarde en llegar.
+        async function terminarPartidaConAbandono(ganadorAbs, datosPartida) {
+            const juegoFB = (datosPartida && datosPartida.juego) || {};
+            const resultado = {
+                ganador: ganadorAbs,
+                golesJugador: juegoFB.golesJugador || 0,
+                golesRival: juegoFB.golesRival || 0,
+                abandono: true
+            };
+            try {
+                await update(ref(db, 'partidas/' + estado.partidaId), {
+                    estado: 'terminada',
+                    resultado,
+                    ultimaActividad: Date.now()
+                });
+            } catch (error) { console.error('Error terminando partida:', error); }
+            limpiarSesionReconexion();
+            mostrarFinPartido(resultado);
+        }
+
         // ============ FIREBASE: ESCUCHAR ============
         let partidaListener = null;
         let ultimoEstadoJuego = null;
         let varYaResolviendo = false;
-        let varEpisodioResuelto = false; // evita re-resolver el mismo episodio de VAR desde el listener
 
         function escucharPartida(codigo) {
             if (partidaListener) { partidaListener(); partidaListener = null; }
@@ -1924,6 +2003,13 @@
                 const partida = snap.val();
                 // Detectar si es una partida rápida (para el ranking online)
                 estado.esPartidaRapida = partida.rapida === true;
+
+                // Si la partida está en curso, guardar datos para poder
+                // reconectar si se recarga la página y armar mi presencia
+                if (partida.estado === 'jugando' && estado.miLado) {
+                    guardarSesionReconexion();
+                    armarPresencia();
+                }
 
                 // Publicar mis claves de cifrado apenas haya rival (las manos viajan cifradas)
                 if (partida.unido && estado.miLado && partida.estado !== 'terminada') {
@@ -1983,14 +2069,6 @@
                     } else {
                         estado.juego.fase = j.fase || 'esperando_seleccion';
                     }
-                    // Carrera de latencia: si la ronda ya está completa (ambos
-                    // jugaron) pero el estado todavía dice "esperando_seleccion",
-                    // marcarla como resolviendo en vez de dejar tirar otra carta.
-                    if (estado.juego.fase === 'esperando_seleccion' && !estado.juego.penalActivo && !estado.juego.golActivo &&
-                        rivalJugoEstaRonda() && jugadorJugoEstaRonda()) {
-                        estado.juego.fase = 'resolviendo';
-                        if (esAutoridad()) sincronizarJuego();
-                    }
                     estado.juego.cantoActual = j.cantoActual || null;
                     estado.juego.cantoPedidoPor = aRelativo(j.cantoPedidoPor);
                     estado.juego.cantoPendiente = j.cantoPendiente ? { ...j.cantoPendiente, pedidoPor: aRelativo(j.cantoPendiente.pedidoPor) } : null;
@@ -2015,7 +2093,6 @@
                         };
                     }
                     estado.juego.golEnMano = j.golEnMano || false;
-                    estado.juego.finManoSolicitado = j.finManoSolicitado || false;
                     estado.juego.ganadorManoAnterior = aRelativo(j.ganadorManoAnterior);
                     estado.juego.inicioRonda = j.inicioRonda || 0;
                     estado.juego.historialManos = (j.historialManos || []).map(h => ({
@@ -2032,22 +2109,6 @@
                     // Descifrar la mano propia si llegó una versión nueva cifrada
                     // (incluye el "regalo" del reparto inicial, que solo yo puedo abrir)
                     if (j.manos && j.manos[estado.miLado]) intentarDescifrarManoRemota(j.manos[estado.miLado]);
-
-                    // ============ RESOLUCIÓN CON AUTORIDAD ÚNICA ============
-                    // Solo el creador resuelve. Acá atiende:
-                    // 1) rondas completas ('resolviendo') aún no resueltas,
-                    //    incluidas las que completó el invitado;
-                    // 2) pedidos de fin de mano hechos por el invitado.
-                    if (esAutoridad()) {
-                        if (!estado.juego.finManoSolicitado) finManoProgramado = false; // pedido atendido y confirmado en el servidor
-                        if (estado.juego.fase === 'resolviendo') programarResolucion(500);
-                        if (estado.juego.finManoSolicitado && !finManoProgramado) {
-                            finManoProgramado = true;
-                            estado.juego.finManoSolicitado = false;
-                            sincronizarJuego();
-                            setTimeout(finalizarMano, 800);
-                        }
-                    }
 
                     // ============ REPRODUCIR SONIDOS DEL RIVAL ============
                     if (jAnterior) {
@@ -2159,7 +2220,6 @@
 
                     // ============ VAR: DECLARACIÓN Y RESOLUCIÓN AUTOMÁTICA ============
                     // Si estamos en fase var_pedido
-                    if (estado.juego.fase !== 'var_pedido') varEpisodioResuelto = false;
                     if (estado.juego.fase === 'var_pedido' && !varYaResolviendo) {
                         const miDeclare = estado.juego.varDeclaraciones.jugador;
                         const rivalDeclare = estado.juego.varDeclaraciones.rival;
@@ -2176,11 +2236,8 @@
                             declararVarJugador();
                             varYaResolviendo = false;
                         } else if (rivalDeclare !== null && rivalDeclare !== undefined) {
-                            // Ambos ya declaramos → solo el declarante resuelve,
-                            // y UNA sola vez por episodio de VAR (si la fase se
-                            // queda en 'var_pedido' esperando finalizarMano, los
-                            // echos del listener NO deben volver a sumar puntos)
-                            if (estado.juego.varTurnoDeclarar === 'jugador' && !varEpisodioResuelto) {
+                            // Ambos ya declaramos → solo el declarante resuelve
+                            if (estado.juego.varTurnoDeclarar === 'jugador') {
                                 varYaResolviendo = true;
                                 verificarVarResolucion();
                                 varYaResolviendo = false;
@@ -2189,6 +2246,9 @@
                     }
 
                     renderizarTodo();
+
+                    // Verificar si el rival se desconectó mientras jugamos
+                    verificarRivalEnLinea(partida);
                 }
 
                 if (partida.estado === 'terminada' && partida.resultado) {
@@ -2273,23 +2333,13 @@
         }
 
         function resolverRonda() {
-            // Autoridad única: solo el creador resuelve la ronda
-            if (!esAutoridad()) return;
-            // Solo se resuelve un estado 'resolviendo' y cada ronda UNA sola vez
-            if (estado.juego.fase !== 'resolviendo') return;
-            const clave = claveResolucionActual();
-            if (clave === ultimaClaveResuelta) return;
-
-            if (estado.juego.penalActivo) { consumirResolucionActual(); resolverPenal(); return; }
-            if (estado.juego.golActivo) { consumirResolucionActual(); resolverGol(); return; }
+            if (estado.juego.penalActivo) { resolverPenal(); return; }
+            if (estado.juego.golActivo) { resolverGol(); return; }
 
             const cartasRonda = cartasDeRondaActual();
             const uj = cartasRonda.filter(c => c.origen === 'jugador').pop();
             const ur = cartasRonda.filter(c => c.origen === 'rival').pop();
             if (!uj || !ur) return;
-            // Consumir la clave ANTES de mutar puntos: a partir de acá ningún
-            // eco del listener puede re-resolver esta misma ronda
-            consumirResolucionActual();
 
             if (uj.carta.numero > ur.carta.numero) {
                 estado.juego.puntosJugador++;
@@ -2501,12 +2551,6 @@
         }
 
         async function finalizarMano() {
-            // Autoridad única: solo el creador cierra la mano (historial, minuto,
-            // resultado final y reparto). El invitado solo registra su pedido.
-            if (!esAutoridad()) { solicitarFinMano(); return; }
-            if (finManoProgramado) return;
-            finManoProgramado = true;
-            estado.juego.finManoSolicitado = false;
             // Ocultar el panel VAR al finalizar la mano (sincronizado para ambos)
             estado.juego.varPanelVisible = false;
             if (dom.varPanel) dom.varPanel.classList.remove('visible');
@@ -2549,14 +2593,6 @@
         }
 
         async function iniciarNuevaMano() {
-            // Autoridad única: solo el creador mezcla y reparte. El invitado
-            // recibe su nueva mano cifrada vía la sincronización.
-            if (!esAutoridad()) return;
-            estado.juego.finManoSolicitado = false;
-            // Nueva mano → nueva ronda de resolución desde cero
-            ultimaClaveResuelta = null;
-            resolucionProgramadaClave = null;
-            varEpisodioResuelto = false;
             const nuevoTurnoInicial = estado.juego.ganadorManoAnterior || estado.juego.turnoInicial;
             estado.juego.golesInicioManoJugador = estado.juego.golesJugador;
             estado.juego.golesInicioManoRival = estado.juego.golesRival;
@@ -2689,16 +2725,8 @@
                 const golPorPuntos = sumarPuntos(quienCanto, puntos);
                 reproducirSonido('noquierojugador');
                 mostrarMensaje(`${estado.nickname || 'Jugador'}: ✗ No quiso`);
-                if (golPorPuntos) {
-                    // Cerrar la respuesta del canto para que no se pueda volver
-                    // a responder (y volver a sumar) mientras se agenda la mano
-                    estado.juego.esperandoRespuestaDe = null;
-                    sincronizarJuego();
-                    renderizarTodo();
-                    setTimeout(finalizarMano, 2200);
-                } else {
-                    finalizarCanto();
-                }
+                if (golPorPuntos) setTimeout(finalizarMano, 2200);
+                else finalizarCanto();
             } else if (resp === 'var') {
                 estado.juego.fase = 'var_decision';
                 estado.juego.varPedidoPor = 'jugador';
@@ -2881,7 +2909,6 @@
         }
 
         function resolverVar(dj, dr) {
-            varEpisodioResuelto = true; // este episodio de VAR se resuelve una sola vez
             const varPedidoPor = estado.juego.varPedidoPor;
             const cantoPedidoPor = estado.juego.cantoPedidoPor;
 
@@ -3128,6 +3155,8 @@
             // automático (cambio de pestaña, botón atrás, etc.) puede quitar
             // esta pantalla ni registrar un abandono.
             estado.partidaTerminada = true;
+            limpiarSesionReconexion();
+            if (timeoutDesconexion) { clearTimeout(timeoutDesconexion); timeoutDesconexion = null; }
             dom.overlayFin.classList.remove('oculto');
             // Convertir goles absolutos a relativos
             const gJ = estado.miLado === 'jugador' ? (resultado.golesJugador || 0) : (resultado.golesRival || 0);
@@ -3181,28 +3210,33 @@
                     const snap = await get(partidaRef);
                     if (snap.exists()) {
                         const partida = snap.val();
+                        // El rival ya terminó o abandonó antes: mostrar su
+                        // resultado tal cual, sin sobrescribirlo
+                        if (partida.estado === 'terminada') {
+                            if (partida.resultado && estado.fase !== 'fin') {
+                                limpiarSesionReconexion();
+                                mostrarFinPartido(partida.resultado);
+                            }
+                            return;
+                        }
+                        // El que abandona pierde: registrar el resultado Y pasar
+                        // por mostrarFinPartido() para registrar la derrota (-5).
+                        // Ya NO se navega a index.html inmediatamente: eso dejaba
+                        // el abandono "gratis" porque nunca se registraba.
                         const ganador = estado.miLado === 'jugador' ? 'rival' : 'jugador';
-                        await update(partidaRef, {
-                            estado: 'terminada',
-                            resultado: {
-                                ganador,
-                                golesJugador: partida.juego ? partida.juego.golesJugador : 0,
-                                golesRival: partida.juego ? partida.juego.golesRival : 0,
-                                abandono: true
-                            },
-                            ultimaActividad: Date.now()
-                        });
+                        await terminarPartidaConAbandono(ganador, partida);
+                        return;
                     }
                 } catch (error) { console.error('Error abandonando partida:', error); }
+                window.location.href = 'index.html';
+                return;
             }
-            // Las estadísticas se guardan automáticamente en cada cliente vía
-            // mostrarFinPartido(): el que abandona registra derrota (-5 pts) y
-            // el rival registra victoria (+3 pts) cuando detecta el abandono.
             window.location.href = 'index.html';
         }
 
         // ============ CANCELAR ESPERA ============
         async function cancelarEspera() {
+            limpiarSesionReconexion();
             if (estado.partidaId && estado.miLado === 'jugador') {
                 try { await remove(ref(db, 'partidas/' + estado.partidaId)); }
                 catch (error) { console.error('Error cancelando partida:', error); }
@@ -3224,6 +3258,9 @@
             onAuthStateChanged(auth, (user) => {
                 estado.usuario = user;
                 if (user) {
+                    // Si hay una partida en curso guardada en esta pestaña
+                    // (recarga de página), retomarla en lugar de volver al lobby
+                    intentarReconexion();
                     const userRef = ref(db, 'usuarios/' + user.uid + '/nickname');
                     onValue(userRef, (snap) => {
                         const nick = snap.val() || '';
@@ -3306,6 +3343,16 @@
 
             dom.btnCancelarSalida.addEventListener('click', () => dom.overlaySalida.classList.remove('visible'));
             dom.btnConfirmarSalida.addEventListener('click', () => { dom.overlaySalida.classList.remove('visible'); abandonarPartida(); });
+
+            // ============ PRESENCIA: REARME AUTOMÁTICO ============
+            // Cuando la conexión con Firebase se cae y vuelve, Firebase ya
+            // ejecutó el onDisconnect anterior (mi nodo quedó en false), así
+            // que hay que rearmarlo. .info/connected avisa en cada reconexión.
+            onValue(ref(db, '.info/connected'), (snap) => {
+                if (snap.val() !== true) return;
+                presenciaArmadaPara = null;
+                armarPresencia();
+            });
 
             dom.btnRevancha.addEventListener('click', () => window.location.reload());
 
