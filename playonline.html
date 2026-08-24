@@ -3240,6 +3240,7 @@
             // Si la partida ya terminó, no hacer nada: no sobrescribir el
             // resultado con un abandono ni navegar fuera de la pantalla de fin.
             if (estado.fase === 'fin' || estado.partidaTerminada) return;
+            let miResultado = null;
             if (estado.partidaId && estado.enPartida) {
                 try {
                     const partidaRef = ref(db, 'partidas/' + estado.partidaId);
@@ -3247,14 +3248,15 @@
                     if (snap.exists()) {
                         const partida = snap.val();
                         const ganador = estado.miLado === 'jugador' ? 'rival' : 'jugador';
+                        miResultado = {
+                            ganador,
+                            golesJugador: partida.juego ? partida.juego.golesJugador : 0,
+                            golesRival: partida.juego ? partida.juego.golesRival : 0,
+                            abandono: true
+                        };
                         await update(partidaRef, {
                             estado: 'terminada',
-                            resultado: {
-                                ganador,
-                                golesJugador: partida.juego ? partida.juego.golesJugador : 0,
-                                golesRival: partida.juego ? partida.juego.golesRival : 0,
-                                abandono: true
-                            },
+                            resultado: miResultado,
                             ultimaActividad: Date.now()
                         });
                     }
@@ -3266,10 +3268,15 @@
             detenerEscuchaColaRapido();
             cancelarRegistroDesconexion();
             if (estado.usuario) remove(ref(db, 'cola_rapido/' + estado.usuario.uid)).catch(() => {});
-            // Las estadísticas se guardan automáticamente en cada cliente vía
-            // mostrarFinPartido(): el que abandona registra derrota (-5 pts) y
-            // el rival registra victoria (+3 pts) cuando detecta el abandono.
-            window.location.href = 'index.html';
+            if (miResultado) {
+                // El que sale TAMBIÉN ve la pantalla final: acá se registran sus
+                // propios puntos (derrota por abandono, -5) igual que el rival
+                // registra su victoria (+3) al detectar la partida terminada.
+                // Así la repartija de puntos queda completa para los dos lados.
+                mostrarFinPartido(miResultado);
+            } else {
+                window.location.href = 'index.html';
+            }
         }
 
         // ============ CANCELAR ESPERA ============
