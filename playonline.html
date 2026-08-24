@@ -880,6 +880,7 @@
                 historialManos: [], inicioRonda: 0,
                 ganadorManoAnterior: null,
                 golEnMano: false,
+                finManoSolicitado: false,
                 golesInicioManoJugador: 0, golesInicioManoRival: 0,
             }
         };
@@ -1560,11 +1561,47 @@
                 inicioRonda: estado.juego.inicioRonda,
                 ganadorManoAnterior: aAbsoluto(estado.juego.ganadorManoAnterior),
                 golEnMano: estado.juego.golEnMano,
+                finManoSolicitado: estado.juego.finManoSolicitado || false,
                 golesInicioManoJugador: estado.miLado === 'jugador' ? estado.juego.golesInicioManoJugador : estado.juego.golesInicioManoRival,
                 golesInicioManoRival: estado.miLado === 'jugador' ? estado.juego.golesInicioManoRival : estado.juego.golesInicioManoJugador
             });
             datos.ultimaActividad = Date.now();
             await update(juegoRef, datos);
+        }
+
+        // ============ AUTORIDAD ÚNICA DE RESOLUCIÓN ============
+        // Solo el creador (lado absoluto 'jugador') resuelve rondas, finaliza
+        // manos y reparte nuevas manos. El invitado solo envía sus jugadas y
+        // respuestas, escucha la sincronización y renderiza. Esto elimina la
+        // doble resolución, los puntos duplicados, el historial duplicado y los
+        // repartos divergentes por azar local.
+        const esAutoridad = () => estado.miLado === 'jugador';
+
+        let finManoProgramado = false;
+        let resolucionProgramadaClave = null;
+
+        // Identifica de forma única el "momento" a resolver: si ya se programó
+        // una resolución para este mismo estado, no volver a programarla (evita
+        // que los echos del propio listener de Firebase la disparen dos veces).
+        function claveResolucionActual() {
+            return estado.juego.manoActual + ':' + estado.juego.rondaActual + ':' + estado.juego.cartasEnMesa.length;
+        }
+
+        function programarResolucion(ms = 500) {
+            if (!esAutoridad()) return; // el invitado espera la resolución sincronizada
+            const clave = claveResolucionActual();
+            if (clave === resolucionProgramadaClave) return;
+            resolucionProgramadaClave = clave;
+            setTimeout(resolverRonda, ms);
+        }
+
+        // El invitado no cierra manos: pide la finalización y espera a que la
+        // autoridad la ejecute y sincronice el nuevo estado.
+        function solicitarFinMano() {
+            if (!estado.enPartida || estado.partidaTerminada) return;
+            if (estado.juego.finManoSolicitado) return;
+            estado.juego.finManoSolicitado = true;
+            sincronizarJuego();
         }
 
         // ============ ACCIONES DE JUEGO ============
@@ -1589,7 +1626,7 @@
                     estado.juego.fase = 'resolviendo';
                     sincronizarJuego();
                     renderizarTodo();
-                    setTimeout(resolverRonda, 500);
+                    programarResolucion(500);
                 } else {
                     estado.juego.fase = 'esperando_rival';
                     estado.juego.turnoActual = 'rival';
@@ -1606,7 +1643,7 @@
                     estado.juego.fase = 'resolviendo';
                     sincronizarJuego();
                     renderizarTodo();
-                    setTimeout(resolverRonda, 500);
+                    programarResolucion(500);
                 } else {
                     estado.juego.fase = 'esperando_rival';
                     estado.juego.turnoActual = 'rival';
@@ -1621,7 +1658,7 @@
                 estado.juego.fase = 'resolviendo';
                 sincronizarJuego();
                 renderizarTodo();
-                setTimeout(resolverRonda, 500);
+                programarResolucion(500);
             } else {
                 estado.juego.fase = 'esperando_rival';
                 estado.juego.turnoActual = 'rival';
@@ -1926,6 +1963,14 @@
                     } else {
                         estado.juego.fase = j.fase || 'esperando_seleccion';
                     }
+                    // Carrera de latencia: si la ronda ya está completa (ambos
+                    // jugaron) pero el estado todavía dice "esperando_seleccion",
+                    // marcarla como resolviendo en vez de dejar tirar otra carta.
+                    if (estado.juego.fase === 'esperando_seleccion' && !estado.juego.penalActivo && !estado.juego.golActivo &&
+                        rivalJugoEstaRonda() && jugadorJugoEstaRonda()) {
+                        estado.juego.fase = 'resolviendo';
+                        if (esAutoridad()) sincronizarJuego();
+                    }
                     estado.juego.cantoActual = j.cantoActual || null;
                     estado.juego.cantoPedidoPor = aRelativo(j.cantoPedidoPor);
                     estado.juego.cantoPendiente = j.cantoPendiente ? { ...j.cantoPendiente, pedidoPor: aRelativo(j.cantoPendiente.pedidoPor) } : null;
@@ -1950,6 +1995,7 @@
                         };
                     }
                     estado.juego.golEnMano = j.golEnMano || false;
+                    estado.juego.finManoSolicitado = j.finManoSolicitado || false;
                     estado.juego.ganadorManoAnterior = aRelativo(j.ganadorManoAnterior);
                     estado.juego.inicioRonda = j.inicioRonda || 0;
                     estado.juego.historialManos = (j.historialManos || []).map(h => ({
@@ -1966,6 +2012,22 @@
                     // Descifrar la mano propia si llegó una versión nueva cifrada
                     // (incluye el "regalo" del reparto inicial, que solo yo puedo abrir)
                     if (j.manos && j.manos[estado.miLado]) intentarDescifrarManoRemota(j.manos[estado.miLado]);
+
+                    // ============ RESOLUCIÓN CON AUTORIDAD ÚNICA ============
+                    // Solo el creador resuelve. Acá atiende:
+                    // 1) rondas completas ('resolviendo') aún no resueltas,
+                    //    incluidas las que completó el invitado;
+                    // 2) pedidos de fin de mano hechos por el invitado.
+                    if (esAutoridad()) {
+                        if (!estado.juego.finManoSolicitado) finManoProgramado = false; // pedido atendido y confirmado en el servidor
+                        if (estado.juego.fase === 'resolviendo') programarResolucion(500);
+                        if (estado.juego.finManoSolicitado && !finManoProgramado) {
+                            finManoProgramado = true;
+                            estado.juego.finManoSolicitado = false;
+                            sincronizarJuego();
+                            setTimeout(finalizarMano, 800);
+                        }
+                    }
 
                     // ============ REPRODUCIR SONIDOS DEL RIVAL ============
                     if (jAnterior) {
@@ -2187,6 +2249,8 @@
         }
 
         function resolverRonda() {
+            // Autoridad única: solo el creador resuelve la ronda
+            if (!esAutoridad()) return;
             if (estado.juego.penalActivo) { resolverPenal(); return; }
             if (estado.juego.golActivo) { resolverGol(); return; }
 
@@ -2405,6 +2469,12 @@
         }
 
         async function finalizarMano() {
+            // Autoridad única: solo el creador cierra la mano (historial, minuto,
+            // resultado final y reparto). El invitado solo registra su pedido.
+            if (!esAutoridad()) { solicitarFinMano(); return; }
+            if (finManoProgramado) return;
+            finManoProgramado = true;
+            estado.juego.finManoSolicitado = false;
             // Ocultar el panel VAR al finalizar la mano (sincronizado para ambos)
             estado.juego.varPanelVisible = false;
             if (dom.varPanel) dom.varPanel.classList.remove('visible');
@@ -2447,6 +2517,10 @@
         }
 
         async function iniciarNuevaMano() {
+            // Autoridad única: solo el creador mezcla y reparte. El invitado
+            // recibe su nueva mano cifrada vía la sincronización.
+            if (!esAutoridad()) return;
+            estado.juego.finManoSolicitado = false;
             const nuevoTurnoInicial = estado.juego.ganadorManoAnterior || estado.juego.turnoInicial;
             estado.juego.golesInicioManoJugador = estado.juego.golesJugador;
             estado.juego.golesInicioManoRival = estado.juego.golesRival;
