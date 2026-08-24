@@ -1889,6 +1889,12 @@
         let varYaResolviendo = false;
         let salidaRepentinaRegistrada = false;
         let limpiezaEsperaRegistrada = null;
+        // true SOLO cuando el abandono lo inicié YO desde este dispositivo
+        // (botón "Salir" o 30 seg con la pestaña oculta). Sirve para distinguir:
+        // si el abandono lo inició el RIVAL (mi conexión cayó), es ÉL quien aplica
+        // mi castigo directamente en mis stats, y mi cliente NO debe registrar la
+        // derrota otra vez al recibir la partida terminada (evita doble -5).
+        let abandonoIniciadoPorMi = false;
 
         // Suelta la escucha sobre la cola de matchmaking (si quedó activa).
         // Sin esto, el creador de una partida rápida seguía escuchando la cola
@@ -1956,9 +1962,15 @@
             cancelarLimpiezaEspera();
         }
 
-        // Finaliza la partida localmente porque EL RIVAL abandonó (desconexión
-        // repentina o partida borrada). El que abandona registra la derrota en su
-        // propio cliente; este cliente (el que se quedó) registra la victoria.
+        // Finaliza la partida porque EL RIVAL abandonó (cerró la pestaña o perdió
+        // conexión). Acá se resuelve TODO el cierre automático:
+        // 1) Se marca la partida como terminada con ganador = el que se quedó.
+        // 2) Se aplica AL INSTANTE el castigo del que abandonó (-5, +1 PJ, +1 PP)
+        //    escribiendo directamente sus onlineStats, sin esperar a que vuelva
+        //    a entrar. Si las reglas de Firebase bloquearan esa escritura,
+        //    queda el respaldo abandonoPendiente (se procesa cuando vuelva).
+        // 3) Se muestra la pantalla final de victoria al que se quedó y se le
+        //    otorgan +3 pts, +1 partido jugado y +1 partido ganado.
         async function finalizarPorAbandonoDelRival(ladoQueAbandono) {
             if (estado.partidaTerminada || estado.fase === 'fin') return;
             const ganador = ladoQueAbandono === 'jugador' ? 'rival' : 'jugador';
@@ -1974,7 +1986,86 @@
                     estado: 'terminada', resultado, ultimaActividad: Date.now()
                 });
             } catch (error) { console.error('Error marcando abandono del rival:', error); }
+            // Aplicar el castigo del abandonador YA (no depende de que vuelva)
+            await aplicarPenalizacionAbandono(ladoQueAbandono);
             mostrarFinPartido(resultado);
+        }
+
+        // Aplica la derrota por abandono al jugador que cerró la pestaña,
+        // escribiendo DIRECTAMENTE sus estadísticas online desde este cliente
+        // (el que se quedó). Idempotente: el flag penalidadAbandono en la
+        // partida impide aplicarla dos veces aunque el listener dispare de nuevo.
+        // Si las reglas impiden escribir el nodo ajeno, no se toca nada acá y el
+        // abandonoPendiente (ya marcado por su propio onDisconnect) se procesa
+        // igual cuando ese jugador vuelva a entrar: nunca hay doble castigo.
+        async function aplicarPenalizacionAbandono(ladoQueAbandono) {
+            try {
+                if (!estado.partidaId) return;
+                const partidaRef = ref(db, 'partidas/' + estado.partidaId);
+                const snap = await get(partidaRef);
+                if (!snap.exists()) return;
+                const partida = snap.val();
+                // Idempotencia: si ya se aplicó, no volver a restar puntos
+                if (partida.penalidadAbandono === true) return;
+                // UID del que abandonó según su lado absoluto en la partida
+                const infoLado = ladoQueAbandono === 'jugador' ? partida.creador : partida.unido;
+                const uidAbandonador = infoLado && infoLado.uid;
+                if (!uidAbandonador) return;
+                if (estado.usuario && uidAbandonador === estado.usuario.uid) return;
+
+                // 1) Marcar PRIMERO el flag en la partida (si el paso 2 fallara,
+                //    el abandonoPendiente sigue armado como respaldo y no hay doble cómputo)
+                await update(partidaRef, { penalidadAbandono: true });
+
+                // 2) Escribir la derrota en las stats del que abandonó
+                const statsRef = ref(db, 'usuarios/' + uidAbandonador + '/onlineStats');
+                const sSnap = await get(statsRef);
+                const datos = sSnap.exists() ? sSnap.val() : {};
+                if (datos.puntos === undefined && datos.partidosJugados === undefined) {
+                    datos.puntos = 0;
+                    datos.partidosJugados = 0;
+                    datos.partidosGanados = 0;
+                    datos.partidosEmpatados = 0;
+                    datos.partidosPerdidos = 0;
+                    datos.rachaActual = 0;
+                    datos.mejorRacha = 0;
+                    datos.golesFavor = 0;
+                    datos.golesContra = 0;
+                    datos.historialPartidos = [];
+                }
+                const partidosJugados = (datos.partidosJugados || 0) + 1;
+                const partidosPerdidos = (datos.partidosPerdidos || 0) + 1;
+                const partidosGanados = datos.partidosGanados || 0;
+                const efectividad = partidosJugados > 0 ? Math.round((partidosGanados / partidosJugados) * 1000) / 10 : 0;
+                const historial = datos.historialPartidos || [];
+                historial.push({
+                    fecha: Date.now(),
+                    resultado: 'perder',
+                    golesFavor: 0,
+                    golesContra: 0,
+                    online: true,
+                    abandono: true
+                });
+                await update(statsRef, {
+                    partidosJugados,
+                    partidosPerdidos,
+                    // Castigo incremental EXACTO: -5 puntos sobre lo acumulado
+                    puntos: (datos.puntos || 0) - 5,
+                    efectividad,
+                    rachaActual: 0,
+                    historialPartidos: historial.slice(-200),
+                    // Limpiar el pendiente para que verificarAbandono (index.html)
+                    // NO vuelva a aplicar otro -5 cuando este jugador vuelva
+                    abandonoPendiente: false,
+                    ultimaActualizacion: serverTimestamp()
+                });
+                console.log('Castigo por abandono aplicado al rival:', uidAbandonador, '-5 pts');
+            } catch (error) {
+                // Escritura bloqueada por reglas o error de red: NO es fatal.
+                // El abandonoPendiente del propio cliente del abandonador sigue
+                // armado y aplicará el castigo cuando vuelva a entrar.
+                console.warn('No se pudo aplicar el castigo directo por abandono (queda el respaldo abandonoPendiente):', error);
+            }
         }
 
         // ============ ADVERTENCIA DE SALIDA ============
@@ -3244,7 +3335,14 @@
             // y por código): cada cliente registra su propio resultado al ver el
             // fin. El que abandonó registra derrota (-5 pts) y el rival victoria
             // (+3 pts), así la repartija de puntos queda completa para los dos.
-            guardarResultadoPartidoOnline(resultado, gJ, gR);
+            // EXCEPCIÓN (evita doble -5): si perdí por un abandono que NO inicié yo
+            // (el rival cerró la pestaña y mi conexión cayó), el rival YA aplicó mi
+            // castigo directamente en mis stats vía aplicarPenalizacionAbandono,
+            // así que mi cliente no debe registrar la derrota otra vez.
+            const perdiPorAbandonoDelRival = resultado.abandono && !yoGane && !abandonoIniciadoPorMi;
+            if (!perdiPorAbandonoDelRival) {
+                guardarResultadoPartidoOnline(resultado, gJ, gR);
+            }
             // Verificar y desbloquear logros nuevos
             verificarLogros();
 
@@ -3279,6 +3377,9 @@
             // Si la partida ya terminó, no hacer nada: no sobrescribir el
             // resultado con un abandono ni navegar fuera de la pantalla de fin.
             if (estado.fase === 'fin' || estado.partidaTerminada) return;
+            // El abandono lo inicio YO: mi cliente registra su propia derrota
+            // (-5) y el flag evita que el rival la aplique también.
+            abandonoIniciadoPorMi = true;
             // El que abandona SIEMPRE pierde, sin importar si después falla la
             // escritura en Firebase: construimos su resultado de abandono antes.
             const miResultado = {
@@ -3298,6 +3399,11 @@
                         await update(partidaRef, {
                             estado: 'terminada',
                             resultado: miResultado,
+                            // Marco que MI castigo ya lo estoy aplicando yo mismo en
+                            // este momento: así el rival (si además recibió el
+                            // abandonadoPor por una desconexión simultánea) no aplica
+                            // el castigo directo dos veces.
+                            penalidadAbandono: true,
                             ultimaActividad: Date.now()
                         });
                     }
