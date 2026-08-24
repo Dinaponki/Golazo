@@ -821,7 +821,7 @@
         // ============================================================
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
-        import { getDatabase, ref, get, set, update, onValue, remove, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-database.js";
+        import { getDatabase, ref, get, set, update, onValue, remove, onDisconnect, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDsgQ2dwokGq3umlptHtMCVgFISLe8ySM0",
@@ -1749,6 +1749,8 @@
                         dom.overlayEsperando.classList.add('oculto');
                         dom.nombreRivalEtiqueta.textContent = rivalEncontrado.nickname || 'Rival';
                         estado.rivalNombre = rivalEncontrado.nickname || 'Rival';
+                        detenerEscuchaColaRapido();
+                        registrarSalidaRepentina();
                         escucharPartida(rivalEncontrado.partidaId);
                         buscandoRapido = false;
                         return;
@@ -1797,6 +1799,13 @@
                 // Escuchar la cola por si otro jugador creó una partida y nos toca unirnos
                 if (colaRapidoListener) colaRapidoListener();
                 colaRapidoListener = onValue(colaRef, (snap) => {
+                    // Si ya entramos en una partida, esta escucha quedó vieja:
+                    // soltarla para que un nuevo jugador en la cola no nos saque
+                    // de la partida en curso.
+                    if (estado.enPartida || estado.fase === 'jugando' || estado.fase === 'fin') {
+                        detenerEscuchaColaRapido();
+                        return;
+                    }
                     if (!snap.exists()) return;
                     snap.forEach((child) => {
                         if (child.key === estado.usuario.uid) return;
@@ -1831,6 +1840,8 @@
         }
 
         async function unirsePartidaRapido(codigo, rivalNickname) {
+            // Si ya estamos en una partida, ignorar (listener viejo de la cola)
+            if (estado.enPartida || estado.fase === 'jugando' || estado.fase === 'fin') return;
             try {
                 const partidaRef = ref(db, 'partidas/' + codigo);
                 await update(partidaRef, {
@@ -1858,15 +1869,83 @@
         let partidaListener = null;
         let ultimoEstadoJuego = null;
         let varYaResolviendo = false;
+        let salidaRepentinaRegistrada = false;
+
+        // Suelta la escucha sobre la cola de matchmaking (si quedó activa).
+        // Sin esto, el creador de una partida rápida seguía escuchando la cola
+        // DENTRO de la partida: si otro jugador entraba a la cola, el listener
+        // viejo lo sacaba de su partida en curso para meterlo en la de un extraño.
+        function detenerEscuchaColaRapido() {
+            if (colaRapidoListener) { colaRapidoListener(); colaRapidoListener = null; }
+        }
+
+        // Registra (en el servidor) qué lado se desconectó sin cerrar bien la
+        // partida. Se aplica POR IGUAL al creador y al que se une: si cualquiera
+        // de los dos cierra la pestaña o pierde conexión, el otro recibe
+        // 'abandonadoPor' y puede finalizar la partida como abandono.
+        function registrarSalidaRepentina() {
+            if (!estado.partidaId || !estado.miLado || salidaRepentinaRegistrada) return;
+            salidaRepentinaRegistrada = true;
+            const partidaRef = ref(db, 'partidas/' + estado.partidaId);
+            onDisconnect(partidaRef).update({ abandonadoPor: estado.miLado })
+                .catch((e) => console.error('Error registrando salida repentina:', e));
+        }
+
+        // Cancela el registro de desconexión (al terminar la partida limpiamente,
+        // para que navegar fuera no marque un abandono falso)
+        function cancelarSalidaRepentina() {
+            if (!estado.partidaId || !salidaRepentinaRegistrada) return;
+            salidaRepentinaRegistrada = false;
+            try { onDisconnect(ref(db, 'partidas/' + estado.partidaId)).cancel(); } catch (e) { /* noop */ }
+        }
+
+        // Finaliza la partida localmente porque EL RIVAL abandonó (desconexión
+        // repentina o partida borrada). El que abandona registra la derrota en su
+        // propio cliente; este cliente (el que se quedó) registra la victoria.
+        async function finalizarPorAbandonoDelRival(ladoQueAbandono) {
+            if (estado.partidaTerminada || estado.fase === 'fin') return;
+            const ganador = ladoQueAbandono === 'jugador' ? 'rival' : 'jugador';
+            const gJ = estado.juego.golesJugador, gR = estado.juego.golesRival;
+            const resultado = {
+                ganador,
+                golesJugador: estado.miLado === 'jugador' ? gJ : gR,
+                golesRival: estado.miLado === 'jugador' ? gR : gJ,
+                abandono: true
+            };
+            try {
+                await update(ref(db, 'partidas/' + estado.partidaId), {
+                    estado: 'terminada', resultado, ultimaActividad: Date.now()
+                });
+            } catch (error) { console.error('Error marcando abandono del rival:', error); }
+            mostrarFinPartido(resultado);
+        }
 
         function escucharPartida(codigo) {
             if (partidaListener) { partidaListener(); partidaListener = null; }
             const partidaRef = ref(db, 'partidas/' + codigo);
             partidaListener = onValue(partidaRef, (snap) => {
-                if (!snap.exists()) { mostrarMensaje('La partida terminó'); return; }
+                if (!snap.exists()) {
+                    // La partida fue borrada (p.ej. el rival la eliminó desde
+                    // afuera): tratarlo como abandono del rival para que el que
+                    // quedó no se quede colgado sin pantalla de fin.
+                    if (estado.enPartida && !estado.partidaTerminada && estado.fase !== 'fin') {
+                        finalizarPorAbandonoDelRival(estado.miLado === 'jugador' ? 'rival' : 'jugador');
+                    } else {
+                        mostrarMensaje('La partida terminó');
+                    }
+                    return;
+                }
                 const partida = snap.val();
                 // Detectar si es una partida rápida (para el ranking online)
                 estado.esPartidaRapida = partida.rapida === true;
+
+                // Salida repentina del RIVAL (cerró la pestaña o perdió conexión):
+                // vale por igual para el creador y para el que se une después.
+                if (partida.estado === 'jugando' && partida.abandonadoPor &&
+                    partida.abandonadoPor !== estado.miLado &&
+                    !estado.partidaTerminada && estado.fase !== 'fin') {
+                    finalizarPorAbandonoDelRival(partida.abandonadoPor);
+                }
 
                 // Publicar mis claves de cifrado apenas haya rival (las manos viajan cifradas)
                 if (partida.unido && estado.miLado && partida.estado !== 'terminada') {
@@ -1896,6 +1975,10 @@
                         reproducirAudioFondo();
                         // Empujar un estado de historial para interceptar el botón "atrás"
                         history.pushState({ juegoIniciado: true }, '', location.href);
+                        // Ya hay partida en curso: soltar la escucha de la cola y
+                        // registrar la salida repentina (simétrico para ambos lados)
+                        detenerEscuchaColaRapido();
+                        registrarSalidaRepentina();
                     }
 
                     const j = partida.juego;
@@ -3010,6 +3093,9 @@
             // esta pantalla ni registrar un abandono.
             estado.partidaTerminada = true;
             dom.overlayFin.classList.remove('oculto');
+            // Cancelar el registro de desconexión: la partida ya terminó bien y
+            // salir de la página no debe marcar un abandono falso.
+            cancelarSalidaRepentina();
             // Convertir goles absolutos a relativos
             const gJ = estado.miLado === 'jugador' ? (resultado.golesJugador || 0) : (resultado.golesRival || 0);
             const gR = estado.miLado === 'jugador' ? (resultado.golesRival || 0) : (resultado.golesJugador || 0);
@@ -3076,6 +3162,11 @@
                     }
                 } catch (error) { console.error('Error abandonando partida:', error); }
             }
+            // Limpieza simétrica (vale para el creador y para el que se unió):
+            // soltar la escucha de la cola de matchmaking y borrar nuestra
+            // entrada de la cola si quedó alguna.
+            detenerEscuchaColaRapido();
+            if (estado.usuario) remove(ref(db, 'cola_rapido/' + estado.usuario.uid)).catch(() => {});
             // Las estadísticas se guardan automáticamente en cada cliente vía
             // mostrarFinPartido(): el que abandona registra derrota (-5 pts) y
             // el rival registra victoria (+3 pts) cuando detecta el abandono.
@@ -3088,6 +3179,12 @@
                 try { await remove(ref(db, 'partidas/' + estado.partidaId)); }
                 catch (error) { console.error('Error cancelando partida:', error); }
             }
+            // Limpieza de matchmaking: si esto era una partida rápida, sacar
+            // nuestra entrada de la cola (si queda un fantasma en cola_rapido,
+            // otros jugadores intentan unirse a una partida que ya no existe)
+            // y soltar la escucha de la cola para no ser emparejado después.
+            detenerEscuchaColaRapido();
+            if (estado.usuario) remove(ref(db, 'cola_rapido/' + estado.usuario.uid)).catch(() => {});
             estado.partidaId = null;
             estado.miLado = null;
             estado.fase = 'lobby';
