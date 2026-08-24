@@ -1856,7 +1856,42 @@
                     const snap = await get(userRef);
                     if (snap.exists()) {
                         const datos = snap.val();
-                        // Si quedó la marca enPartida=true, significa que el jugador cerró play.html sin terminar
+                        // Abandono de partida ONLINE (pestaña cerrada sin confirmar salida):
+                        // el cliente dejó marcado onlineStats.abandonoPendiente=true al
+                        // desconectarse. Al volver, registrar la derrota (-5 pts) si
+                        // todavía no hay un resultado posterior que lo haya limpiado.
+                        const on = datos.onlineStats || {};
+                        if (on.abandonoPendiente === true) {
+                            const partidosJugados = (on.partidosJugados || 0) + 1;
+                            const partidosPerdidos = (on.partidosPerdidos || 0) + 1;
+                            const partidosGanados = (on.partidosGanados || 0);
+                            const partidosEmpatados = (on.partidosEmpatados || 0);
+                            const puntos = (partidosGanados * 3) + (partidosEmpatados * 1) - (partidosPerdidos * 5);
+                            const efectividad = partidosJugados > 0 ? Math.round((partidosGanados / partidosJugados) * 1000) / 10 : 0;
+                            const historialPartidos = on.historialPartidos || [];
+                            historialPartidos.push({
+                                fecha: Date.now(),
+                                resultado: 'perder',
+                                golesFavor: 0,
+                                golesContra: 0,
+                                online: true,
+                                abandono: true
+                            });
+                            const historialLimitado = historialPartidos.slice(-200);
+                            await update(ref(db, 'usuarios/' + uid + '/onlineStats'), {
+                                puntos,
+                                partidosJugados,
+                                partidosPerdidos,
+                                efectividad,
+                                rachaActual: 0,
+                                historialPartidos: historialLimitado,
+                                abandonoPendiente: false,
+                                ultimaActualizacion: serverTimestamp()
+                            });
+                            console.log('Abandono online detectado: -5 puntos');
+                            mostrarToast('⚠ Abandonaste una partida online: -5 puntos');
+                        }
+                        // Abandono de partida contra la CPU (play.html)
                         if (datos.enPartida === true) {
                             const partidosJugados = (datos.partidosJugados || 0) + 1;
                             const partidosPerdidos = (datos.partidosPerdidos || 0) + 1;

@@ -1911,6 +1911,14 @@
             const partidaRef = ref(db, 'partidas/' + estado.partidaId);
             onDisconnect(partidaRef).update({ abandonadoPor: estado.miLado })
                 .catch((e) => console.error('Error registrando salida repentina:', e));
+            // Si me desconecto sin cerrar bien la partida, dejar marcado un
+            // abandono pendiente en MIS estadísticas online: al volver a
+            // index.html se registra la derrota por abandono (-5 pts).
+            if (estado.usuario) {
+                onDisconnect(ref(db, 'usuarios/' + estado.usuario.uid + '/onlineStats'))
+                    .update({ abandonoPendiente: true, abandonoPendienteEn: Date.now() })
+                    .catch((e) => console.error('Error registrando abandono pendiente:', e));
+            }
         }
 
         // Limpieza de la ETAPA DE ESPERA: si me desconecto mientras busco rival
@@ -1941,6 +1949,9 @@
             if (salidaRepentinaRegistrada && estado.partidaId) {
                 salidaRepentinaRegistrada = false;
                 try { onDisconnect(ref(db, 'partidas/' + estado.partidaId)).cancel(); } catch (e) { /* noop */ }
+            }
+            if (estado.usuario) {
+                try { onDisconnect(ref(db, 'usuarios/' + estado.usuario.uid + '/onlineStats')).cancel(); } catch (e) { /* noop */ }
             }
             cancelarLimpiezaEspera();
         }
@@ -3089,6 +3100,10 @@
                     golesFavor,
                     golesContra,
                     historialPartidos: historialLimitado,
+                    // Limpiar este mismo en el guardado: si quedó un abandono pendiente
+                    // de una sesión anterior (pestaña cerrada), una partida normal
+                    // posterior no debe procesarlo como derrota.
+                    abandonoPendiente: false,
                     ultimaActualizacion: serverTimestamp()
                 };
 
@@ -3199,13 +3214,11 @@
             const gR = estado.miLado === 'jugador' ? (resultado.golesRival || 0) : (resultado.golesJugador || 0);
             const ganador = resultado.ganador;
             const yoGane = (estado.miLado === 'jugador' && ganador === 'jugador') || (estado.miLado === 'rival' && ganador === 'rival');
-            // Guardar resultado en Firebase (solo partidas rápidas)
-            // También se guarda en abandonos: el que abandonó registra la derrota
-            // (-5 pts) y el rival registra la victoria (+3 pts). Cada cliente
-            // guarda su propio resultado al detectar el fin de la partida.
-            if (estado.esPartidaRapida) {
-                guardarResultadoPartidoOnline(resultado, gJ, gR);
-            }
+            // Guardar el resultado en el ranking online SIEMPRE (partidas rápidas
+            // y por código): cada cliente registra su propio resultado al ver el
+            // fin. El que abandonó registra derrota (-5 pts) y el rival victoria
+            // (+3 pts), así la repartija de puntos queda completa para los dos.
+            guardarResultadoPartidoOnline(resultado, gJ, gR);
             // Verificar y desbloquear logros nuevos
             verificarLogros();
 
