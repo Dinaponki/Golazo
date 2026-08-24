@@ -821,7 +821,7 @@
         // ============================================================
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
-        import { getDatabase, ref, get, set, update, onValue, remove, onDisconnect, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-database.js";
+        import { getDatabase, ref, get, set, update, onValue, remove, onDisconnect, serverTimestamp, runTransaction } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDsgQ2dwokGq3umlptHtMCVgFISLe8ySM0",
@@ -1717,6 +1717,52 @@
         let buscandoRapido = false;
         let colaRapidoListener = null;
 
+        // Intenta reclamar (ATÓMICAMENTE) una entrada de la cola de matchmaking
+        // y unirse a su partida. Devuelve true si la unión fue exitosa.
+        // Dos transacciones encadenadas garantizan que aunque varios jugadores
+        // lean al mismo candidato simultáneamente, SOLO uno completa la unión:
+        // 1) Reclamo de cola_rapido/{key}: se borra solo si aún existe. Si otro
+        //    jugador ya la reclamó, la transacción aborta (committed=false).
+        // 2) Escritura de 'unido' en la partida: solo procede si sigue con
+        //    estado 'esperando' y sin rival. Si otro llegó primero, aborta.
+        async function intentarUnirseRapido(rivalKey) {
+            try {
+                const entradaRef = ref(db, 'cola_rapido/' + rivalKey);
+                const claim = await runTransaction(entradaRef, (actual) => (actual === null ? undefined : null));
+                if (!claim.committed) return false; // otro jugador se llevó esta entrada
+                const datos = claim.snapshot.val() || {};
+                if (!datos.partidaId) return false;
+
+                const partidaRef = ref(db, 'partidas/' + datos.partidaId);
+                const resultado = await runTransaction(partidaRef, (partida) => {
+                    if (!partida || partida.estado !== 'esperando' || partida.unido) return undefined;
+                    partida.unido = { uid: estado.usuario.uid, nickname: estado.nickname || 'Jugador', fotoURL: estado.fotoURL || '', listo: true };
+                    partida.estado = 'jugando';
+                    partida.ultimaActividad = Date.now();
+                    return partida;
+                });
+                if (!(resultado.committed && resultado.snapshot.exists())) return false;
+
+                // Éxito: sacar mi propia entrada de la cola (si quedaba) y entrar
+                remove(ref(db, 'cola_rapido/' + estado.usuario.uid)).catch(() => {});
+                estado.partidaId = datos.partidaId;
+                estado.miLado = 'rival';
+                estado.fase = 'esperando';
+                estado.esPartidaRapida = true;
+                dom.overlayLobby.classList.add('oculto');
+                dom.overlayEsperando.classList.add('oculto');
+                dom.nombreRivalEtiqueta.textContent = datos.nickname || 'Rival';
+                estado.rivalNombre = datos.nickname || 'Rival';
+                detenerEscuchaColaRapido();
+                registrarSalidaRepentina();
+                escucharPartida(datos.partidaId);
+                return true;
+            } catch (error) {
+                console.error('Error intentando unirse rápido:', error);
+                return false;
+            }
+        }
+
         async function jugarRapido() {
             if (!estado.usuario || buscandoRapido) return;
             buscandoRapido = true;
@@ -1725,47 +1771,27 @@
             dom.btnCrearPartida.disabled = true;
             dom.btnUnirsePartida.disabled = true;
             try {
-                // Buscar un rival en la cola de matchmaking
+                // Buscar rivales esperando en la cola de matchmaking
                 const colaRef = ref(db, 'cola_rapido');
                 const snap = await get(colaRef);
-                let rivalEncontrado = null;
-                let rivalKey = null;
+                const candidatos = [];
                 if (snap.exists()) {
                     snap.forEach((child) => {
-                        if (rivalEncontrado) return;
                         const val = child.val();
-                        if (val && val.uid && val.uid !== estado.usuario.uid) {
-                            rivalEncontrado = val;
-                            rivalKey = child.key;
-                        }
+                        if (val && val.uid && val.uid !== estado.usuario.uid) candidatos.push(child.key);
                     });
                 }
 
-                // Si hay un rival esperando, unirse a su partida
-                if (rivalEncontrado && rivalKey) {
-                    await remove(ref(db, 'cola_rapido/' + rivalKey));
-                    const partidaRef = ref(db, 'partidas/' + rivalEncontrado.partidaId);
-                    const partidaSnap = await get(partidaRef);
-                    if (partidaSnap.exists() && partidaSnap.val().estado === 'esperando') {
-                        await update(partidaRef, {
-                            unido: { uid: estado.usuario.uid, nickname: estado.nickname || 'Jugador', fotoURL: estado.fotoURL || '', listo: true },
-                            estado: 'jugando', ultimaActividad: Date.now()
-                        });
-                        estado.partidaId = rivalEncontrado.partidaId;
-                        estado.miLado = 'rival';
-                        estado.fase = 'esperando';
-                        estado.esPartidaRapida = true;
-                        dom.overlayLobby.classList.add('oculto');
-                        dom.overlayEsperando.classList.add('oculto');
-                        dom.nombreRivalEtiqueta.textContent = rivalEncontrado.nickname || 'Rival';
-                        estado.rivalNombre = rivalEncontrado.nickname || 'Rival';
-                        detenerEscuchaColaRapido();
-                        registrarSalidaRepentina();
-                        escucharPartida(rivalEncontrado.partidaId);
-                        buscandoRapido = false;
-                        return;
-                    }
+                // Unirse al primer candidato que se pueda. intentarUnirseRapido()
+                // usa runTransaction: aunque DOS jugadores lean al mismo candidato
+                // a la vez, SOLO uno reclama su entrada de la cola y SOLO uno
+                // escribe 'unido' en la partida (sin sobrescrituras ni fantasmas).
+                let meUni = false;
+                for (const key of candidatos) {
+                    meUni = await intentarUnirseRapido(key);
+                    if (meUni) break;
                 }
+                if (meUni) { buscandoRapido = false; return; }
 
                 // No hay rival → crear partida y añadirse a la cola
                 let codigo = generarCodigoPartida();
@@ -1827,11 +1853,12 @@
                         if (child.key === estado.usuario.uid) return;
                         const val = child.val();
                         if (val && val.partidaId) {
-                            // Otro jugador creó una partida → unirse a ella
-                            remove(ref(db, 'cola_rapido/' + child.key)).catch(() => {});
-                            remove(ref(db, 'cola_rapido/' + estado.usuario.uid)).catch(() => {});
-                            if (colaRapidoListener) { colaRapidoListener(); colaRapidoListener = null; }
-                            unirsePartidaRapido(val.partidaId, val.nickname || 'Rival');
+                            // Otro jugador creó una partida → unirme de forma
+                            // atómica (transacción): si dos oyentes ven la misma
+                            // entrada de la cola, solo uno logra escribir 'unido'.
+                            intentarUnirseRapido(child.key).then((ok) => {
+                                if (ok && colaRapidoListener) { colaRapidoListener(); colaRapidoListener = null; }
+                            });
                         }
                     });
                 }, (error) => console.error('Error escuchando cola rápida:', error));
@@ -1852,34 +1879,6 @@
                 dom.btnCrearPartida.disabled = false;
                 dom.btnUnirsePartida.disabled = false;
                 buscandoRapido = false;
-            }
-        }
-
-        async function unirsePartidaRapido(codigo, rivalNickname) {
-            // Si ya estamos en una partida, ignorar (listener viejo de la cola)
-            if (estado.enPartida || estado.fase === 'jugando' || estado.fase === 'fin') return;
-            try {
-                const partidaRef = ref(db, 'partidas/' + codigo);
-                await update(partidaRef, {
-                    unido: { uid: estado.usuario.uid, nickname: estado.nickname || 'JUGADOR', fotoURL: estado.fotoURL || '', listo: true },
-                    estado: 'jugando', ultimaActividad: Date.now()
-                });
-                estado.partidaId = codigo;
-                estado.miLado = 'rival';
-                estado.fase = 'esperando';
-                estado.esPartidaRapida = true;
-                // Registrar salida repentina YA (ver comentario en unirsePartida)
-                registrarSalidaRepentina();
-                dom.overlayLobby.classList.add('oculto');
-                dom.overlayEsperando.classList.add('oculto');
-                estado.rivalNombre = rivalNickname;
-                escucharPartida(codigo);
-            } catch (error) {
-                console.error('Error uniéndose a partida rápida:', error);
-                mostrarLobbyMensaje('Error al unirse a la partida.', true);
-                dom.btnJugarRapido.disabled = false;
-                dom.btnCrearPartida.disabled = false;
-                dom.btnUnirsePartida.disabled = false;
             }
         }
 
@@ -3525,10 +3524,60 @@
             volverAlLobbyDeEspera();
         }
 
+        // ============ LIMPIEZA DE DATOS VENCIDOS ============
+        // /partidas y /cola_rapido crecían para siempre. onDisconnect() ya cubre
+        // la salida limpia del navegador (borra partida + entrada de cola), pero
+        // quedaban restos: partidas terminadas/abandonadas nunca borradas y
+        // entradas de cola huérfanas. Cada cliente conectado hace de basurero:
+        // periódicamente borra nodos cuya última actividad sea muy vieja.
+        const LIMPIEZA_CADA_MS = 5 * 60 * 1000;       // barrer cada 5 minutos
+        const PARTIDA_EXPIRA_MS = 2 * 60 * 60 * 1000; // partidas viejas: 2 horas
+        const COLA_EXPIRA_MS = 15 * 60 * 1000;        // entradas de cola: 15 minutos
+        let limpiezaIniciada = false;
+
+        async function limpiarDatosVencidos() {
+            try {
+                const ahora = Date.now();
+                const [pSnap, cSnap] = await Promise.all([
+                    get(ref(db, 'partidas')),
+                    get(ref(db, 'cola_rapido'))
+                ]);
+                const borrados = {};
+                if (pSnap.exists()) {
+                    pSnap.forEach((child) => {
+                        // NUNCA borrar la partida en la que estoy parado
+                        if (child.key === estado.partidaId) return;
+                        const p = child.val() || {};
+                        const act = p.ultimaActividad || p.creadoEn || 0;
+                        if (act && ahora - act > PARTIDA_EXPIRA_MS) borrados['partidas/' + child.key] = null;
+                    });
+                }
+                if (cSnap.exists()) {
+                    cSnap.forEach((child) => {
+                        const c = child.val() || {};
+                        const creado = c.creadoEn || 0;
+                        if (creado && ahora - creado > COLA_EXPIRA_MS) borrados['cola_rapido/' + child.key] = null;
+                    });
+                }
+                if (Object.keys(borrados).length) {
+                    await update(ref(db), borrados); // borrado multi-camino, 1 sola escritura
+                    console.log('Limpieza automática: eliminados', Object.keys(borrados).length, 'nodos vencidos');
+                }
+            } catch (e) { console.warn('Limpieza automática omitida:', e && (e.code || e.message)); }
+        }
+
+        function iniciarLimpiezaAutomatica() {
+            if (limpiezaIniciada) return;
+            limpiezaIniciada = true;
+            setTimeout(limpiarDatosVencidos, 20000);
+            setInterval(limpiarDatosVencidos, LIMPIEZA_CADA_MS);
+        }
+
         // ============ INICIALIZACIÓN ============
         function inicializar() {
             cacheDom();
             actualizarEscalado();
+            iniciarLimpiezaAutomatica(); // barrido periódico de partidas/colas vencidas
 
             onAuthStateChanged(auth, (user) => {
                 estado.usuario = user;
