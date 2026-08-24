@@ -3053,6 +3053,20 @@
                 const userRef = ref(db, 'usuarios/' + user.uid + '/onlineStats');
                 const snap = await get(userRef);
                 const datos = snap.exists() ? snap.val() : {};
+                // Inicializar el nodo la primera vez (si no existe, el ranking
+                // online no podía calcular ni puntos ni partidos del jugador)
+                if (datos.puntos === undefined && datos.partidosJugados === undefined) {
+                    datos.puntos = 0;
+                    datos.partidosJugados = 0;
+                    datos.partidosGanados = 0;
+                    datos.partidosEmpatados = 0;
+                    datos.partidosPerdidos = 0;
+                    datos.rachaActual = 0;
+                    datos.mejorRacha = 0;
+                    datos.golesFavor = 0;
+                    datos.golesContra = 0;
+                    datos.historialPartidos = [];
+                }
 
                 // Determinar resultado relativo para este jugador
                 const ganador = resultado.ganador;
@@ -3071,7 +3085,10 @@
 
                 const mejorRacha = Math.max(datos.mejorRacha || 0, rachaActual);
                 const efectividad = partidosJugados > 0 ? Math.round((partidosGanados / partidosJugados) * 1000) / 10 : 0;
-                const puntos = (partidosGanados * 3) + (partidosEmpatados * 1) - (partidosPerdidos * 5);
+                // Sumar los puntos INCREMENTALMENTE sobre el acumulado existente:
+                // así el abandono (-5) resta siempre y no se pierde si el jugador
+                // ya tenía una derrota previa (que la fórmula reconstruida pisaba).
+                const puntos = (datos.puntos || 0) + (resultadoJugador === 'ganar' ? 3 : esEmpate ? 1 : -5);
 
                 // Goles a favor y en contra (relativos a este jugador)
                 const golesFavor = (datos.golesFavor || 0) + (golesJugador || 0);
@@ -3253,20 +3270,22 @@
             // Si la partida ya terminó, no hacer nada: no sobrescribir el
             // resultado con un abandono ni navegar fuera de la pantalla de fin.
             if (estado.fase === 'fin' || estado.partidaTerminada) return;
-            let miResultado = null;
+            // El que abandona SIEMPRE pierde, sin importar si después falla la
+            // escritura en Firebase: construimos su resultado de abandono antes.
+            const miResultado = {
+                ganador: estado.miLado === 'jugador' ? 'rival' : 'jugador',
+                golesJugador: 0,
+                golesRival: 0,
+                abandono: true
+            };
             if (estado.partidaId && estado.enPartida) {
                 try {
                     const partidaRef = ref(db, 'partidas/' + estado.partidaId);
                     const snap = await get(partidaRef);
                     if (snap.exists()) {
                         const partida = snap.val();
-                        const ganador = estado.miLado === 'jugador' ? 'rival' : 'jugador';
-                        miResultado = {
-                            ganador,
-                            golesJugador: partida.juego ? partida.juego.golesJugador : 0,
-                            golesRival: partida.juego ? partida.juego.golesRival : 0,
-                            abandono: true
-                        };
+                        miResultado.golesJugador = partida.juego ? partida.juego.golesJugador : 0;
+                        miResultado.golesRival = partida.juego ? partida.juego.golesRival : 0;
                         await update(partidaRef, {
                             estado: 'terminada',
                             resultado: miResultado,
@@ -3281,15 +3300,11 @@
             detenerEscuchaColaRapido();
             cancelarRegistroDesconexion();
             if (estado.usuario) remove(ref(db, 'cola_rapido/' + estado.usuario.uid)).catch(() => {});
-            if (miResultado) {
-                // El que sale TAMBIÉN ve la pantalla final: acá se registran sus
-                // propios puntos (derrota por abandono, -5) igual que el rival
-                // registra su victoria (+3) al detectar la partida terminada.
-                // Así la repartija de puntos queda completa para los dos lados.
-                mostrarFinPartido(miResultado);
-            } else {
-                window.location.href = 'index.html';
-            }
+            // El que sale SIEMPRE ve la pantalla final: acá se registran sus
+            // propios puntos (derrota por abandono, -5) igual que el rival
+            // registra su victoria (+3) al detectar la partida terminada.
+            // Así la repartija de puntos queda completa para los dos lados.
+            mostrarFinPartido(miResultado);
         }
 
         // ============ CANCELAR ESPERA ============
