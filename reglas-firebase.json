@@ -4,7 +4,7 @@
       ".read": "auth != null",
       "$uid": {
         ".write": "auth != null && auth.uid === $uid",
-        ".validate": "newData.hasChildren(['nickname'])",
+        ".validate": "newData.hasChildren(['nickname']) && ((newData.child('partidosJugados').val() == data.child('partidosJugados').val() && newData.child('partidosGanados').val() == data.child('partidosGanados').val() && newData.child('partidosEmpatados').val() == data.child('partidosEmpatados').val() && newData.child('partidosPerdidos').val() == data.child('partidosPerdidos').val()) || (newData.child('ultimaActualizacion').val() === now && (!data.child('ultimaActualizacion').exists() || newData.child('ultimaActualizacion').val() - data.child('ultimaActualizacion').val() > 30000)))",
         "nickname": {
           ".validate": "newData.isString() && newData.val().length >= 0 && newData.val().length <= 12"
         },
@@ -12,17 +12,22 @@
         "fotoURL": { ".validate": "newData.isString()" },
         "descripcion": { ".validate": "newData.isString() && newData.val().length <= 200" },
         "redSocial": { ".validate": "newData.isString() && newData.val().length <= 200" },
-        "partidosJugados": { ".validate": "newData.isNumber()" },
-        "partidosGanados": { ".validate": "newData.isNumber()" },
-        "partidosEmpatados": { ".validate": "newData.isNumber()" },
-        "partidosPerdidos": { ".validate": "newData.isNumber()" },
-        "puntos": { ".validate": "newData.isNumber()" },
-        "efectividad": { ".validate": "newData.isNumber()" },
-        "rachaActual": { ".validate": "newData.isNumber()" },
-        "mejorRacha": { ".validate": "newData.isNumber()" },
-        "golesFavor": { ".validate": "newData.isNumber()" },
-        "golesContra": { ".validate": "newData.isNumber()" },
+        "partidosJugados": { ".validate": "newData.isNumber() && newData.val() >= 0 && (newData.val() == 0 || (data.exists() && (newData.val() == data.val() || newData.val() == data.val() + 1)))" },
+        "partidosGanados": { ".validate": "newData.isNumber() && newData.val() >= 0 && (newData.val() == 0 || (data.exists() && (newData.val() == data.val() || newData.val() == data.val() + 1)))" },
+        "partidosEmpatados": { ".validate": "newData.isNumber() && newData.val() >= 0 && (newData.val() == 0 || (data.exists() && (newData.val() == data.val() || newData.val() == data.val() + 1)))" },
+        "partidosPerdidos": { ".validate": "newData.isNumber() && newData.val() >= 0 && (newData.val() == 0 || (data.exists() && (newData.val() == data.val() || newData.val() == data.val() + 1)))" },
+        "puntos": { ".validate": "newData.isNumber() && newData.val() == (newData.parent().child('partidosGanados').val() || 0) * 3 + (newData.parent().child('partidosEmpatados').val() || 0) - (newData.parent().child('partidosPerdidos').val() || 0) * 5" },
+        "efectividad": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100" },
+        "rachaActual": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000" },
+        "mejorRacha": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() >= (newData.parent().child('rachaActual').val() || 0)" },
+        "golesFavor": { ".validate": "newData.isNumber() && newData.val() >= 0 && (newData.val() == 0 || (data.exists() && newData.val() <= data.val() + 15))" },
+        "golesContra": { ".validate": "newData.isNumber() && newData.val() >= 0 && (newData.val() == 0 || (data.exists() && newData.val() <= data.val() + 15))" },
         "enPartida": { ".validate": "newData.isBoolean()" },
+        "logros": {
+          "$logroId": { ".validate": "newData.isNumber() && newData.val() >= 0" }
+        },
+        "loginStreak": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "ultimoLogin": { ".validate": "newData.isNumber()" },
         "historialPartidos": {
           "$partidoId": {
             "fecha": { ".validate": "newData.isNumber()" },
@@ -32,17 +37,18 @@
           }
         },
         "onlineStats": {
-          "partidosJugados": { ".validate": "newData.isNumber()" },
-          "partidosGanados": { ".validate": "newData.isNumber()" },
-          "partidosEmpatados": { ".validate": "newData.isNumber()" },
-          "partidosPerdidos": { ".validate": "newData.isNumber()" },
-          "puntos": { ".validate": "newData.isNumber()" },
-          "efectividad": { ".validate": "newData.isNumber()" },
-          "rachaActual": { ".validate": "newData.isNumber()" },
-          "mejorRacha": { ".validate": "newData.isNumber()" },
-          "golesFavor": { ".validate": "newData.isNumber()" },
-          "golesContra": { ".validate": "newData.isNumber()" },
-          "ultimaActualizacion": { ".validate": "newData.isNumber()" },
+          ".validate": "((newData.child('partidosJugados').val() == data.child('partidosJugados').val() && newData.child('partidosGanados').val() == data.child('partidosGanados').val() && newData.child('partidosEmpatados').val() == data.child('partidosEmpatados').val() && newData.child('partidosPerdidos').val() == data.child('partidosPerdidos').val()) || (newData.child('ultimaActualizacion').val() === now && (!data.child('ultimaActualizacion').exists() || newData.child('ultimaActualizacion').val() - data.child('ultimaActualizacion').val() > 30000)))",
+          "partidosJugados": { ".validate": "newData.isNumber() && newData.val() >= 0 && (newData.val() == 0 || (data.exists() && (newData.val() == data.val() || newData.val() == data.val() + 1)))" },
+          "partidosGanados": { ".validate": "newData.isNumber() && newData.val() >= 0 && (newData.val() == 0 || (data.exists() && (newData.val() == data.val() || newData.val() == data.val() + 1)))" },
+          "partidosEmpatados": { ".validate": "newData.isNumber() && newData.val() >= 0 && (newData.val() == 0 || (data.exists() && (newData.val() == data.val() || newData.val() == data.val() + 1)))" },
+          "partidosPerdidos": { ".validate": "newData.isNumber() && newData.val() >= 0 && (newData.val() == 0 || (data.exists() && (newData.val() == data.val() || newData.val() == data.val() + 1)))" },
+          "puntos": { ".validate": "newData.isNumber() && newData.val() == (newData.parent().child('partidosGanados').val() || 0) * 3 + (newData.parent().child('partidosEmpatados').val() || 0) - (newData.parent().child('partidosPerdidos').val() || 0) * 5" },
+          "efectividad": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100" },
+          "rachaActual": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000" },
+          "mejorRacha": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() >= (newData.parent().child('rachaActual').val() || 0)" },
+          "golesFavor": { ".validate": "newData.isNumber() && newData.val() >= 0 && (newData.val() == 0 || (data.exists() && newData.val() <= data.val() + 15))" },
+          "golesContra": { ".validate": "newData.isNumber() && newData.val() >= 0 && (newData.val() == 0 || (data.exists() && newData.val() <= data.val() + 15))" },
+          "ultimaActualizacion": { ".validate": "newData.isNumber() && newData.val() === now" },
           "historialPartidos": {
             "$partidoId": {
               "fecha": { ".validate": "newData.isNumber()" },
@@ -54,7 +60,7 @@
             }
           }
         },
-        "ultimaActualizacion": { ".validate": "newData.isNumber()" },
+        "ultimaActualizacion": { ".validate": "newData.isNumber() && newData.val() === now" },
         "$other": { ".validate": false }
       }
     },

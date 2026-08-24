@@ -821,7 +821,7 @@
         // ============================================================
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
-        import { getDatabase, ref, get, set, update, onValue, remove } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-database.js";
+        import { getDatabase, ref, get, set, update, onValue, remove, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDsgQ2dwokGq3umlptHtMCVgFISLe8ySM0",
@@ -2908,7 +2908,7 @@
                     golesFavor,
                     golesContra,
                     historialPartidos: historialLimitado,
-                    ultimaActualizacion: Date.now()
+                    ultimaActualizacion: serverTimestamp()
                 };
 
                 await update(userRef, camposActualizar);

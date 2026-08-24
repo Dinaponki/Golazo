@@ -1608,7 +1608,7 @@
         // Importa los módulos de Firebase
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
-        import { getDatabase, ref, get, set, update, onValue } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-database.js";
+        import { getDatabase, ref, get, set, update, onValue, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDsgQ2dwokGq3umlptHtMCVgFISLe8ySM0",
@@ -1749,7 +1749,7 @@
                         efectividad: 0,
                         rachaActual: 0,
                         mejorRacha: 0,
-                        ultimaActualizacion: Date.now()
+                        ultimaActualizacion: serverTimestamp()
                     });
                 }
             } catch (error) {
@@ -1832,7 +1832,7 @@
                 const userRef = ref(db, 'usuarios/' + usuarioActual.uid);
                 await update(userRef, {
                     nickname: nick,
-                    ultimaActualizacion: Date.now()
+                    ultimaActualizacion: serverTimestamp()
                 });
                 nicknameActual = nick;
                 nombreUsuario.textContent = nick;
@@ -1876,7 +1876,7 @@
                                 rachaActual: 0,
                                 historialPartidos: historialLimitado,
                                 enPartida: false,
-                                ultimaActualizacion: Date.now()
+                                ultimaActualizacion: serverTimestamp()
                             });
                             console.log('Abandono detectado: +1 partidosJugados, +1 partidosPerdidos, -5 puntos');
                             mostrarToast('⚠ Abandonaste una partida: +1 partido jugado, +1 partido perdido, -5 puntos');
