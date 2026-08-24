@@ -1924,6 +1924,7 @@
         // detecta y, tras un margen de gracia, permite reclamar la victoria.
         let presenciaArmadaPara = null;
         let timeoutDesconexion = null;
+        let intervaloSenal = null;
 
         function armarPresencia() {
             if (presenciaArmadaPara === estado.partidaId) return;
@@ -1935,20 +1936,61 @@
                 .catch((e) => console.warn('Error armando presencia:', e));
         }
 
+        // Latido: mientras la partida está en curso, cada jugador escribe la hora
+        // actual en juego/senales/<lado> cada 10 segundos. Es un RESPALDO de la
+        // presencia: ese nodo ya es escribible por ambos jugadores con las reglas
+        // actuales, así que aunque el nodo online falle (p.ej. reglas sin el
+        // nuevo permiso), igual se detecta al rival caído por latidos vencidos.
+        function enviarSenal() {
+            if (!estado.partidaId || !estado.miLado) return;
+            update(ref(db, 'partidas/' + estado.partidaId + '/juego'), { ['senales/' + estado.miLado]: Date.now() }).catch(() => {});
+        }
+
+        function iniciarLatido() {
+            enviarSenal();
+            if (intervaloSenal) return;
+            intervaloSenal = setInterval(() => {
+                if (!estado.enPartida || estado.fase !== 'jugando' || estado.partidaTerminada) return;
+                enviarSenal();
+            }, 10000);
+        }
+
+        function detenerLatido() {
+            if (intervaloSenal) { clearInterval(intervaloSenal); intervaloSenal = null; }
+        }
+
+        // Decide si el rival está fuera por DOS vías independientes:
+        // 1) Presencia: Firebase marcó online/<rival> = false al desconectarse.
+        // 2) Latidos: su última señal tiene más de 45s, o nunca llegó teniendo
+        //    yo la mía fresca (o sea, yo sí estoy latiendo y él no aparece).
+        function rivalEstaFuera(partida) {
+            const ladoRivalAbs = estado.miLado === 'jugador' ? 'rival' : 'jugador';
+            if (partida.online && partida.online[ladoRivalAbs] === false) return true;
+            const j = partida.juego;
+            if (j && j.senales) {
+                const mia = j.senales[estado.miLado];
+                const delRival = j.senales[ladoRivalAbs];
+                // Solo confío en este chequeo si MI latido está fresco
+                if (typeof mia === 'number' && Date.now() - mia < 30000) {
+                    if (typeof delRival !== 'number' || Date.now() - delRival > 45000) return true;
+                }
+            }
+            return false;
+        }
+
         function verificarRivalEnLinea(partida) {
             if (estado.fase === 'fin' || estado.partidaTerminada || !estado.enPartida) return;
-            if (!partida.online) return;
-            const ladoRivalAbs = estado.miLado === 'jugador' ? 'rival' : 'jugador';
-            const rivalConectado = partida.online[ladoRivalAbs] !== false;
-            if (rivalConectado) {
-                // Volvió (o nunca se fue): cancelar cualquier reclamo pendiente
+            if (!partida || partida.estado !== 'jugando') return;
+            if (!rivalEstaFuera(partida)) {
+                // Está en línea (o volvió): cancelar cualquier reclamo pendiente
                 if (timeoutDesconexion) { clearTimeout(timeoutDesconexion); timeoutDesconexion = null; }
                 return;
             }
             if (timeoutDesconexion) return;
             mostrarMensaje('⚠ ' + estado.rivalNombre + ' se desconectó...');
-            // Margen de gracia por si es una caída momentánea; luego se re-verifica
-            timeoutDesconexion = setTimeout(reclamarVictoriaPorDesconexion, 10000);
+            // Margen de gracia por si es una caída momentánea; luego se
+            // re-verifica con datos frescos antes de declarar la victoria
+            timeoutDesconexion = setTimeout(reclamarVictoriaPorDesconexion, 12000);
         }
 
         async function reclamarVictoriaPorDesconexion() {
@@ -1959,9 +2001,8 @@
                 if (!snap.exists()) return;
                 const partida = snap.val();
                 if (partida.estado !== 'jugando') return;
-                const ladoRivalAbs = estado.miLado === 'jugador' ? 'rival' : 'jugador';
-                if (!partida.online || partida.online[ladoRivalAbs] !== false) return;
-                // Confirmado: el rival sigue desconectado → gano la partida
+                if (!rivalEstaFuera(partida)) return;
+                // Confirmado: el rival sigue fuera → gano la partida
                 await terminarPartidaConAbandono(estado.miLado, partida);
             } catch (error) { console.error('Error reclamando victoria por desconexión:', error); }
         }
@@ -2004,11 +2045,13 @@
                 // Detectar si es una partida rápida (para el ranking online)
                 estado.esPartidaRapida = partida.rapida === true;
 
-                // Si la partida está en curso, guardar datos para poder
-                // reconectar si se recarga la página y armar mi presencia
+                // Si la partida está en curso: guardar datos para reconectar,
+                // armar mi presencia, empezar mis latidos y vigilar al rival
                 if (partida.estado === 'jugando' && estado.miLado) {
                     guardarSesionReconexion();
                     armarPresencia();
+                    iniciarLatido();
+                    verificarRivalEnLinea(partida);
                 }
 
                 // Publicar mis claves de cifrado apenas haya rival (las manos viajan cifradas)
@@ -2246,9 +2289,6 @@
                     }
 
                     renderizarTodo();
-
-                    // Verificar si el rival se desconectó mientras jugamos
-                    verificarRivalEnLinea(partida);
                 }
 
                 if (partida.estado === 'terminada' && partida.resultado) {
@@ -3156,6 +3196,7 @@
             // esta pantalla ni registrar un abandono.
             estado.partidaTerminada = true;
             limpiarSesionReconexion();
+            detenerLatido();
             if (timeoutDesconexion) { clearTimeout(timeoutDesconexion); timeoutDesconexion = null; }
             dom.overlayFin.classList.remove('oculto');
             // Convertir goles absolutos a relativos
