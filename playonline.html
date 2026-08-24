@@ -1717,48 +1717,82 @@
         let buscandoRapido = false;
         let colaRapidoListener = null;
 
-        // Intenta reclamar (ATÓMICAMENTE) una entrada de la cola de matchmaking
-        // y unirse a su partida. Devuelve true si la unión fue exitosa.
-        // IMPORTANTE: el snapshot de una transacción es el valor POST-escritura,
-        // por eso el reclamo MARCA la entrada (reclamadoPor) en vez de borrarla:
-        // así el snapshot conserva uid y partidaId para poder unirse después.
-        // 1) Reclamo de cola_rapido/{key}: marca reclamadoPor=miUid. Aborta si la
-        //    entrada no existe, ya fue reclamada por otro, o por SIMETRÍA: entre
-        //    dos jugadores esperando a la vez, SOLO el de uid mayor inicia la
-        //    unión (evita que cada uno se una a la partida del otro y ambos
-        //    queden esperando infinitamente).
-        // 2) Escritura de 'unido' en la partida: solo procede si sigue con
-        //    estado 'esperando' y sin rival. Si otro llegó primero, aborta.
+        // Intenta unirse a la partida de un rival que está esperando en la cola
+        // de matchmaking. Devuelve true si la unión fue exitosa.
+        // Diseño a prueba de fallos:
+        // - La entrada de la cola del rival SOLO SE LEE, jamás se escribe ni se
+        //   transacciona: funciona aunque las reglas restrinjan escrituras ajenas.
+        // - La exclusión mutua la da UNA transacción sobre LA PARTIDA (el mismo
+        //   nodo que ya escribe 'unirsePartida' por código): si dos jugadores
+        //   intentan entrar al mismo hueco, SOLO uno logra escribir 'unido'.
+        // - SIMETRÍA: solo se intenta con rivales de uid MENOR que el mío. Entre
+        //   dos jugadores esperando a la vez, siempre uno solo inicia la unión,
+        //   así nadie termina como "rival en la partida del otro".
+        // - SI YO SOY ANFITRIÓN: primero libero MI propia partida con una
+        //   transacción que solo procede si TODAVÍA no tiene rival (si alguien
+        //   me acaba de unir a mí, me quedo y aborto). Después me uno al otro.
+        let uniendoRapido = false;
         async function intentarUnirseRapido(rivalKey) {
+            if (uniendoRapido || !estado.usuario) return false;
+            if (estado.enPartida || estado.fase === 'fin') return false;
+            if (estado.partidaId && estado.miLado === 'rival') return false;
+            uniendoRapido = true;
+            let libereMiPartida = false;
             try {
-                const entradaRef = ref(db, 'cola_rapido/' + rivalKey);
-                const miUid = estado.usuario ? estado.usuario.uid : '';
-                const claim = await runTransaction(entradaRef, (actual) => {
-                    if (!actual || !actual.partidaId || actual.reclamadoPor) return undefined;
-                    if (actual.uid && miUid && actual.uid >= miUid) return undefined;
-                    return { ...actual, reclamadoPor: miUid };
-                });
-                if (!claim.committed) return false; // otro jugador se llevó esta entrada o no califica
-                const datos = claim.snapshot.val() || {};
-                if (!datos.partidaId) return false;
+                const miUid = estado.usuario.uid;
+                const entradaSnap = await get(ref(db, 'cola_rapido/' + rivalKey));
+                const datos = entradaSnap.val();
+                if (!datos || !datos.partidaId || !datos.uid || datos.uid === miUid) return false;
+                if (datos.uid > miUid) return false; // simetría: solo rivales con uid menor
 
+                // PASO 1 (solo anfitriones): liberar MI partida sin rivales
+                if (estado.partidaId && estado.miLado === 'jugador') {
+                    cancelarRegistroDesconexion();
+                    detenerEscuchaColaRapido();
+                    detenerReintentoEmparejamiento();
+                    detenerEscuchaPartida();
+                    const mia = await runTransaction(ref(db, 'partidas/' + estado.partidaId), (p) => {
+                        if (!p || p.estado !== 'esperando' || p.unido ||
+                            !p.creador || p.creador.uid !== miUid) return undefined;
+                        return null; // liberada: nadie se me había unido aún
+                    });
+                    if (!(mia.committed)) {
+                        // Un rival me unió a MÍ mientras tanto: restaurar mi partida
+                        estado.fase = 'esperando';
+                        escucharPartida(estado.partidaId);
+                        registrarSalidaRepentina();
+                        return false;
+                    }
+                    remove(ref(db, 'cola_rapido/' + miUid)).catch(() => {});
+                    libereMiPartida = true;
+                    estado.partidaId = null;
+                    estado.miLado = null;
+                    estado.fase = 'lobby';
+                }
+
+                // PASO 2: ocupar el hueco de 'unido' en la partida del rival
                 const partidaRef = ref(db, 'partidas/' + datos.partidaId);
                 const resultado = await runTransaction(partidaRef, (partida) => {
                     if (!partida || partida.estado !== 'esperando' || partida.unido) return undefined;
-                    partida.unido = { uid: estado.usuario.uid, nickname: estado.nickname || 'Jugador', fotoURL: estado.fotoURL || '', listo: true };
+                    partida.unido = { uid: miUid, nickname: estado.nickname || 'Jugador', fotoURL: estado.fotoURL || '', listo: true };
                     partida.estado = 'jugando';
                     partida.ultimaActividad = Date.now();
                     return partida;
                 });
+                if (!(resultado.committed && resultado.snapshot.exists())) {
+                    // El hueco se cerró entre medias: seguir buscando (si liberé
+                    // mi partida, jugarRapido recreará partida+cola)
+                    if (libereMiPartida) setTimeout(() => jugarRapido(), 50);
+                    return false;
+                }
 
-                // La entrada ya cumplió su ciclo: borrarla SIEMPRE acá (haya
-                // funcionado o no), así nunca queda un fantasma en la cola
-                // apuntando a una partida que ya no acepta rivales.
-                remove(entradaRef).catch(() => {});
-                if (!(resultado.committed && resultado.snapshot.exists())) return false;
+                // Éxito: limpiar entradas de la cola (la mía siempre; la del rival
+                // mejor-esfuerzo, por si las reglas impiden borrar la ajena)
+                remove(ref(db, 'cola_rapido/' + miUid)).catch(() => {});
+                remove(ref(db, 'cola_rapido/' + rivalKey)).catch(() => {});
+                detenerEscuchaColaRapido();
+                detenerReintentoEmparejamiento();
 
-                // Éxito: sacar también MI propia entrada de la cola (si quedaba) y entrar
-                remove(ref(db, 'cola_rapido/' + estado.usuario.uid)).catch(() => {});
                 estado.partidaId = datos.partidaId;
                 estado.miLado = 'rival';
                 estado.fase = 'esperando';
@@ -1767,14 +1801,50 @@
                 dom.overlayEsperando.classList.add('oculto');
                 dom.nombreRivalEtiqueta.textContent = datos.nickname || 'Rival';
                 estado.rivalNombre = datos.nickname || 'Rival';
-                detenerEscuchaColaRapido();
                 registrarSalidaRepentina();
                 escucharPartida(datos.partidaId);
                 return true;
             } catch (error) {
                 console.error('Error intentando unirse rápido:', error);
+                if (libereMiPartida) setTimeout(() => jugarRapido(), 50);
                 return false;
+            } finally {
+                uniendoRapido = false;
             }
+        }
+
+        // Reintento periódico de emparejamiento mientras espero como anfitrión de
+        // una partida rápida: si por cualquier motivo (evento perdido, carrera,
+        // error puntual de red) la unión no se concretó, cada pocos segundos
+        // vuelvo a buscar candidatos en la cola. AUTOCURATIVO: garantiza que
+        // nadie quede esperando infinitamente.
+        let reintentoMatchTimer = null;
+        function iniciarReintentoEmparejamiento() {
+            detenerReintentoEmparejamiento();
+            reintentoMatchTimer = setInterval(async () => {
+                // Solo tiene sentido mientras estoy como host esperando rival
+                if (!estado.usuario || estado.enPartida ||
+                    (estado.partidaId && estado.miLado === 'rival') || estado.fase !== 'esperando') {
+                    detenerReintentoEmparejamiento();
+                    return;
+                }
+                try {
+                    const snap = await get(ref(db, 'cola_rapido'));
+                    const candidatos = [];
+                    if (snap.exists()) {
+                        snap.forEach((child) => {
+                            const val = child.val();
+                            if (val && val.uid && val.uid !== estado.usuario.uid) candidatos.push(child.key);
+                        });
+                    }
+                    for (const key of candidatos) {
+                        if (await intentarUnirseRapido(key)) return; // éxito: el propio intento ya cortó el timer
+                    }
+                } catch (e) { /* silencioso: se reintenta en el próximo ciclo */ }
+            }, 4000);
+        }
+        function detenerReintentoEmparejamiento() {
+            if (reintentoMatchTimer) { clearInterval(reintentoMatchTimer); reintentoMatchTimer = null; }
         }
 
         async function jugarRapido() {
@@ -1877,6 +1947,10 @@
                     });
                 }, (error) => console.error('Error escuchando cola rápida:', error));
 
+                // Red de seguridad: reintentar el emparejamiento cada pocos
+                // segundos mientras espero, pase lo que pase
+                iniciarReintentoEmparejamiento();
+
                 buscandoRapido = false;
             } catch (error) {
                 console.error('Error en búsqueda rápida:', error);
@@ -1915,6 +1989,15 @@
         // viejo lo sacaba de su partida en curso para meterlo en la de un extraño.
         function detenerEscuchaColaRapido() {
             if (colaRapidoListener) { colaRapidoListener(); colaRapidoListener = null; }
+        }
+
+        // Suelta la escucha sobre MI partida (sin tocar el resto del estado).
+        // La usa el matchmaking cuando, siendo anfitrión, voy a abandonar mi
+        // propia partida para unirme a la de otro: así el evento de borrado no
+        // dispara volverAlLobbyDeEspera() y pisa el nuevo estado.
+        function detenerEscuchaPartida() {
+            if (partidaListener) { partidaListener(); partidaListener = null; }
+            ultimoEstadoJuego = null;
         }
 
         // Registra (en el servidor) qué lado se desconectó sin cerrar bien la
@@ -2236,6 +2319,9 @@
                 if (estado.miLado === 'jugador' && partida.unido && estado.fase === 'esperando') {
                     estado.fase = 'jugando';
                     estado.enPartida = true;
+                    // Limpieza redundante de seguridad: sacar MI entrada de la
+                    // cola de matchmaking (el rival ya intentó hacerlo)
+                    if (estado.usuario) remove(ref(db, 'cola_rapido/' + estado.usuario.uid)).catch(() => {});
                     dom.overlayEsperando.classList.add('oculto');
                     dom.nombreRivalEtiqueta.textContent = partida.unido.nickname || 'Rival';
                     estado.rivalNombre = partida.unido.nickname || 'Rival';
@@ -3508,6 +3594,7 @@
         // cancelar manualmente como cuando la partida desaparece sola.
         function volverAlLobbyDeEspera() {
             detenerEscuchaColaRapido();
+            detenerReintentoEmparejamiento();
             cancelarRegistroDesconexion();
             if (partidaListener) { partidaListener(); partidaListener = null; }
             ultimoEstadoJuego = null;
