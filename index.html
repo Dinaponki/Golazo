@@ -1866,7 +1866,12 @@
                             const partidosPerdidos = (on.partidosPerdidos || 0) + 1;
                             const partidosGanados = (on.partidosGanados || 0);
                             const partidosEmpatados = (on.partidosEmpatados || 0);
-                            const puntos = (partidosGanados * 3) + (partidosEmpatados * 1) - (partidosPerdidos * 5);
+                            // Restar los 5 puntos INCREMENTALMENTE sobre el acumulado
+                            // existente, igual que guardarResultadoPartidoOnline (playonline.html).
+                            // La fórmula reconstruida (pg*3 + pe*1 - pp*5) "pisaba" los puntos
+                            // reales del jugador cuando ya tenía derrotas previas grabadas, y
+                            // el castigo por abandono dejaba de ser exactamente -5.
+                            const puntos = (on.puntos || 0) - 5;
                             const efectividad = partidosJugados > 0 ? Math.round((partidosGanados / partidosJugados) * 1000) / 10 : 0;
                             const historialPartidos = on.historialPartidos || [];
                             historialPartidos.push({
