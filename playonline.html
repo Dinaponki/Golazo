@@ -704,8 +704,8 @@
     <!-- ============ OVERLAY SALIDA ============ -->
     <div class="overlay-salida" id="overlaySalida">
         <div class="salida-contenedor">
-            <div class="salida-titulo"><span class="icono-advertencia">⚠️</span> ¿Abandonar partida?</div>
-            <div class="salida-mensaje">Si salís de la partida online, <span class="destacado-salida">se registrará como abandono</span> y tu rival ganará la partida.</div>
+            <div class="salida-titulo" id="salidaTitulo"><span class="icono-advertencia">⚠️</span> ¿Abandonar partida?</div>
+            <div class="salida-mensaje" id="salidaMensaje">Si salís de la partida online, <span class="destacado-salida">se registrará como abandono</span> y tu rival ganará la partida.</div>
             <div class="botones-salida">
                 <button class="btn-salida btn-cancelar-salida" id="btnCancelarSalida">✕ Cancelar</button>
                 <button class="btn-salida btn-salir-salida" id="btnConfirmarSalida">🚪 Salir</button>
@@ -915,6 +915,8 @@
             dom.panelMarcador = document.getElementById('panelMarcador');
             dom.thJugador = document.getElementById('thJugador');
             dom.overlaySalida = document.getElementById('overlaySalida');
+            dom.salidaTitulo = document.getElementById('salidaTitulo');
+            dom.salidaMensaje = document.getElementById('salidaMensaje');
             dom.btnCancelarSalida = document.getElementById('btnCancelarSalida');
             dom.btnConfirmarSalida = document.getElementById('btnConfirmarSalida');
             dom.mensajeFlotante = document.getElementById('mensajeFlotante');
@@ -1661,6 +1663,8 @@
                 dom.codigoPartida.textContent = codigo;
                 dom.esperandoTitulo.textContent = 'Esperando rival...';
                 dom.esperandoSubtitulo.textContent = 'Compartí este código con tu rival';
+                // Habilitar la advertencia de salida mientras se espera
+                empujarEstadoEspera();
                 escucharPartida(codigo);
             } catch (error) {
                 console.error('Error creando partida:', error);
@@ -1695,6 +1699,7 @@
                 dom.overlayEsperando.classList.add('oculto');
                 dom.nombreRivalEtiqueta.textContent = partida.creador.nickname || 'Rival';
                 estado.rivalNombre = partida.creador.nickname || 'Rival';
+                empujarEstadoEspera();
                 escucharPartida(codigo);
             } catch (error) {
                 console.error('Error uniéndose a partida:', error);
@@ -1792,6 +1797,9 @@
                 dom.esperandoSubtitulo.textContent = 'Esperando a que otro jugador presione "Jugar rápido"';
                 // Ocultar el código porque el emparejamiento es automático
                 dom.codigoPartida.style.display = 'none';
+                // Habilitar la advertencia de salida mientras se busca rival
+                // (antes el primer jugador de la rápida salía sin ningún aviso)
+                empujarEstadoEspera();
 
                 // Escuchar la partida: cuando el rival se una, iniciar el juego automáticamente
                 escucharPartida(codigo);
@@ -1918,6 +1926,40 @@
                 });
             } catch (error) { console.error('Error marcando abandono del rival:', error); }
             mostrarFinPartido(resultado);
+        }
+
+        // ============ ADVERTENCIA DE SALIDA ============
+        // true si estoy esperando rival (cola de matchmaking o código), todavía
+        // sin partida empezada. El PRIMER jugador de una partida rápida pasa por
+        // este estado y antes salía SIN ninguna advertencia.
+        function estaEsperando() {
+            return !!estado.partidaId && !estado.enPartida && estado.fase === 'esperando';
+        }
+
+        let esperaPushHecha = false;
+
+        // Muestra el overlay de salida con el mensaje adecuado según el contexto:
+        // en plena partida → abandono con pérdida de puntos;
+        // buscando rival → cancelación de la búsqueda (con limpieza incluida).
+        function mostrarOverlaySalida() {
+            if (!dom.salidaMensaje) return;
+            if (estaEsperando()) {
+                dom.salidaTitulo.innerHTML = '<span class="icono-advertencia">⚠️</span> ¿Salir de la búsqueda?';
+                dom.salidaMensaje.innerHTML = 'Estás <span class="destacado-salida">esperando un rival</span> para la partida rápida. Si salís ahora, <span class="destacado-salida">se cancelará la búsqueda</span> y vas a tener que buscar de nuevo.';
+                dom.btnConfirmarSalida.textContent = '🚪 Salir';
+            } else {
+                dom.salidaTitulo.innerHTML = '<span class="icono-advertencia">⚠️</span> ¿Abandonar partida?';
+                dom.salidaMensaje.innerHTML = 'Si salís de la partida online, <span class="destacado-salida">se registrará como abandono</span>, tu rival ganará la partida y <span class="destacado-salida">perderás puntos</span> en el ranking online.';
+                dom.btnConfirmarSalida.textContent = '🚪 Salir';
+            }
+            dom.overlaySalida.classList.add('visible');
+        }
+
+        // Empuja un estado de historial durante la espera para que el botón
+        // "atrás" del navegador dispare el aviso en vez de irse de la página.
+        function empujarEstadoEspera() {
+            history.pushState({ esperandoRival: true }, '', location.href);
+            esperaPushHecha = true;
         }
 
         function escucharPartida(codigo) {
@@ -3192,6 +3234,12 @@
             dom.overlayLobby.classList.remove('oculto');
             dom.btnCrearPartida.disabled = false;
             dom.btnUnirsePartida.disabled = false;
+            // Consumir el estado de historial que empujamos al entrar en espera,
+            // para que "atrás" no quede pisando en la misma página
+            if (esperaPushHecha) {
+                esperaPushHecha = false;
+                try { history.back(); } catch (e) { /* noop */ }
+            }
         }
 
         // ============ INICIALIZACIÓN ============
@@ -3236,13 +3284,18 @@
             dom.btnCrearPartida.addEventListener('click', crearPartida);
             dom.btnUnirsePartida.addEventListener('click', unirsePartida);
             dom.btnVolverInicio.addEventListener('click', () => {
-                if (estado.enPartida) {
-                    dom.overlaySalida.classList.add('visible');
+                if (estado.enPartida || estaEsperando()) {
+                    mostrarOverlaySalida();
                 } else {
                     window.location.href = 'index.html';
                 }
             });
-            dom.btnCancelarEspera.addEventListener('click', cancelarEspera);
+            // El "✕ Cancelar" de la espera ahora pasa por la advertencia de
+            // salida (igual que el jugador que se une después en plena partida)
+            dom.btnCancelarEspera.addEventListener('click', () => {
+                if (estaEsperando()) mostrarOverlaySalida();
+                else cancelarEspera();
+            });
 
             dom.inputCodigo.addEventListener('input', () => {
                 dom.inputCodigo.value = dom.inputCodigo.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, CODIGO_LENGTH);
@@ -3283,7 +3336,13 @@
             dom.btnGolazo.addEventListener('click', () => { if (!dom.btnGolazo.disabled) jugadorRespondeGolazo(); });
 
             dom.btnCancelarSalida.addEventListener('click', () => dom.overlaySalida.classList.remove('visible'));
-            dom.btnConfirmarSalida.addEventListener('click', () => { dom.overlaySalida.classList.remove('visible'); abandonarPartida(); });
+            dom.btnConfirmarSalida.addEventListener('click', () => {
+                dom.overlaySalida.classList.remove('visible');
+                // Durante la espera la salida correcta es cancelarEspera()
+                // (borra partida + entrada de cola); en partida, abandonarPartida()
+                if (estaEsperando()) cancelarEspera();
+                else abandonarPartida();
+            });
 
             dom.btnRevancha.addEventListener('click', () => window.location.reload());
 
@@ -3310,8 +3369,8 @@ ${link}`;
             });
 
             dom.btnInicio.addEventListener('click', () => {
-                if (estado.enPartida) {
-                    dom.overlaySalida.classList.add('visible');
+                if (estado.enPartida || estaEsperando()) {
+                    mostrarOverlaySalida();
                 } else {
                     window.location.href = 'index.html';
                 }
@@ -3330,16 +3389,19 @@ ${link}`;
             });
 
             window.addEventListener('beforeunload', (e) => {
-                if (estado.enPartida) { e.preventDefault(); e.returnValue = ''; }
+                // Advertir también durante la ESPERA de rival (partida rápida):
+                // antes solo se avisaba con la partida ya empezada
+                if (estado.enPartida || estaEsperando()) { e.preventDefault(); e.returnValue = ''; }
             });
 
             // Interceptar navegación hacia atrás (botón del navegador)
             window.addEventListener('popstate', (e) => {
-                if (estado.enPartida) {
+                if (estado.enPartida || estaEsperando()) {
                     e.preventDefault();
-                    dom.overlaySalida.classList.add('visible');
+                    mostrarOverlaySalida();
                     // Mantener en la página empujando un nuevo estado
-                    history.pushState({ juegoIniciado: true }, '', location.href);
+                    history.pushState({ bloqueoSalida: true }, '', location.href);
+                    if (estaEsperando()) esperaPushHecha = true;
                 }
             });
 
