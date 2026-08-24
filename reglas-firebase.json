@@ -110,11 +110,6 @@
           "jugador": { ".validate": "newData.isString()" },
           "rival": { ".validate": "newData.isString()" }
         },
-        "online": {
-          ".read": "auth != null",
-          "jugador": { ".validate": "newData.isBoolean()" },
-          "rival": { ".validate": "newData.isBoolean()" }
-        },
         "$other": { ".validate": false }
       }
     },

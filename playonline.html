@@ -821,7 +821,7 @@
         // ============================================================
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
-        import { getDatabase, ref, get, set, update, onValue, remove, onDisconnect, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-database.js";
+        import { getDatabase, ref, get, set, update, onValue, remove, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDsgQ2dwokGq3umlptHtMCVgFISLe8ySM0",
@@ -1414,38 +1414,11 @@
             if (clavesCrypto.inicializando) return clavesCrypto.inicializando;
             clavesCrypto.inicializando = (async () => {
                 if (!clavesCrypto.parEstatico) {
-                    // Restaurar claves guardadas en esta pestaña (sessionStorage):
-                    // permite reconectar tras recargar la página y seguir
-                    // descifrando la mano propia que ya está cifrada en Firebase.
-                    const guardadas = sessionStorage.getItem('golazo_claves_' + estado.partidaId);
-                    let restauradas = false;
-                    if (guardadas) {
-                        try {
-                            const c = JSON.parse(guardadas);
-                            const pub = await crypto.subtle.importKey('raw', base64AU8a(c.pub), { name: 'ECDH', namedCurve: 'P-256' }, true, []);
-                            const priv = await crypto.subtle.importKey('pkcs8', base64AU8a(c.priv), { name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
-                            const aes = await crypto.subtle.importKey('raw', base64AU8a(c.aes), 'AES-GCM', true, ['encrypt', 'decrypt']);
-                            clavesCrypto.parEstatico = { publicKey: pub, privateKey: priv };
-                            clavesCrypto.claveManoAES = aes;
-                            restauradas = true;
-                        } catch (e) { console.warn('No se pudieron restaurar las claves:', e); }
-                    }
-                    if (!restauradas) {
-                        clavesCrypto.parEstatico = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
-                        const bytes = crypto.getRandomValues(new Uint8Array(32));
-                        clavesCrypto.claveManoAES = await crypto.subtle.importKey('raw', bytes, 'AES-GCM', true, ['encrypt', 'decrypt']);
-                        // Persistir las claves SOLO en sessionStorage (mueren al
-                        // cerrar la pestaña: cerrarla sigue siendo un abandono)
-                        try {
-                            sessionStorage.setItem('golazo_claves_' + estado.partidaId, JSON.stringify({
-                                pub: u8aABase64(new Uint8Array(await crypto.subtle.exportKey('raw', clavesCrypto.parEstatico.publicKey))),
-                                priv: u8aABase64(new Uint8Array(await crypto.subtle.exportKey('pkcs8', clavesCrypto.parEstatico.privateKey))),
-                                aes: u8aABase64(new Uint8Array(await crypto.subtle.exportKey('raw', clavesCrypto.claveManoAES)))
-                            }));
-                        } catch (e) { console.warn('No se pudieron guardar las claves:', e); }
-                    }
+                    clavesCrypto.parEstatico = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
                     const pubRaw = new Uint8Array(await crypto.subtle.exportKey('raw', clavesCrypto.parEstatico.publicKey));
                     await set(ref(db, 'partidas/' + estado.partidaId + '/clavesPub/' + estado.miLado), u8aABase64(pubRaw));
+                    const bytes = crypto.getRandomValues(new Uint8Array(32));
+                    clavesCrypto.claveManoAES = await crypto.subtle.importKey('raw', bytes, 'AES-GCM', false, ['encrypt', 'decrypt']);
                 }
                 clavesCrypto.lista = true;
             })();
@@ -1881,156 +1854,6 @@
             }
         }
 
-        // ============ SESIÓN DE RECONEXIÓN ============
-        // Guarda los datos mínimos en sessionStorage para poder retomar la
-        // partida si se recarga la página (sessionStorage muere al cerrar la
-        // pestaña, así que cerrarla sigue contando como abandono).
-        function guardarSesionReconexion() {
-            if (!estado.partidaId || !estado.miLado) return;
-            try { sessionStorage.setItem('golazo_partida', JSON.stringify({ partidaId: estado.partidaId, miLado: estado.miLado })); } catch (e) {}
-        }
-
-        function limpiarSesionReconexion() {
-            try { sessionStorage.removeItem('golazo_partida'); } catch (e) {}
-        }
-
-        async function intentarReconexion() {
-            let guardada = null;
-            try { guardada = JSON.parse(sessionStorage.getItem('golazo_partida')); } catch (e) {}
-            if (!guardada || !guardada.partidaId || !guardada.miLado) return;
-            try {
-                const snap = await get(ref(db, 'partidas/' + guardada.partidaId));
-                if (!snap.exists()) { limpiarSesionReconexion(); return; }
-                const partida = snap.val();
-                // Solo se retoman partidas EN CURSO. Si terminó o fue borrada,
-                // se limpia la sesión y se vuelve al lobby normalmente.
-                if (partida.estado !== 'jugando') { limpiarSesionReconexion(); return; }
-                estado.partidaId = guardada.partidaId;
-                estado.miLado = guardada.miLado;
-                estado.esPartidaRapida = partida.rapida === true;
-                const datosRival = guardada.miLado === 'jugador' ? partida.unido : partida.creador;
-                estado.rivalNombre = (datosRival && datosRival.nickname) || 'Rival';
-                dom.nombreRivalEtiqueta.textContent = estado.rivalNombre;
-                dom.overlayLobby.classList.add('oculto');
-                dom.overlayEsperando.classList.add('oculto');
-                escucharPartida(estado.partidaId);
-            } catch (error) { console.error('Error reconectando a la partida:', error); }
-        }
-
-        // ============ PRESENCIA / DESCONEXIÓN DEL RIVAL ============
-        // Cada jugador publica partidas/<id>/online/<lado> = true y programa con
-        // onDisconnect() que Firebase lo ponga en false solo si su conexión cae
-        // (pestaña cerrada, pérdida de internet, etc.). El listener del rival lo
-        // detecta y, tras un margen de gracia, permite reclamar la victoria.
-        let presenciaArmadaPara = null;
-        let timeoutDesconexion = null;
-        let intervaloSenal = null;
-
-        function armarPresencia() {
-            if (presenciaArmadaPara === estado.partidaId) return;
-            if (!estado.usuario || !estado.partidaId || !estado.miLado) return;
-            if (estado.fase === 'fin' || estado.partidaTerminada) return;
-            const miPresenciaRef = ref(db, 'partidas/' + estado.partidaId + '/online/' + estado.miLado);
-            onDisconnect(miPresenciaRef).set(false)
-                .then(() => { presenciaArmadaPara = estado.partidaId; return set(miPresenciaRef, true); })
-                .catch((e) => console.warn('Error armando presencia:', e));
-        }
-
-        // Latido: mientras la partida está en curso, cada jugador escribe la hora
-        // actual en juego/senales/<lado> cada 10 segundos. Es un RESPALDO de la
-        // presencia: ese nodo ya es escribible por ambos jugadores con las reglas
-        // actuales, así que aunque el nodo online falle (p.ej. reglas sin el
-        // nuevo permiso), igual se detecta al rival caído por latidos vencidos.
-        function enviarSenal() {
-            if (!estado.partidaId || !estado.miLado) return;
-            update(ref(db, 'partidas/' + estado.partidaId + '/juego'), { ['senales/' + estado.miLado]: Date.now() }).catch(() => {});
-        }
-
-        function iniciarLatido() {
-            enviarSenal();
-            if (intervaloSenal) return;
-            intervaloSenal = setInterval(() => {
-                if (!estado.enPartida || estado.fase !== 'jugando' || estado.partidaTerminada) return;
-                enviarSenal();
-            }, 10000);
-        }
-
-        function detenerLatido() {
-            if (intervaloSenal) { clearInterval(intervaloSenal); intervaloSenal = null; }
-        }
-
-        // Decide si el rival está fuera por DOS vías independientes:
-        // 1) Presencia: Firebase marcó online/<rival> = false al desconectarse.
-        // 2) Latidos: su última señal tiene más de 45s, o nunca llegó teniendo
-        //    yo la mía fresca (o sea, yo sí estoy latiendo y él no aparece).
-        function rivalEstaFuera(partida) {
-            const ladoRivalAbs = estado.miLado === 'jugador' ? 'rival' : 'jugador';
-            if (partida.online && partida.online[ladoRivalAbs] === false) return true;
-            const j = partida.juego;
-            if (j && j.senales) {
-                const mia = j.senales[estado.miLado];
-                const delRival = j.senales[ladoRivalAbs];
-                // Solo confío en este chequeo si MI latido está fresco
-                if (typeof mia === 'number' && Date.now() - mia < 30000) {
-                    if (typeof delRival !== 'number' || Date.now() - delRival > 45000) return true;
-                }
-            }
-            return false;
-        }
-
-        function verificarRivalEnLinea(partida) {
-            if (estado.fase === 'fin' || estado.partidaTerminada || !estado.enPartida) return;
-            if (!partida || partida.estado !== 'jugando') return;
-            if (!rivalEstaFuera(partida)) {
-                // Está en línea (o volvió): cancelar cualquier reclamo pendiente
-                if (timeoutDesconexion) { clearTimeout(timeoutDesconexion); timeoutDesconexion = null; }
-                return;
-            }
-            if (timeoutDesconexion) return;
-            mostrarMensaje('⚠ ' + estado.rivalNombre + ' se desconectó...');
-            // Margen de gracia por si es una caída momentánea; luego se
-            // re-verifica con datos frescos antes de declarar la victoria
-            timeoutDesconexion = setTimeout(reclamarVictoriaPorDesconexion, 12000);
-        }
-
-        async function reclamarVictoriaPorDesconexion() {
-            timeoutDesconexion = null;
-            if (estado.fase === 'fin' || estado.partidaTerminada || !estado.enPartida) return;
-            try {
-                const snap = await get(ref(db, 'partidas/' + estado.partidaId));
-                if (!snap.exists()) return;
-                const partida = snap.val();
-                if (partida.estado !== 'jugando') return;
-                if (!rivalEstaFuera(partida)) return;
-                // Confirmado: el rival sigue fuera → gano la partida
-                await terminarPartidaConAbandono(estado.miLado, partida);
-            } catch (error) { console.error('Error reclamando victoria por desconexión:', error); }
-        }
-
-        // Termina la partida registrándola como abandono del lado perdedor.
-        // Se usa tanto cuando abandono yo como cuando el rival se desconecta.
-        // Llama a mostrarFinPartido() LOCALMENTE también: así quien provoca el
-        // fin pasa por el registro de su propio resultado (derrota -5 pts o
-        // victoria +3 pts) aunque el listener de Firebase tarde en llegar.
-        async function terminarPartidaConAbandono(ganadorAbs, datosPartida) {
-            const juegoFB = (datosPartida && datosPartida.juego) || {};
-            const resultado = {
-                ganador: ganadorAbs,
-                golesJugador: juegoFB.golesJugador || 0,
-                golesRival: juegoFB.golesRival || 0,
-                abandono: true
-            };
-            try {
-                await update(ref(db, 'partidas/' + estado.partidaId), {
-                    estado: 'terminada',
-                    resultado,
-                    ultimaActividad: Date.now()
-                });
-            } catch (error) { console.error('Error terminando partida:', error); }
-            limpiarSesionReconexion();
-            mostrarFinPartido(resultado);
-        }
-
         // ============ FIREBASE: ESCUCHAR ============
         let partidaListener = null;
         let ultimoEstadoJuego = null;
@@ -2044,15 +1867,6 @@
                 const partida = snap.val();
                 // Detectar si es una partida rápida (para el ranking online)
                 estado.esPartidaRapida = partida.rapida === true;
-
-                // Si la partida está en curso: guardar datos para reconectar,
-                // armar mi presencia, empezar mis latidos y vigilar al rival
-                if (partida.estado === 'jugando' && estado.miLado) {
-                    guardarSesionReconexion();
-                    armarPresencia();
-                    iniciarLatido();
-                    verificarRivalEnLinea(partida);
-                }
 
                 // Publicar mis claves de cifrado apenas haya rival (las manos viajan cifradas)
                 if (partida.unido && estado.miLado && partida.estado !== 'terminada') {
@@ -3195,9 +3009,6 @@
             // automático (cambio de pestaña, botón atrás, etc.) puede quitar
             // esta pantalla ni registrar un abandono.
             estado.partidaTerminada = true;
-            limpiarSesionReconexion();
-            detenerLatido();
-            if (timeoutDesconexion) { clearTimeout(timeoutDesconexion); timeoutDesconexion = null; }
             dom.overlayFin.classList.remove('oculto');
             // Convertir goles absolutos a relativos
             const gJ = estado.miLado === 'jugador' ? (resultado.golesJugador || 0) : (resultado.golesRival || 0);
@@ -3251,33 +3062,28 @@
                     const snap = await get(partidaRef);
                     if (snap.exists()) {
                         const partida = snap.val();
-                        // El rival ya terminó o abandonó antes: mostrar su
-                        // resultado tal cual, sin sobrescribirlo
-                        if (partida.estado === 'terminada') {
-                            if (partida.resultado && estado.fase !== 'fin') {
-                                limpiarSesionReconexion();
-                                mostrarFinPartido(partida.resultado);
-                            }
-                            return;
-                        }
-                        // El que abandona pierde: registrar el resultado Y pasar
-                        // por mostrarFinPartido() para registrar la derrota (-5).
-                        // Ya NO se navega a index.html inmediatamente: eso dejaba
-                        // el abandono "gratis" porque nunca se registraba.
                         const ganador = estado.miLado === 'jugador' ? 'rival' : 'jugador';
-                        await terminarPartidaConAbandono(ganador, partida);
-                        return;
+                        await update(partidaRef, {
+                            estado: 'terminada',
+                            resultado: {
+                                ganador,
+                                golesJugador: partida.juego ? partida.juego.golesJugador : 0,
+                                golesRival: partida.juego ? partida.juego.golesRival : 0,
+                                abandono: true
+                            },
+                            ultimaActividad: Date.now()
+                        });
                     }
                 } catch (error) { console.error('Error abandonando partida:', error); }
-                window.location.href = 'index.html';
-                return;
             }
+            // Las estadísticas se guardan automáticamente en cada cliente vía
+            // mostrarFinPartido(): el que abandona registra derrota (-5 pts) y
+            // el rival registra victoria (+3 pts) cuando detecta el abandono.
             window.location.href = 'index.html';
         }
 
         // ============ CANCELAR ESPERA ============
         async function cancelarEspera() {
-            limpiarSesionReconexion();
             if (estado.partidaId && estado.miLado === 'jugador') {
                 try { await remove(ref(db, 'partidas/' + estado.partidaId)); }
                 catch (error) { console.error('Error cancelando partida:', error); }
@@ -3299,9 +3105,6 @@
             onAuthStateChanged(auth, (user) => {
                 estado.usuario = user;
                 if (user) {
-                    // Si hay una partida en curso guardada en esta pestaña
-                    // (recarga de página), retomarla en lugar de volver al lobby
-                    intentarReconexion();
                     const userRef = ref(db, 'usuarios/' + user.uid + '/nickname');
                     onValue(userRef, (snap) => {
                         const nick = snap.val() || '';
@@ -3384,16 +3187,6 @@
 
             dom.btnCancelarSalida.addEventListener('click', () => dom.overlaySalida.classList.remove('visible'));
             dom.btnConfirmarSalida.addEventListener('click', () => { dom.overlaySalida.classList.remove('visible'); abandonarPartida(); });
-
-            // ============ PRESENCIA: REARME AUTOMÁTICO ============
-            // Cuando la conexión con Firebase se cae y vuelve, Firebase ya
-            // ejecutó el onDisconnect anterior (mi nodo quedó en false), así
-            // que hay que rearmarlo. .info/connected avisa en cada reconexión.
-            onValue(ref(db, '.info/connected'), (snap) => {
-                if (snap.val() !== true) return;
-                presenciaArmadaPara = null;
-                armarPresencia();
-            });
 
             dom.btnRevancha.addEventListener('click', () => window.location.reload());
 
