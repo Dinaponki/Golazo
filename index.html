@@ -1856,46 +1856,11 @@
                     const snap = await get(userRef);
                     if (snap.exists()) {
                         const datos = snap.val();
-                        // Abandono de partida ONLINE (pestaña cerrada sin confirmar salida):
-                        // el cliente dejó marcado onlineStats.abandonoPendiente=true al
-                        // desconectarse. Al volver, registrar la derrota (-5 pts) si
-                        // todavía no hay un resultado posterior que lo haya limpiado.
-                        const on = datos.onlineStats || {};
-                        if (on.abandonoPendiente === true) {
-                            const partidosJugados = (on.partidosJugados || 0) + 1;
-                            const partidosPerdidos = (on.partidosPerdidos || 0) + 1;
-                            const partidosGanados = (on.partidosGanados || 0);
-                            const partidosEmpatados = (on.partidosEmpatados || 0);
-                            // Restar los 5 puntos INCREMENTALMENTE sobre el acumulado
-                            // existente, igual que guardarResultadoPartidoOnline (playonline.html).
-                            // La fórmula reconstruida (pg*3 + pe*1 - pp*5) "pisaba" los puntos
-                            // reales del jugador cuando ya tenía derrotas previas grabadas, y
-                            // el castigo por abandono dejaba de ser exactamente -5.
-                            const puntos = (on.puntos || 0) - 5;
-                            const efectividad = partidosJugados > 0 ? Math.round((partidosGanados / partidosJugados) * 1000) / 10 : 0;
-                            const historialPartidos = on.historialPartidos || [];
-                            historialPartidos.push({
-                                fecha: Date.now(),
-                                resultado: 'perder',
-                                golesFavor: 0,
-                                golesContra: 0,
-                                online: true,
-                                abandono: true
-                            });
-                            const historialLimitado = historialPartidos.slice(-200);
-                            await update(ref(db, 'usuarios/' + uid + '/onlineStats'), {
-                                puntos,
-                                partidosJugados,
-                                partidosPerdidos,
-                                efectividad,
-                                rachaActual: 0,
-                                historialPartidos: historialLimitado,
-                                abandonoPendiente: false,
-                                ultimaActualizacion: serverTimestamp()
-                            });
-                            console.log('Abandono online detectado: -5 puntos');
-                            mostrarToast('⚠ Abandonaste una partida online: -5 puntos');
-                        }
+                        // Abandono de partida ONLINE (pestaña cerrada o salida sin
+                        // confirmar): lo procesa vigilarAbandonoOnline(), que cubre
+                        // tanto la marca ya presente como la que llega tarde desde
+                        // onDisconnect (varios segundos después de cargar la página).
+                        await aplicarPenalizacionAbandonoOnline(uid);
                         // Abandono de partida contra la CPU (play.html)
                         if (datos.enPartida === true) {
                             const partidosJugados = (datos.partidosJugados || 0) + 1;
@@ -1929,6 +1894,76 @@
                     console.error('Error verificando abandono:', error);
                 }
             }
+
+        // ================= ABANDONO ONLINE EN VIVO =================
+        // La marca onlineStats.abandonoPendiente la escribe onDisconnect en el
+        // SERVIDOR, y eso puede tardar varios segundos DESPUÉS de que el jugador
+        // ya navegó de vuelta a esta página (doble "atrás" en móvil, cerrar y
+        // volver rápido, etc.). Antes verificarAbandono leía las stats una sola
+        // vez al cargar: si la marca aún no había llegado, el abandono quedaba
+        // SIN registrar y el jugador escapaba del -5. Ahora un listener en vivo
+        // procesa la marca apenas aparezca, con guarda anti-doble-proceso.
+        let procesandoAbandonoOnline = false;
+
+        async function aplicarPenalizacionAbandonoOnline(uid) {
+            if (procesandoAbandonoOnline) return;
+            procesandoAbandonoOnline = true;
+            try {
+                const statsRef = ref(db, 'usuarios/' + uid + '/onlineStats');
+                const snap = await get(statsRef);
+                if (!snap.exists()) return;
+                const on = snap.val();
+                // Re-chequeo justo antes de escribir: otro camino pudo limpiarlo
+                // (p.ej. una partida posterior que guardó su resultado normal)
+                if (on.abandonoPendiente !== true) return;
+                const partidosJugados = (on.partidosJugados || 0) + 1;
+                const partidosPerdidos = (on.partidosPerdidos || 0) + 1;
+                const partidosGanados = (on.partidosGanados || 0);
+                // Restar los 5 puntos INCREMENTALMENTE sobre el acumulado existente,
+                // igual que guardarResultadoPartidoOnline (playonline.html).
+                const puntos = (on.puntos || 0) - 5;
+                const efectividad = partidosJugados > 0 ? Math.round((partidosGanados / partidosJugados) * 1000) / 10 : 0;
+                const historialPartidos = on.historialPartidos || [];
+                historialPartidos.push({
+                    fecha: Date.now(),
+                    resultado: 'perder',
+                    golesFavor: 0,
+                    golesContra: 0,
+                    online: true,
+                    abandono: true
+                });
+                await update(statsRef, {
+                    puntos,
+                    partidosJugados,
+                    partidosPerdidos,
+                    efectividad,
+                    rachaActual: 0,
+                    historialPartidos: historialPartidos.slice(-200),
+                    abandonoPendiente: false,
+                    ultimaActualizacion: serverTimestamp()
+                });
+                console.log('Abandono online detectado: -5 puntos');
+                mostrarToast('⚠ Abandonaste una partida online: -5 puntos');
+            } catch (error) {
+                console.error('Error aplicando abandono online:', error);
+            } finally {
+                procesandoAbandonoOnline = false;
+            }
+        }
+
+        // Listener permanente mientras el usuario está logueado en esta página:
+        // dispara al instante si la marca ya estaba, y también cuando onDisconnect
+        // la escriba más tarde (el caso del doble "atrás" en móvil).
+        function vigilarAbandonoOnline(uid) {
+            try {
+                const flagRef = ref(db, 'usuarios/' + uid + '/onlineStats/abandonoPendiente');
+                onValue(flagRef, (snap) => {
+                    if (snap.val() === true) aplicarPenalizacionAbandonoOnline(uid);
+                }, (error) => console.error('Error vigilando abandono online:', error));
+            } catch (error) {
+                console.error('Error vigilando abandono online:', error);
+            }
+        }
 
         function actualizarEstadisticasUsuario(lista, filtro, tipo) {
             if (!usuarioActual || !lista || lista.length === 0) {
@@ -2057,6 +2092,10 @@
                     }
                     // Detectar si el jugador abandonó una partida sin terminar
                     await verificarAbandono(user.uid);
+                    // Vigilar EN VIVO la marca de abandono online: puede llegar del
+                    // servidor varios segundos DESPUÉS de cargar esta página
+                    // (caso doble "atrás" en móvil desde playonline.html)
+                    vigilarAbandonoOnline(user.uid);
                     // Barrer partidas terminadas/vencidas y colas huérfanas
                     limpiarDatosVencidosIndex();
                     // Actualizar racha de días consecutivos de login (para logros)

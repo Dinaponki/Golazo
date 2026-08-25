@@ -4079,6 +4079,39 @@ ${link}`;
                 if (estado.enPartida || estaEsperando()) { e.preventDefault(); e.returnValue = ''; }
             });
 
+            // Al salir de la página en plena partida (doble "atrás" en móvil,
+            // cerrar pestaña, cambiar de app...), escribir YA la marca de abandono
+            // pendiente en MIS stats. El onDisconnect equivalente tarda varios
+            // segundos en efectivizarse en el servidor: sin esta escritura
+            // inmediata, el jugador llegaba a index.html, verificarAbandono leía
+            // las stats SIN la marca y el abandono quedaba sin registrar.
+            // Solo la marca de stats: NO marcamos abandonadoPor en la partida acá,
+            // porque el navegador puede restaurar la página desde bfcache (si el
+            // usuario volvió con "adelante") y el rival no debe ganarnos por error.
+            window.addEventListener('pagehide', () => {
+                if (!estado.enPartida || estado.partidaTerminada || estado.fase === 'fin') return;
+                if (!estado.usuario || !estado.partidaId) return;
+                try {
+                    update(ref(db, 'usuarios/' + estado.usuario.uid + '/onlineStats'), {
+                        abandonoPendiente: true,
+                        abandonoPendienteEn: Date.now()
+                    }).catch(() => {});
+                } catch (e) { /* noop: onDisconnect sigue como respaldo */ }
+            });
+
+            // Si la página vuelve desde bfcache (el jugador regresó con "adelante"
+            // y la partida siguió viva), deshacer la marca: la salida nunca ocurrió
+            window.addEventListener('pageshow', (e) => {
+                if (!e.persisted) return;
+                if (!estado.enPartida || estado.partidaTerminada || estado.fase === 'fin') return;
+                if (!estado.usuario) return;
+                try {
+                    update(ref(db, 'usuarios/' + estado.usuario.uid + '/onlineStats'), {
+                        abandonoPendiente: false
+                    }).catch(() => {});
+                } catch (e2) { /* noop */ }
+            });
+
             // Interceptar navegación hacia atrás (botón del navegador)
             window.addEventListener('popstate', (e) => {
                 if (estado.enPartida || estaEsperando()) {
