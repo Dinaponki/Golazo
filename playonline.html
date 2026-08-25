@@ -3600,7 +3600,7 @@
         function programarBorradoPartidaTerminada() {
             const cod = estado.partidaId;
             if (!cod || !estado.usuario) return;
-            setTimeout(async () => {
+            const intentarBorrar = async () => {
                 try {
                     const snap = await get(ref(db, 'partidas/' + cod));
                     const p = snap.val();
@@ -3609,8 +3609,10 @@
                         await remove(ref(db, 'partidas/' + cod));
                         console.log('Partida terminada eliminada de Firebase:', cod);
                     }
-                } catch (e) { /* si falla, el barrido la eliminará igual */ }
-            }, 60 * 1000); // 1 minuto de gracia para que el rival vea el resultado
+                } catch (e) { /* si falla, el reintento o el barrido la eliminarán */ }
+            };
+            setTimeout(intentarBorrar, 60 * 1000);   // 1 minuto de gracia para que el rival vea el resultado
+            setTimeout(intentarBorrar, 6 * 60 * 1000); // reintento por si el primero falló (red, reglas, etc.)
         }
 
         function mostrarFinPartido(resultado) {
@@ -3781,34 +3783,36 @@
         async function limpiarDatosVencidos() {
             try {
                 const ahora = Date.now();
-                // Consulta INDEXADA (.indexOn ultimaActividad): SOLO descarga las
-                // partidas vencidas, no toda la base (escala con muchos usuarios)
-                const corte = ahora - PARTIDA_EXPIRA_MS;
-                const [pSnap, tSnap, cSnap] = await Promise.all([
-                    get(query(ref(db, 'partidas'), orderByChild('ultimaActividad'), endAt(corte))),
-                    // Partidas TERMINADAS con >10 min de gracia: fuera sí o sí
-                    // (aunque ambos jugadores hayan cerrado la pestaña al terminar)
-                    get(query(ref(db, 'partidas'), orderByChild('estado'), equalTo('terminada'))),
-                    get(ref(db, 'cola_rapido'))
+                // Lectura COMPLETA de /partidas (permitida por ".read": es la vía
+                // más robusta: NO depende de que los .indexOn estén publicados en
+                // las reglas — si una consulta indexada falla por índice faltante,
+                // antes se cancelaba TODO el barrido y nada se borraba jamás).
+                // Con la limpieza activa la base no crece, así que leerla entera
+                // cada 5 minutos es liviano y suficiente.
+                const [pSnap, cSnap] = await Promise.all([
+                    get(ref(db, 'partidas')).catch(() => null),
+                    get(ref(db, 'cola_rapido')).catch(() => null)
                 ]);
                 const borrados = {};
-                if (pSnap.exists()) {
+                if (pSnap && pSnap.exists()) {
                     pSnap.forEach((child) => {
                         // NUNCA borrar la partida en la que estoy parado
                         if (child.key === estado.partidaId) return;
-                        borrados['partidas/' + child.key] = null;
-                    });
-                }
-                if (tSnap.exists()) {
-                    tSnap.forEach((child) => {
-                        if (child.key === estado.partidaId) return;
                         const p = child.val() || {};
                         const act = p.ultimaActividad || p.creadoEn || 0;
-                        // Gracia de 10 min por si algún cliente aún no vio el resultado
-                        if (act && ahora - act > 10 * 60 * 1000) borrados['partidas/' + child.key] = null;
+                        if (!act) return;
+                        const antiguedad = ahora - act;
+                        // TERMINADA con >10 min de gracia (para que el rival vea
+                        // el resultado): fuera sí o sí, aunque nadie esté conectado
+                        if (p.estado === 'terminada' && antiguedad > 10 * 60 * 1000) {
+                            borrados['partidas/' + child.key] = null;
+                        // Cualquier otra partida inactiva hace más de 2 horas
+                        } else if (antiguedad > PARTIDA_EXPIRA_MS) {
+                            borrados['partidas/' + child.key] = null;
+                        }
                     });
                 }
-                if (cSnap.exists()) {
+                if (cSnap && cSnap.exists()) {
                     cSnap.forEach((child) => {
                         const c = child.val() || {};
                         const creado = c.creadoEn || 0;
