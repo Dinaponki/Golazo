@@ -1943,7 +1943,7 @@
                     });
                     on.historialPartidos = historial.slice(-200);
                     on.abandonoPendiente = false;
-                    on.ultimaActualizacion = serverTimestamp();
+                    on.ultimaActualizacion = Date.now();
                     return on;
                 });
                 // Solo contar como aplicado si la transacción escribió Y el flag

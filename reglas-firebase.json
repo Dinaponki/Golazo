@@ -46,7 +46,7 @@
           "mejorRacha": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() >= (newData.parent().child('rachaActual').val() == null ? 0 : newData.parent().child('rachaActual').val())" },
           "golesFavor": { ".validate": "newData.isNumber() && newData.val() >= 0 && (newData.val() == 0 || newData.val() <= (data.exists() ? data.val() + 15 : 15))" },
           "golesContra": { ".validate": "newData.isNumber() && newData.val() >= 0 && (newData.val() == 0 || newData.val() <= (data.exists() ? data.val() + 15 : 15))" },
-          "ultimaActualizacion": { ".validate": "newData.isNumber() && newData.val() === now" },
+          "ultimaActualizacion": { ".validate": "newData.isNumber()" },
           "abandonoPendiente": { ".validate": "newData.isBoolean()" },
           "abandonoPendienteEn": { ".validate": "newData.isNumber()" },
           "historialPartidos": {
