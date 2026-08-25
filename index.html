@@ -1944,15 +1944,13 @@
                     on.historialPartidos = historial.slice(-200);
                     on.abandonoPendiente = false;
                     on.ultimaActualizacion = Date.now();
+                    // Solo marcamos "aplicado" cuando el flag estaba ENCENDIDO y lo
+                    // consumimos (castigo real). Si el flag ya estaba limpio, la
+                    // transacción devuelve `on` sin cambios y acá no se marca nada,
+                    // evitando el aviso "-5 puntos" en cada carga sin causa real.
+                    aplicado = true;
                     return on;
                 });
-                // Solo contar como aplicado si la transacción escribió Y el flag
-                // quedó consumido (si ya estaba limpio, committed es true pero
-                // el snapshot no cambia: no hay castigo ni toast)
-                if (resultado.committed) {
-                    const on = resultado.snapshot.val();
-                    aplicado = !!(on && on.abandonoPendiente !== true);
-                }
                 if (aplicado) {
                     console.log('Abandono online detectado: -5 puntos');
                     mostrarToast('⚠ Abandonaste una partida online: -5 puntos');
