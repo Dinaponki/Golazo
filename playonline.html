@@ -3558,11 +3558,17 @@
                 console.log('Resultado online guardado en Firebase:', resultadoJugador, camposActualizar);
             } catch (error) {
                 console.error('Error guardando resultado online:', error);
+                const textoError = String((error && (error.code || error.message)) || '').toLowerCase();
+                const esPermiso = textoError.includes('permission');
                 const mensaje = document.getElementById('mensajeFlotante');
                 if (mensaje) {
-                    mensaje.textContent = '⚠ No se pudo guardar el resultado: ' + (error.code || error.message || 'error desconocido');
+                    // Si Firebase rechaza la escritura, el jugador NO pierde puntos:
+                    // avisarlo de forma clara y persistente con la causa y la solución
+                    mensaje.textContent = esPermiso
+                        ? '⚠ FIREBASE BLOQUEÓ EL GUARDADO (permission_denied): publicá las reglas nuevas de reglas-firebase.json en Consola → Realtime Database → Reglas'
+                        : '⚠ No se pudo guardar el resultado: ' + (error.code || error.message || 'error desconocido');
                     mensaje.classList.add('mostrar');
-                    setTimeout(() => mensaje.classList.remove('mostrar'), 5000);
+                    setTimeout(() => mensaje.classList.remove('mostrar'), 8000);
                 }
             }
         }

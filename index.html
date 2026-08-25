@@ -1959,6 +1959,11 @@
                 }
             } catch (error) {
                 console.error('Error aplicando abandono online:', error);
+                const textoError = String((error && (error.code || error.message)) || '');
+                if (textoError.toLowerCase().includes('permission')) {
+                    // Sin reglas publicadas, el castigo nunca se aplica: avisarlo claro
+                    mostrarToast('⚠ Firebase bloqueó el castigo por abandono: publicá las reglas nuevas de reglas-firebase.json');
+                }
             } finally {
                 procesandoAbandonoOnline = false;
             }
