@@ -3761,8 +3761,17 @@
             estado.fase = 'lobby';
             dom.overlayEsperando.classList.add('oculto');
             dom.overlayLobby.classList.remove('oculto');
+            // Rehabilitar TODOS los botones del lobby: jugarRapido() deshabilita
+            // los tres al empezar la búsqueda y solo los rehabilita en su rama
+            // de error. Sin esto, tras cancelar la búsqueda rápida el botón
+            // "⚡ Jugar rápido" quedaba muerto hasta recargar la página.
+            dom.btnJugarRapido.disabled = false;
             dom.btnCrearPartida.disabled = false;
             dom.btnUnirsePartida.disabled = false;
+            // Restaurar el código visible: la búsqueda rápida lo oculta con
+            // display:none y una "Crear partida" posterior debe mostrarlo
+            dom.codigoPartida.style.display = '';
+            dom.codigoPartida.textContent = '------';
             // Consumir el estado de historial que empujamos al entrar en espera,
             // para que "atrás" no quede pisando en la misma página
             if (esperaPushHecha) {
