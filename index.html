@@ -2057,6 +2057,8 @@
                     }
                     // Detectar si el jugador abandonó una partida sin terminar
                     await verificarAbandono(user.uid);
+                    // Barrer partidas terminadas/vencidas y colas huérfanas
+                    limpiarDatosVencidosIndex();
                     // Actualizar racha de días consecutivos de login (para logros)
                     await actualizarRachaLogin(user.uid);
                     // Actualizar panel de estadísticas con los filtros propios del panel
@@ -2218,6 +2220,63 @@
                 console.error('Error actualizando racha de login:', error);
             }
         }
+
+        // ================= LIMPIEZA DE DATOS VENCIDOS =================
+        // Cada visita a la página hace de basurero: elimina las partidas con
+        // estado 'terminada' (tras 2 minutos de gracia para que el rival vea
+        // el resultado), partidas inactivas viejas y entradas huérfanas de la
+        // cola rápida. Así /partidas y /cola_rapido no crecen para siempre
+        // aunque nadie entre al lobby online. Requiere sesión (.read de Firebase).
+        const PARTIDA_TERMINADA_GRACIA_MS = 2 * 60 * 1000; // terminadas: 2 minutos de gracia
+        const PARTIDA_VIEJA_MS = 2 * 60 * 60 * 1000;       // partidas inactivas: 2 horas
+        const COLA_VIEJA_MS = 15 * 60 * 1000;              // entradas de cola: 15 minutos
+        let limpiezaIndexEnCurso = false;
+
+        async function limpiarDatosVencidosIndex() {
+            if (limpiezaIndexEnCurso || !usuarioActual) return;
+            limpiezaIndexEnCurso = true;
+            try {
+                const ahora = Date.now();
+                const [pSnap, cSnap] = await Promise.all([
+                    get(ref(db, 'partidas')).catch(() => null),
+                    get(ref(db, 'cola_rapido')).catch(() => null)
+                ]);
+                const borrados = {};
+                if (pSnap && pSnap.exists()) {
+                    pSnap.forEach((child) => {
+                        const p = child.val() || {};
+                        const act = p.ultimaActividad || p.creadoEn || 0;
+                        if (!act) return;
+                        const antiguedad = ahora - act;
+                        // TERMINADA fuera de gracia: fuera sí o sí, aunque nadie esté conectado
+                        if (p.estado === 'terminada' && antiguedad > PARTIDA_TERMINADA_GRACIA_MS) {
+                            borrados['partidas/' + child.key] = null;
+                        // Cualquier otra partida inactiva hace más de 2 horas
+                        } else if (antiguedad > PARTIDA_VIEJA_MS) {
+                            borrados['partidas/' + child.key] = null;
+                        }
+                    });
+                }
+                if (cSnap && cSnap.exists()) {
+                    cSnap.forEach((child) => {
+                        const c = child.val() || {};
+                        const creado = c.creadoEn || 0;
+                        if (creado && ahora - creado > COLA_VIEJA_MS) borrados['cola_rapido/' + child.key] = null;
+                    });
+                }
+                if (Object.keys(borrados).length) {
+                    await update(ref(db), borrados); // borrado multi-camino, 1 sola escritura
+                    console.log('Limpieza automática (index): eliminados', Object.keys(borrados).length, 'nodos vencidos');
+                }
+            } catch (e) {
+                console.warn('Limpieza automática (index) omitida:', e && (e.code || e.message));
+            } finally {
+                limpiezaIndexEnCurso = false;
+            }
+        }
+
+        // Barrer periódicamente mientras el usuario esté logueado en la página
+        setInterval(limpiarDatosVencidosIndex, 10 * 60 * 1000);
 
         // ================= PERFIL DE JUGADOR (desde ranking) =================
         function mostrarPerfilJugador(uid, filtro, tipo) {

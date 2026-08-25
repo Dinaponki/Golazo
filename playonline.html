@@ -3592,27 +3592,40 @@
         }
 
         // ============ FIN DE PARTIDA ============
-        // Borra la partida TERMINADA de Firebase tras un período de gracia, para
-        // que la base no acumule millones de partidas. La gracia de 5 minutos
-        // da tiempo a que el rival (aunque esté unos segundos desconectado) vea
-        // el resultado final; ambos clientes lo intentan (es idempotente) y el
-        // barrido de 2 horas queda como respaldo si nadie está conectado.
-        function programarBorradoPartidaTerminada() {
+        // Borra la partida TERMINADA de Firebase para que la base no acumule
+        // millones de partidas. Ambos clientes lo intentan (es idempotente):
+        // 1) A los 1 y 6 minutos de mostrarse la pantalla de fin.
+        // 2) Al salir de la pantalla de fin ("Jugar otra vez" / "Volver al
+        //    inicio"), porque los timers programados mueren al navegar.
+        // Si ningún cliente logra borrarla, queda el barrido automático
+        // (playonline.html e index.html) que la elimina a los 2 minutos.
+        let borradoFinProgramado = false;
+        let finPartidoEn = 0;
+
+        async function intentarBorrarPartidaTerminada(respetarGracia) {
             const cod = estado.partidaId;
-            if (!cod || !estado.usuario) return;
-            const intentarBorrar = async () => {
-                try {
-                    const snap = await get(ref(db, 'partidas/' + cod));
-                    const p = snap.val();
-                    // Solo borrar si sigue 'terminada' (nunca una partida viva)
-                    if (p && p.estado === 'terminada') {
-                        await remove(ref(db, 'partidas/' + cod));
-                        console.log('Partida terminada eliminada de Firebase:', cod);
-                    }
-                } catch (e) { /* si falla, el reintento o el barrido la eliminarán */ }
-            };
-            setTimeout(intentarBorrar, 60 * 1000);   // 1 minuto de gracia para que el rival vea el resultado
-            setTimeout(intentarBorrar, 6 * 60 * 1000); // reintento por si el primero falló (red, reglas, etc.)
+            if (!cod || !estado.usuario) return false;
+            // Gracia opcional de 1 minuto desde el fin, para que el rival
+            // (aunque esté unos segundos desconectado) vea el resultado
+            if (respetarGracia && finPartidoEn && Date.now() - finPartidoEn < 60 * 1000) return false;
+            try {
+                const snap = await get(ref(db, 'partidas/' + cod));
+                const p = snap.val();
+                // Solo borrar si sigue 'terminada' (nunca una partida viva)
+                if (p && p.estado === 'terminada') {
+                    await remove(ref(db, 'partidas/' + cod));
+                    console.log('Partida terminada eliminada de Firebase:', cod);
+                    return true;
+                }
+            } catch (e) { /* si falla, el reintento o el barrido la eliminarán */ }
+            return false;
+        }
+
+        function programarBorradoPartidaTerminada() {
+            if (borradoFinProgramado) return;
+            borradoFinProgramado = true;
+            setTimeout(() => intentarBorrarPartidaTerminada(false), 60 * 1000);     // 1 minuto de gracia
+            setTimeout(() => intentarBorrarPartidaTerminada(false), 6 * 60 * 1000); // reintento por si el primero falló
         }
 
         function mostrarFinPartido(resultado) {
@@ -3626,6 +3639,7 @@
             // automático (cambio de pestaña, botón atrás, etc.) puede quitar
             // esta pantalla ni registrar un abandono.
             estado.partidaTerminada = true;
+            finPartidoEn = Date.now();
             dom.overlayFin.classList.remove('oculto');
             // Cancelar TODOS los registros de desconexión: la partida ya terminó
             // bien y salir de la página no debe disparar limpiezas ni abandonos falsos.
@@ -3778,6 +3792,7 @@
         const LIMPIEZA_CADA_MS = 5 * 60 * 1000;       // barrer cada 5 minutos
         const PARTIDA_EXPIRA_MS = 2 * 60 * 60 * 1000; // partidas viejas: 2 horas
         const COLA_EXPIRA_MS = 15 * 60 * 1000;        // entradas de cola: 15 minutos
+        const TERMINADA_GRACIA_MS = 2 * 60 * 1000;    // gracia de una terminada: 2 minutos
         let limpiezaIniciada = false;
 
         async function limpiarDatosVencidos() {
@@ -3796,15 +3811,16 @@
                 const borrados = {};
                 if (pSnap && pSnap.exists()) {
                     pSnap.forEach((child) => {
-                        // NUNCA borrar la partida en la que estoy parado
-                        if (child.key === estado.partidaId) return;
                         const p = child.val() || {};
+                        // No tocar la partida VIVA en la que estoy parado; la mía
+                        // ya TERMINADA sí puedo barrerla (el fin ya ocurrió)
+                        if (child.key === estado.partidaId && p.estado !== 'terminada') return;
                         const act = p.ultimaActividad || p.creadoEn || 0;
                         if (!act) return;
                         const antiguedad = ahora - act;
-                        // TERMINADA con >10 min de gracia (para que el rival vea
+                        // TERMINADA tras 2 min de gracia (para que el rival vea
                         // el resultado): fuera sí o sí, aunque nadie esté conectado
-                        if (p.estado === 'terminada' && antiguedad > 10 * 60 * 1000) {
+                        if (p.estado === 'terminada' && antiguedad > TERMINADA_GRACIA_MS) {
                             borrados['partidas/' + child.key] = null;
                         // Cualquier otra partida inactiva hace más de 2 horas
                         } else if (antiguedad > PARTIDA_EXPIRA_MS) {
@@ -3829,7 +3845,7 @@
         function iniciarLimpiezaAutomatica() {
             if (limpiezaIniciada) return;
             limpiezaIniciada = true;
-            setTimeout(limpiarDatosVencidos, 20000);
+            setTimeout(limpiarDatosVencidos, 5000); // primer barrido apenas entra (antes: 20 s)
             setInterval(limpiarDatosVencidos, LIMPIEZA_CADA_MS);
         }
 
@@ -3936,7 +3952,16 @@
                 else abandonarPartida();
             });
 
-            dom.btnRevancha.addEventListener('click', () => window.location.reload());
+            dom.btnRevancha.addEventListener('click', () => {
+                // Último intento de borrado antes de recargar: al navegar mueren
+                // los timers programados, así que intentamos eliminar acá mismo
+                // la partida terminada (con su minuto de gracia ya cumplido o no:
+                // ambos jugadores ya vieron el resultado en pantalla).
+                Promise.race([
+                    intentarBorrarPartidaTerminada(false),
+                    new Promise(r => setTimeout(r, 2500)) // no trabarn la recarga si la red está lenta
+                ]).then(() => window.location.reload());
+            });
 
             // ---------- Compartir resultado (link de referidos) ----------
             dom.btnCompartir.addEventListener('click', async () => {
@@ -3963,8 +3988,18 @@ ${link}`;
             dom.btnInicio.addEventListener('click', () => {
                 if (estado.enPartida || estaEsperando()) {
                     mostrarOverlaySalida();
+                    return;
+                }
+                const irAlInicio = () => { window.location.href = 'index.html'; };
+                if (estado.partidaTerminada && estado.partidaId) {
+                    // Último intento de borrado antes de irse: al navegar mueren
+                    // los timers programados de borrado de la partida terminada
+                    Promise.race([
+                        intentarBorrarPartidaTerminada(false),
+                        new Promise(r => setTimeout(r, 2500))
+                    ]).then(irAlInicio);
                 } else {
-                    window.location.href = 'index.html';
+                    irAlInicio();
                 }
             });
 
