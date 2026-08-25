@@ -72,9 +72,9 @@
     },
     "partidas": {
       ".read": "auth != null",
-      ".indexOn": ["ultimaActividad"],
+      ".indexOn": ["ultimaActividad", "estado"],
       "$codigo": {
-        ".write": "(!data.exists() && newData.child('creador').child('uid').val() === auth.uid) || (data.exists() && (auth.uid === data.child('creador').child('uid').val() || auth.uid === data.child('unido').child('uid').val() || (!data.child('unido').child('uid').exists() && newData.child('unido').child('uid').val() === auth.uid))) || (!newData.exists() && data.exists() && (!data.child('ultimaActividad').exists() || now - data.child('ultimaActividad').val() > 7200000))",
+        ".write": "(!data.exists() && newData.child('creador').child('uid').val() === auth.uid) || (data.exists() && (auth.uid === data.child('creador').child('uid').val() || auth.uid === data.child('unido').child('uid').val() || (!data.child('unido').child('uid').exists() && newData.child('unido').child('uid').val() === auth.uid))) || (!newData.exists() && data.exists() && ((data.child('estado').val() === 'terminada' && (!data.child('ultimaActividad').exists() || now - data.child('ultimaActividad').val() > 600000)) || (!data.child('ultimaActividad').exists() || now - data.child('ultimaActividad').val() > 7200000)))",
         "codigo": { ".validate": "newData.isString() && newData.val().length === 6" },
         "creador": {
           ".write": "!data.exists()",
