@@ -1732,6 +1732,25 @@
         //   transacción que solo procede si TODAVÍA no tiene rival (si alguien
         //   me acaba de unir a mí, me quedo y aborto). Después me uno al otro.
         let uniendoRapido = false;
+
+        // Reanuda la búsqueda rápida de forma SEGURA tras un intento de unión
+        // que falló a mitad de camino (cuando ya liberé mi propia partida).
+        // Antes se usaba setTimeout(jugarRapido, 50): si el flag buscandoRapido
+        // seguía en true (la llamada original aún estaba corriendo), el reintento
+        // se descartaba en silencio y el jugador quedaba como ZOMBIE: spinner
+        // eterno de "Buscando rival...", sin partida, sin listener de partida ni
+        // de cola y sin bucle de emparejamiento → nunca se emparejaba con nadie.
+        function reanudarBusquedaRapida(intento = 0) {
+            setTimeout(async () => {
+                try {
+                    if (estado.enPartida || estado.fase === 'jugando' || estado.fase === 'fin') return;
+                    if (estaEsperando()) return; // ya estoy esperando con mecanismos vivos
+                    if (uniendoRapido) { if (intento < 20) reanudarBusquedaRapida(intento + 1); return; }
+                    buscandoRapido = false; // liberar el flag por si quedó tomado
+                    await jugarRapido();
+                } catch (e) { console.error('Error reanudando búsqueda rápida:', e); }
+            }, 400);
+        }
         // Diagnóstico: muestra UNA sola vez el error real de Firebase en pantalla,
         // para que un fallo del matchmaking jamás quede en silencio.
         let avisoErrorMostrado = false;
@@ -1761,10 +1780,10 @@
                 const pre = preSnap.val();
                 if (!pre || pre.estado !== 'esperando' || (pre.unido && pre.unido.uid) ||
                     !pre.creador) {
-                    // Entrada FANTASMA (su partida ya no existe, p.ej. borrada de
-                    // la consola): limpiarla acá mismo para que no envenene el
-                    // matchmaking de ningún otro jugador
-                    if (!pre) remove(ref(db, 'cola_rapido/' + rivalKey)).catch(() => {});
+                    // Entrada FANTASMA o que apunta a una partida muerta/ya tomada
+                    // (terminada, borrada, con rival...): limpiarla acá mismo para
+                    // que no envenene el matchmaking de ningún otro jugador
+                    if (!pre || pre.estado !== 'esperando') remove(ref(db, 'cola_rapido/' + rivalKey)).catch(() => {});
                     return false;
                 }
 
@@ -1821,7 +1840,7 @@
                     const f = fSnap.val();
                     if (!f || f.estado !== 'esperando' || (f.unido && f.unido.uid) || !f.creador) {
                         // El hueco se cerró entre medias: seguir buscando
-                        if (libereMiPartida) setTimeout(() => jugarRapido(), 50);
+                        if (libereMiPartida) reanudarBusquedaRapida();
                         return false;
                     }
                     try {
@@ -1829,7 +1848,7 @@
                     } catch (upErr) {
                         console.error('Error en unión clásica:', upErr);
                         avisarErrorUnaVez(upErr);
-                        if (libereMiPartida) setTimeout(() => jugarRapido(), 50);
+                        if (libereMiPartida) reanudarBusquedaRapida();
                         return false;
                     }
                 }
@@ -1840,7 +1859,7 @@
                 const confirma = confirmaSnap.val();
                 if (!confirma || !confirma.creador) {
                     await remove(partidaRef).catch(() => {});
-                    if (libereMiPartida) setTimeout(() => jugarRapido(), 50);
+                    if (libereMiPartida) reanudarBusquedaRapida();
                     return false;
                 }
                 await update(partidaRef, { estado: 'jugando', ultimaActividad: Date.now() })
@@ -1866,7 +1885,7 @@
                 return true;
             } catch (error) {
                 console.error('Error intentando unirse rápido:', error);
-                if (libereMiPartida) setTimeout(() => jugarRapido(), 50);
+                if (libereMiPartida) reanudarBusquedaRapida();
                 return false;
             } finally {
                 uniendoRapido = false;
@@ -1929,13 +1948,43 @@
 
         // Recrea mi partida de espera con código NUEVO (misma ficha de cola):
         // limpia cualquier estado corrupto/invisible y me hace "visible" de nuevo.
+        // El borrado de la vieja es TRANSACCIONAL y solo procede si sigue sin
+        // rival: si el rival entró justo mientras refrescaba, NO la borro y
+        // continúo esa partida (antes un remove() a ciegas podía tirarle la
+        // partida en la cara al rival que acababa de unirse, y ambos volvían
+        // a buscar en un ciclo que no convergía).
         async function recrearMiPartidaEspera() {
             const codViejo = estado.partidaId;
             console.warn('Espera: recreando partida de matchmaking', codViejo || '(sin nodo)');
             mostrarMensaje('Refrescando búsqueda...');
             detenerEscuchaColaRapido();
             cancelarRegistroDesconexion();
-            if (codViejo) await remove(ref(db, 'partidas/' + codViejo)).catch(() => {});
+            if (codViejo) {
+                const mia = await runTransaction(ref(db, 'partidas/' + codViejo), (p) => {
+                    if (!p || p.estado !== 'esperando' || p.unido || !p.creador ||
+                        p.creador.uid !== estado.usuario.uid) return undefined;
+                    return null; // liberada: seguía sin rival
+                });
+                if (!mia.committed) {
+                    // El rival acaba de entrar a MI partida durante el refresco:
+                    // quedármela y seguir normalmente (el listener arranca el juego)
+                    console.warn('Espera: el rival entró durante el refresco, mantengo la partida', codViejo);
+                    await set(ref(db, 'cola_rapido/' + estado.usuario.uid), {
+                        uid: estado.usuario.uid,
+                        nickname: estado.nickname || 'Jugador',
+                        fotoURL: estado.fotoURL || '',
+                        partidaId: codViejo,
+                        creadoEn: Date.now()
+                    }).catch(() => {});
+                    estado.partidaId = codViejo;
+                    estado.miLado = 'jugador';
+                    estado.fase = 'esperando';
+                    registrarLimpiezaEspera(codViejo);
+                    escucharPartida(codViejo);
+                    esperaIniciadaEn = Date.now();
+                    return;
+                }
+            }
             if (estado.usuario) await remove(ref(db, 'cola_rapido/' + estado.usuario.uid)).catch(() => {});
             let codigo = generarCodigoPartida();
             for (let i = 0; i < 10; i++) {
