@@ -1608,7 +1608,7 @@
         // Importa los módulos de Firebase
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
-        import { getDatabase, ref, get, set, update, onValue, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-database.js";
+        import { getDatabase, ref, get, set, update, onValue, serverTimestamp, runTransaction } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDsgQ2dwokGq3umlptHtMCVgFISLe8ySM0",
@@ -1908,42 +1908,55 @@
         async function aplicarPenalizacionAbandonoOnline(uid) {
             if (procesandoAbandonoOnline) return;
             procesandoAbandonoOnline = true;
+            let aplicado = false;
             try {
                 const statsRef = ref(db, 'usuarios/' + uid + '/onlineStats');
-                const snap = await get(statsRef);
-                if (!snap.exists()) return;
-                const on = snap.val();
-                // Re-chequeo justo antes de escribir: otro camino pudo limpiarlo
-                // (p.ej. una partida posterior que guardó su resultado normal)
-                if (on.abandonoPendiente !== true) return;
-                const partidosJugados = (on.partidosJugados || 0) + 1;
-                const partidosPerdidos = (on.partidosPerdidos || 0) + 1;
-                const partidosGanados = (on.partidosGanados || 0);
-                // Restar los 5 puntos INCREMENTALMENTE sobre el acumulado existente,
-                // igual que guardarResultadoPartidoOnline (playonline.html).
-                const puntos = (on.puntos || 0) - 5;
-                const efectividad = partidosJugados > 0 ? Math.round((partidosGanados / partidosJugados) * 1000) / 10 : 0;
-                const historialPartidos = on.historialPartidos || [];
-                historialPartidos.push({
-                    fecha: Date.now(),
-                    resultado: 'perder',
-                    golesFavor: 0,
-                    golesContra: 0,
-                    online: true,
-                    abandono: true
+                // TRANSACCIÓN (lectura-modificación-escritura atómica): antes se hacía
+                // get() -> calcular -> update(), y si otra escritura de stats entraba
+                // en el medio (resultado de otra partida, segundo disparo del
+                // vigilante), la penalización PISABA el nodo con valores calculados
+                // desde la lectura vieja: los números "se ponían y se borraban".
+                const resultado = await runTransaction(statsRef, (on) => {
+                    // Nodo inexistente o inválido: abortar SIN cambios (undefined),
+                    // nunca devolver null acá porque borraría el nodo
+                    if (!on || typeof on !== 'object') return undefined;
+                    // Flag limpio: ya fue procesado o lo limpió un resultado normal
+                    if (on.abandonoPendiente !== true) return on; // sin cambios
+                    const partidosJugados = (on.partidosJugados || 0) + 1;
+                    const partidosPerdidos = (on.partidosPerdidos || 0) + 1;
+                    const partidosGanados = (on.partidosGanados || 0);
+                    on.partidosJugados = partidosJugados;
+                    on.partidosPerdidos = partidosPerdidos;
+                    // Restar los 5 puntos INCREMENTALMENTE sobre el acumulado existente,
+                    // igual que guardarResultadoPartidoOnline (playonline.html).
+                    on.puntos = (on.puntos || 0) - 5;
+                    on.efectividad = partidosJugados > 0 ? Math.round((partidosGanados / partidosJugados) * 1000) / 10 : 0;
+                    on.rachaActual = 0;
+                    const historial = Array.isArray(on.historialPartidos) ? on.historialPartidos : [];
+                    historial.push({
+                        fecha: Date.now(),
+                        resultado: 'perder',
+                        golesFavor: 0,
+                        golesContra: 0,
+                        online: true,
+                        abandono: true
+                    });
+                    on.historialPartidos = historial.slice(-200);
+                    on.abandonoPendiente = false;
+                    on.ultimaActualizacion = serverTimestamp();
+                    return on;
                 });
-                await update(statsRef, {
-                    puntos,
-                    partidosJugados,
-                    partidosPerdidos,
-                    efectividad,
-                    rachaActual: 0,
-                    historialPartidos: historialPartidos.slice(-200),
-                    abandonoPendiente: false,
-                    ultimaActualizacion: serverTimestamp()
-                });
-                console.log('Abandono online detectado: -5 puntos');
-                mostrarToast('⚠ Abandonaste una partida online: -5 puntos');
+                // Solo contar como aplicado si la transacción escribió Y el flag
+                // quedó consumido (si ya estaba limpio, committed es true pero
+                // el snapshot no cambia: no hay castigo ni toast)
+                if (resultado.committed) {
+                    const on = resultado.snapshot.val();
+                    aplicado = !!(on && on.abandonoPendiente !== true);
+                }
+                if (aplicado) {
+                    console.log('Abandono online detectado: -5 puntos');
+                    mostrarToast('⚠ Abandonaste una partida online: -5 puntos');
+                }
             } catch (error) {
                 console.error('Error aplicando abandono online:', error);
             } finally {

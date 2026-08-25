@@ -4088,9 +4088,17 @@ ${link}`;
             // Solo la marca de stats: NO marcamos abandonadoPor en la partida acá,
             // porque el navegador puede restaurar la página desde bfcache (si el
             // usuario volvió con "adelante") y el rival no debe ganarnos por error.
+            // Marca de abandono por instancia de partida: SIN este guardia, cada
+            // navegación de una página restaurada desde bfcache (que sigue
+            // creyendo que está "en partida") re-armaba abandonoPendiente y
+            // generaba -5 REPETIDOS entre idas y vueltas: los números del perfil
+            // y del ranking se "ponían y se borraban" con cada recarga.
+            let marcaAbandonoEnviadaPara = null;
             window.addEventListener('pagehide', () => {
                 if (!estado.enPartida || estado.partidaTerminada || estado.fase === 'fin') return;
                 if (!estado.usuario || !estado.partidaId) return;
+                if (marcaAbandonoEnviadaPara === estado.partidaId) return; // ya marcada
+                marcaAbandonoEnviadaPara = estado.partidaId;
                 try {
                     update(ref(db, 'usuarios/' + estado.usuario.uid + '/onlineStats'), {
                         abandonoPendiente: true,
@@ -4100,9 +4108,11 @@ ${link}`;
             });
 
             // Si la página vuelve desde bfcache (el jugador regresó con "adelante"
-            // y la partida siguió viva), deshacer la marca: la salida nunca ocurrió
+            // y la partida siguió viva), deshacer la marca: la salida nunca ocurrió.
+            // También re-habilita el marcado para una salida REAL posterior.
             window.addEventListener('pageshow', (e) => {
                 if (!e.persisted) return;
+                marcaAbandonoEnviadaPara = null;
                 if (!estado.enPartida || estado.partidaTerminada || estado.fase === 'fin') return;
                 if (!estado.usuario) return;
                 try {
