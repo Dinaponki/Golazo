@@ -1760,7 +1760,13 @@
                 const preSnap = await get(ref(db, 'partidas/' + datos.partidaId));
                 const pre = preSnap.val();
                 if (!pre || pre.estado !== 'esperando' || (pre.unido && pre.unido.uid) ||
-                    !pre.creador) return false;
+                    !pre.creador) {
+                    // Entrada FANTASMA (su partida ya no existe, p.ej. borrada de
+                    // la consola): limpiarla acá mismo para que no envenene el
+                    // matchmaking de ningún otro jugador
+                    if (!pre) remove(ref(db, 'cola_rapido/' + rivalKey)).catch(() => {});
+                    return false;
+                }
 
                 // PASO 1 (solo anfitriones): liberar MI partida sin rivales
                 if (estado.partidaId && estado.miLado === 'jugador') {
@@ -1896,9 +1902,49 @@
                     }
                 } catch (e) { /* silencioso: se reintenta en el próximo ciclo */ }
             }, 4000);
+            iniciarReinicioEspera(); // red de seguridad: reinicio total a los 45s
         }
         function detenerReintentoEmparejamiento() {
             if (reintentoMatchTimer) { clearInterval(reintentoMatchTimer); reintentoMatchTimer = null; }
+            detenerReinicioEspera();
+        }
+
+        // REINICIO DE ESPERA (red de seguridad definitiva): si siendo anfitrión
+        // siguen sin aparecer rivales tras 45 segundos, hago un reinicio LIMPIO
+        // de toda la búsqueda (borro mi partida + entrada de cola y arranco de
+        // cero). Garantiza recuperación ante CUALQUIER estado trabado: entradas
+        // fantasma, borrados manuales desde la consola, eventos perdidos, etc.
+        let reinicioEsperaTimer = null;
+        function iniciarReinicioEspera() {
+            detenerReinicioEspera();
+            reinicioEsperaTimer = setTimeout(async () => {
+                reinicioEsperaTimer = null;
+                try {
+                    if (!estado.usuario || estado.enPartida || estado.partidaTerminada ||
+                        estado.fase !== 'esperando' || estado.miLado !== 'jugador' || !estado.partidaId) return;
+                    // ¿El rival acabó de entrar? No reiniciar: dejar que el
+                    // listener procese la unión normalmente
+                    const snap = await get(ref(db, 'partidas/' + estado.partidaId));
+                    const p = snap.val();
+                    if (p && p.unido) return;
+                    console.warn('Reinicio de espera: 45s sin rival, rebuscando desde cero');
+                    mostrarMensaje('Reiniciando búsqueda de rival...');
+                    const cod = estado.partidaId;
+                    detenerEscuchaColaRapido();
+                    detenerReintentoEmparejamiento();
+                    detenerEscuchaPartida();
+                    cancelarRegistroDesconexion();
+                    await remove(ref(db, 'partidas/' + cod)).catch(() => {});
+                    await remove(ref(db, 'cola_rapido/' + estado.usuario.uid)).catch(() => {});
+                    estado.partidaId = null;
+                    estado.miLado = null;
+                    estado.fase = 'lobby';
+                    jugarRapido();
+                } catch (e) { console.error('Error en reinicio de espera:', e); }
+            }, 45000);
+        }
+        function detenerReinicioEspera() {
+            if (reinicioEsperaTimer) { clearTimeout(reinicioEsperaTimer); reinicioEsperaTimer = null; }
         }
 
         async function jugarRapido() {
@@ -3531,6 +3577,27 @@
         }
 
         // ============ FIN DE PARTIDA ============
+        // Borra la partida TERMINADA de Firebase tras un período de gracia, para
+        // que la base no acumule millones de partidas. La gracia de 5 minutos
+        // da tiempo a que el rival (aunque esté unos segundos desconectado) vea
+        // el resultado final; ambos clientes lo intentan (es idempotente) y el
+        // barrido de 2 horas queda como respaldo si nadie está conectado.
+        function programarBorradoPartidaTerminada() {
+            const cod = estado.partidaId;
+            if (!cod || !estado.usuario) return;
+            setTimeout(async () => {
+                try {
+                    const snap = await get(ref(db, 'partidas/' + cod));
+                    const p = snap.val();
+                    // Solo borrar si sigue 'terminada' (nunca una partida viva)
+                    if (p && p.estado === 'terminada') {
+                        await remove(ref(db, 'partidas/' + cod));
+                        console.log('Partida terminada eliminada de Firebase:', cod);
+                    }
+                } catch (e) { /* si falla, el barrido de 2 h la eliminará igual */ }
+            }, 5 * 60 * 1000);
+        }
+
         function mostrarFinPartido(resultado) {
             // Evitar doble ejecución: esta función puede ser llamada tanto
             // directamente desde finalizarMano() como desde el listener de
@@ -3546,6 +3613,8 @@
             // Cancelar TODOS los registros de desconexión: la partida ya terminó
             // bien y salir de la página no debe disparar limpiezas ni abandonos falsos.
             cancelarRegistroDesconexion();
+            // Programar el borrado definitivo de esta partida terminada en Firebase
+            programarBorradoPartidaTerminada();
             // Convertir goles absolutos a relativos
             const gJ = estado.miLado === 'jugador' ? (resultado.golesJugador || 0) : (resultado.golesRival || 0);
             const gR = estado.miLado === 'jugador' ? (resultado.golesRival || 0) : (resultado.golesJugador || 0);
@@ -3652,6 +3721,10 @@
             cancelarRegistroDesconexion();
             if (partidaListener) { partidaListener(); partidaListener = null; }
             ultimoEstadoJuego = null;
+            // Limpiar MI entrada de la cola: si vuelvo al lobby es porque mi
+            // partida desapareció (borrada manualmente, rival muerto, etc.) y
+            // una entrada fantasma mía envenenaría el matchmaking ajeno
+            if (estado.usuario) remove(ref(db, 'cola_rapido/' + estado.usuario.uid)).catch(() => {});
             estado.partidaId = null;
             estado.miLado = null;
             estado.fase = 'lobby';
