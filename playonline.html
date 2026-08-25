@@ -3573,6 +3573,76 @@
             }
         }
 
+        // ================= ABANDONO PENDIENTE (procesamiento local) =================
+        // El castigo por abandonar sin terminar debe aplicarse DONDE SEA que el
+        // jugador se reconecte: index.html O este lobby (playonline.html).
+        // La marca onlineStats.abandonoPendiente la deja armada el propio cliente
+        // al salir sin cerrar bien la partida (pagehide / onDisconnect) y esta
+        // TRANSACCIÓN la consume UNA sola vez (si ya fue procesada, no escribe).
+        let procesandoAbandonoOnline = false;
+
+        async function aplicarPenalizacionAbandonoOnline(uid) {
+            if (procesandoAbandonoOnline) return;
+            procesandoAbandonoOnline = true;
+            try {
+                const statsRef = ref(db, 'usuarios/' + uid + '/onlineStats');
+                // Transacción atómica: si otra pestaña/dispositivo la procesó antes,
+                // el flag ya está limpio y acá no se vuelve a restar nada.
+                const resultado = await runTransaction(statsRef, (on) => {
+                    // Nodo inexistente: abortar sin cambios (undefined), nunca null
+                    if (!on || typeof on !== 'object') return undefined;
+                    if (on.abandonoPendiente !== true) return on; // limpio: sin cambios
+                    const partidosJugados = (on.partidosJugados || 0) + 1;
+                    const partidosPerdidos = (on.partidosPerdidos || 0) + 1;
+                    const partidosGanados = (on.partidosGanados || 0);
+                    on.partidosJugados = partidosJugados;
+                    on.partidosPerdidos = partidosPerdidos;
+                    on.puntos = (on.puntos || 0) - 5;
+                    on.efectividad = partidosJugados > 0 ? Math.round((partidosGanados / partidosJugados) * 1000) / 10 : 0;
+                    on.rachaActual = 0;
+                    const historial = Array.isArray(on.historialPartidos) ? on.historialPartidos : [];
+                    historial.push({
+                        fecha: Date.now(),
+                        resultado: 'perder',
+                        golesFavor: 0,
+                        golesContra: 0,
+                        online: true,
+                        abandono: true
+                    });
+                    on.historialPartidos = historial.slice(-200);
+                    on.abandonoPendiente = false;
+                    on.ultimaActualizacion = serverTimestamp();
+                    return on;
+                });
+                if (resultado.committed) {
+                    const on = resultado.snapshot.val();
+                    if (on && on.abandonoPendiente !== true) {
+                        console.log('Abandono online detectado: -5 puntos');
+                        mostrarMensaje('⚠ Abandonaste una partida online: -5 puntos');
+                    }
+                }
+            } catch (error) {
+                console.error('Error aplicando abandono online:', error);
+                const textoError = String((error && (error.code || error.message)) || '').toLowerCase();
+                if (textoError.includes('permission')) {
+                    mostrarMensaje('⚠ Firebase bloqueó el castigo: publicá las reglas nuevas');
+                }
+            } finally {
+                procesandoAbandonoOnline = false;
+            }
+        }
+
+        // Listener en vivo sobre la marca: la procesa apenas aparezca, incluso si
+        // onDisconnect la escribe varios segundos DESPUÉS de cargar esta página.
+        function vigilarAbandonoOnline(uid) {
+            try {
+                const flagRef = ref(db, 'usuarios/' + uid + '/onlineStats/abandonoPendiente');
+                onValue(flagRef, (snap) => {
+                    if (snap.val() === true) aplicarPenalizacionAbandonoOnline(uid);
+                }, (error) => console.error('Error vigilando abandono online:', error));
+            } catch (error) { console.error('Error vigilando abandono online:', error); }
+        }
+
         // ============ LOGROS ============
         // Catálogo de logros (debe coincidir con index.html)
         const LOGROS = [
@@ -3922,6 +3992,11 @@
             onAuthStateChanged(auth, (user) => {
                 estado.usuario = user;
                 if (user) {
+                    // Procesar y vigilar el abandono pendiente TAMBIÉN acá: el
+                    // jugador puede reconectar directo al lobby online sin pasar
+                    // por index.html, y el castigo debe aplicarse igual.
+                    aplicarPenalizacionAbandonoOnline(user.uid);
+                    vigilarAbandonoOnline(user.uid);
                     const userRef = ref(db, 'usuarios/' + user.uid + '/nickname');
                     onValue(userRef, (snap) => {
                         const nick = snap.val() || '';
