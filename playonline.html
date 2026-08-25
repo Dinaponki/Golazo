@@ -1732,6 +1732,15 @@
         //   transacción que solo procede si TODAVÍA no tiene rival (si alguien
         //   me acaba de unir a mí, me quedo y aborto). Después me uno al otro.
         let uniendoRapido = false;
+        // Diagnóstico: muestra UNA sola vez el error real de Firebase en pantalla,
+        // para que un fallo del matchmaking jamás quede en silencio.
+        let avisoErrorMostrado = false;
+        function avisarErrorUnaVez(err) {
+            if (avisoErrorMostrado) return;
+            avisoErrorMostrado = true;
+            const cod = String((err && (err.code || err.message)) || 'desconocido').slice(0, 70);
+            mostrarMensaje('⚠ Emparejamiento: ' + cod);
+        }
         async function intentarUnirseRapido(rivalKey) {
             if (uniendoRapido || !estado.usuario) return false;
             if (estado.enPartida || estado.fase === 'fin') return false;
@@ -1778,23 +1787,45 @@
                     estado.fase = 'lobby';
                 }
 
-                // PASO 2: ocupar el hueco de 'unido' con una transacción SOBRE
-                // ESE CAMPO ÚNICAMENTE. NUNCA sobre la partida completa: las
-                // reglas .validate exigen que quien escriba 'creador/uid' sea
-                // el propio creador, así que una reescritura completa del nodo
-                // hecha por el rival sería rechazada con PERMISSION_DENIED.
-                // El campo 'unido' SÍ puede escribirlo el rival según las reglas.
+                // PASO 2: ocupar el hueco de 'unido'. PRIMERO con transacción
+                // sobre ese campo (atómica y compatible con las reglas); si por
+                // CUALQUIER motivo la transacción falla o es rechazada en
+                // producción, CAE AL MÉTODO CLÁSICO (re-verificar el hueco +
+                // update parcial, idéntico al de "Unirse por código", que ya
+                // funciona). La unión nunca queda bloqueada por la transacción.
                 const partidaRef = ref(db, 'partidas/' + datos.partidaId);
-                const unidoRef = ref(db, 'partidas/' + datos.partidaId + '/unido');
-                const resultado = await runTransaction(unidoRef, (actual) => {
-                    if (actual) return undefined; // ya hay rival: abortar
-                    return { uid: miUid, nickname: estado.nickname || 'Jugador', fotoURL: estado.fotoURL || '', listo: true };
-                });
-                if (!(resultado.committed && resultado.snapshot.exists())) {
-                    // El hueco se cerró entre medias: seguir buscando (si liberé
-                    // mi partida, jugarRapido recreará partida+cola)
-                    if (libereMiPartida) setTimeout(() => jugarRapido(), 50);
-                    return false;
+                const miFicha = { uid: miUid, nickname: estado.nickname || 'Jugador', fotoURL: estado.fotoURL || '', listo: true };
+                let ocupeHueco = false;
+                try {
+                    const unidoRef = ref(db, 'partidas/' + datos.partidaId + '/unido');
+                    const resultado = await runTransaction(unidoRef, (actual) => {
+                        if (actual) return undefined; // ya hay rival: abortar
+                        return miFicha;
+                    });
+                    ocupeHueco = resultado.committed && resultado.snapshot.exists();
+                } catch (txErr) {
+                    console.error('Transacción sobre /unido falló, usando método clásico:', txErr);
+                    avisarErrorUnaVez(txErr);
+                }
+                if (!ocupeHueco) {
+                    // Método clásico: releer el hueco JUSTO antes de escribir y
+                    // ocuparlo con update parcial. La ventana de carrera es de
+                    // milisegundos y el re-chequeo descarta dobles rivales.
+                    const fSnap = await get(partidaRef);
+                    const f = fSnap.val();
+                    if (!f || f.estado !== 'esperando' || (f.unido && f.unido.uid) || !f.creador) {
+                        // El hueco se cerró entre medias: seguir buscando
+                        if (libereMiPartida) setTimeout(() => jugarRapido(), 50);
+                        return false;
+                    }
+                    try {
+                        await update(partidaRef, { unido: miFicha, estado: 'jugando', ultimaActividad: Date.now() });
+                    } catch (upErr) {
+                        console.error('Error en unión clásica:', upErr);
+                        avisarErrorUnaVez(upErr);
+                        if (libereMiPartida) setTimeout(() => jugarRapido(), 50);
+                        return false;
+                    }
                 }
                 // Confirmar que la partida sigue viva (si fue borrada justo
                 // antes, nuestra escritura habría recreado un nodo parcial:
