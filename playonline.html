@@ -821,7 +821,7 @@
         // ============================================================
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
-        import { getDatabase, ref, get, set, update, onValue, remove, onDisconnect, serverTimestamp, runTransaction } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-database.js";
+        import { getDatabase, ref, get, set, update, onValue, remove, onDisconnect, serverTimestamp, runTransaction, query, orderByChild, endAt } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDsgQ2dwokGq3umlptHtMCVgFISLe8ySM0",
@@ -3662,8 +3662,11 @@
         async function limpiarDatosVencidos() {
             try {
                 const ahora = Date.now();
+                // Consulta INDEXADA (.indexOn ultimaActividad): SOLO descarga las
+                // partidas vencidas, no toda la base (escala con muchos usuarios)
+                const corte = ahora - PARTIDA_EXPIRA_MS;
                 const [pSnap, cSnap] = await Promise.all([
-                    get(ref(db, 'partidas')),
+                    get(query(ref(db, 'partidas'), orderByChild('ultimaActividad'), endAt(corte))),
                     get(ref(db, 'cola_rapido'))
                 ]);
                 const borrados = {};
@@ -3671,9 +3674,7 @@
                     pSnap.forEach((child) => {
                         // NUNCA borrar la partida en la que estoy parado
                         if (child.key === estado.partidaId) return;
-                        const p = child.val() || {};
-                        const act = p.ultimaActividad || p.creadoEn || 0;
-                        if (act && ahora - act > PARTIDA_EXPIRA_MS) borrados['partidas/' + child.key] = null;
+                        borrados['partidas/' + child.key] = null;
                     });
                 }
                 if (cSnap.exists()) {
