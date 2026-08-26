@@ -1132,6 +1132,31 @@
             return esNumeroVar(v) ? String(v) : '?';
         }
 
+        // ============ ANTI-REVERSIÓN DE FASES (guerra de escrituras) ============
+        // Ambos clientes escriben el estado COMPLETO del juego sobre el mismo
+        // nodo de Firebase, así que una escritura desactualizada del rival puede
+        // llegar DESPUÉS de la mía y "resucitar" una fase vieja (ej.: volver de
+        // var_pedido a var_decision y re-habilitar el botón "Quiero", que había
+        // que apretar 3 veces hasta que alguna escritura quedaba última).
+        // Acá se defiende cada transición de fase: durante unos segundos,
+        // cualquier evento que traiga la fase DE LA QUE ACABO DE SALIR se trata
+        // como eco viejo y NO pisa los campos de control del juego.
+        const DEFENSA_FASE_MS = 3500;
+        let defensaFase = { anterior: null, expiraEn: 0 };
+
+        function defenderFase(faseAnterior) {
+            if (!faseAnterior) return;
+            defensaFase.anterior = faseAnterior;
+            defensaFase.expiraEn = Date.now() + DEFENSA_FASE_MS;
+        }
+
+        // true si el snapshot entrante es un eco desactualizado de la fase que
+        // acabo de abandonar (mientras dure la ventana de defensa).
+        function esEcoDeFaseVieja(j) {
+            if (!defensaFase.anterior || Date.now() > defensaFase.expiraEn) return false;
+            return (j.fase || null) === defensaFase.anterior;
+        }
+
         // ============ ESCALADO ============
         function actualizarEscalado() {
             const vh = window.innerHeight, vw = window.innerWidth;
@@ -2704,6 +2729,11 @@
                     estado.juego.turnoActual = aRelativo(j.turnoActual);
                     estado.juego.turnoInicial = aRelativo(j.turnoInicial);
                     estado.juego.cartasEnMesa = (j.cartasEnMesa || []).map(c => ({ ...c, origen: aRelativo(c.origen) }));
+                    // ANTI-REVERSIÓN: si este evento es un eco desactualizado de la
+                    // fase que acabo de abandonar (defensa activa), NO mapear los
+                    // campos de control: conservo mi estado local ya avanzado.
+                    const esEcoFaseVieja = esEcoDeFaseVieja(j);
+                    if (!esEcoFaseVieja) {
                     // Convertir fase: 'esperando_rival' absoluto → relativo
                     if (j.fase === 'esperando_rival') {
                         const turnoRelativo = aRelativo(j.turnoActual);
@@ -2725,9 +2755,13 @@
                     estado.juego.golAtacante = aRelativo(j.golAtacante);
                     estado.juego.golCartas = (j.golCartas || []).map(c => ({ ...c, origen: aRelativo(c.origen) }));
                     estado.juego.golazoUsado = j.golazoUsado || false;
+                    // VAR también protegido del eco: si se mapeara desde un evento
+                    // viejo, varPanelVisible volvería a false (el panel parpadea)
+                    // y varTurnoDeclarar volvería a null (rompería la resolución).
                     estado.juego.varPedidoPor = aRelativo(j.varPedidoPor);
                     estado.juego.varTurnoDeclarar = aRelativo(j.varTurnoDeclarar);
                     estado.juego.varPanelVisible = j.varPanelVisible || false;
+                    }
                     if (j.varDeclaraciones && typeof j.varDeclaraciones === 'object') {
                         // Sanitizar: SOLO un número finito cuenta como declaración.
                         // Cualquier otra cosa (nodo corrupto por escrituras viejas,
@@ -3382,6 +3416,7 @@
             if (estado.juego.penalUsado || estado.juego.penalCantadoPor) return;
             if (estado.juego.turnoActual !== 'jugador') return;
 
+            defenderFase(estado.juego.fase);
             estado.juego.fase = 'penal_pedido';
             estado.juego.cantoActual = 'penal';
             estado.juego.cantoPedidoPor = 'jugador';
@@ -3402,6 +3437,7 @@
             if (estado.juego.manoJugador.length === 0 || estado.juego.manoRival.length === 0) return;
             if (estado.juego.turnoActual !== 'jugador') return;
 
+            defenderFase(estado.juego.fase);
             estado.juego.fase = 'gol_pedido';
             estado.juego.cantoActual = 'gol';
             estado.juego.cantoPedidoPor = 'jugador';
@@ -3442,6 +3478,7 @@
                     // del rival (que revive brevemente fase='var_decision') permita
                     // responder de nuevo en bucle.
                     if (estado.juego.esperandoRespuestaDe !== 'jugador') return;
+                    defenderFase(estado.juego.fase);
                     if (resp === 'no_quiero') {
                         sumarPuntos(estado.juego.varPedidoPor, 1);
                         reproducirSonido('noquierojugador');
@@ -3457,6 +3494,7 @@
 
             const { cantoActual, cantoPedidoPor } = estado.juego;
             if (resp === 'no_quiero') {
+                defenderFase(estado.juego.fase);
                 const quienCanto = cantoPedidoPor;
                 const puntos = cantoActual === 'golazo' ? 2 : 1;
                 const golPorPuntos = sumarPuntos(quienCanto, puntos);
@@ -3465,6 +3503,7 @@
                 if (golPorPuntos) setTimeout(finalizarMano, 2200);
                 else finalizarCanto();
             } else if (resp === 'var') {
+                defenderFase(estado.juego.fase);
                 estado.juego.fase = 'var_decision';
                 estado.juego.varPedidoPor = 'jugador';
                 estado.juego.esperandoRespuestaDe = 'rival';
@@ -3473,6 +3512,7 @@
                 reproducirSonido('varjugador');
                 mostrarMensaje(`📺 ${estado.nickname || 'Jugador'} pide VAR`);
             } else if (resp === 'golazo') {
+                defenderFase(estado.juego.fase);
                 estado.juego.fase = 'golazo_pedido';
                 estado.juego.cantoActual = 'golazo';
                 estado.juego.cantoPedidoPor = 'jugador';
@@ -3490,6 +3530,7 @@
         }
 
         function ejecutarCanto(tipo, pedidoPor) {
+            defenderFase(estado.juego.fase);
             // La respuesta del rival al canto YA llegó: nadie queda esperándola.
             // Si no se borra acá, el "✓ Quiero / ✗ No quiso" del rival (que cada
             // cliente detecta cuando esperandoRespuestaDe deja de apuntarle) NO
@@ -3521,6 +3562,7 @@
         }
 
         function iniciarEjecucionCanto(tipo, pedidoPor) {
+            defenderFase(estado.juego.fase);
             estado.juego.esperandoRespuestaDe = null;
             estado.juego.cantoActual = null;
             estado.juego.cantoPedidoPor = null;
@@ -3560,6 +3602,7 @@
         }
 
         function finalizarCanto() {
+            defenderFase(estado.juego.fase);
             // El panel VAR permanece visible hasta que termine la mano (como en play.html)
             estado.juego.cantoActual = null;
             estado.juego.cantoPedidoPor = null;
@@ -3645,6 +3688,7 @@
         }
 
         function iniciarVar() {
+            defenderFase(estado.juego.fase);
             estado.juego.fase = 'var_pedido';
             // Ya nadie espera respuesta al canto: el VAR fue aceptado. SIN esta
             // limpieza, esperandoRespuestaDe seguía apuntándome y una escritura
