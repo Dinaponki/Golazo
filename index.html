@@ -166,11 +166,12 @@
             max-width: 320px;
         }
 
-        /* ---------- Botones principales (par destacado) ---------- */
-        /* Ambos comparten exactamente la misma estructura, tamaño,
+        /* ---------- Botones principales (trío destacado) ---------- */
+        /* Todos comparten exactamente la misma estructura, tamaño,
            tipografía y efectos. Solo cambia la paleta de cada uno. */
         .boton-jugar,
-        .boton-online {
+        .boton-online,
+        .boton-practica {
             display: inline-flex;
             flex-direction: column;
             align-items: center;
@@ -191,7 +192,8 @@
         }
 
         .boton-jugar .boton-principal,
-        .boton-online .boton-principal {
+        .boton-online .boton-principal,
+        .boton-practica .boton-principal {
             display: inline-flex;
             align-items: center;
             gap: 10px;
@@ -204,7 +206,8 @@
         }
 
         .boton-jugar .boton-subtitulo,
-        .boton-online .boton-subtitulo {
+        .boton-online .boton-subtitulo,
+        .boton-practica .boton-subtitulo {
             font-size: clamp(10px, 2.6vw, 11px);
             font-weight: 700;
             letter-spacing: 0.14em;
@@ -215,7 +218,8 @@
 
         /* Destello que barre el botón al pasar el mouse (idéntico en ambos) */
         .boton-jugar::after,
-        .boton-online::after {
+        .boton-online::after,
+        .boton-practica::after {
             content: '';
             position: absolute;
             top: 0;
@@ -229,7 +233,8 @@
         }
 
         .boton-jugar:hover::after,
-        .boton-online:hover::after {
+        .boton-online:hover::after,
+        .boton-practica:hover::after {
             left: 140%;
         }
 
@@ -285,9 +290,36 @@
             transition-duration: 0.1s;
         }
 
-        /* Accesibilidad: foco por teclado idéntico en ambos */
+        /* --- PRACTICA: verde --- */
+        .boton-practica {
+            background: linear-gradient(135deg, #56b98a 0%, #2d8a5f 50%, #23704d 100%);
+            color: var(--blanco);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            box-shadow:
+                0 8px 26px rgba(45, 138, 95, 0.45),
+                inset 0 1px 0 rgba(255, 255, 255, 0.35);
+        }
+
+        .boton-practica:hover {
+            transform: translateY(-3px);
+            filter: brightness(1.08);
+            box-shadow:
+                0 12px 34px rgba(45, 138, 95, 0.6),
+                inset 0 1px 0 rgba(255, 255, 255, 0.35);
+        }
+
+        .boton-practica:active {
+            transform: translateY(-1px) scale(0.985);
+            box-shadow:
+                0 5px 16px rgba(45, 138, 95, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+            transition-duration: 0.1s;
+        }
+
+        /* Accesibilidad: foco por teclado idéntico en los tres */
         .boton-jugar:focus-visible,
-        .boton-online:focus-visible {
+        .boton-online:focus-visible,
+        .boton-practica:focus-visible {
             outline: 3px solid var(--blanco);
             outline-offset: 3px;
         }
@@ -1132,13 +1164,15 @@
             }
 
             .boton-jugar,
-            .boton-online {
+            .boton-online,
+            .boton-practica {
                 padding: 14px 24px 13px;
                 border-radius: 16px;
             }
 
             .boton-jugar .boton-principal,
-            .boton-online .boton-principal {
+            .boton-online .boton-principal,
+            .boton-practica .boton-principal {
                 font-size: 18px;
             }
         }
@@ -1288,6 +1322,11 @@
         <a href="playonline.html" class="boton boton-online" id="btnOnline">
             <span class="boton-principal"><span class="icono-latido">🌐</span> JUGAR ONLINE</span>
             <span class="boton-subtitulo">1 vs 1 · En tiempo real</span>
+        </a>
+
+        <a href="practicar.html" class="boton boton-practica" id="btnPracticar">
+            <span class="boton-principal">🎯 PRACTICAR</span>
+            <span class="boton-subtitulo">Aprendé jugando · Sin puntos en juego</span>
         </a>
 
         <a href="rules.html" class="boton boton-donar">📖 REGLAS</a>

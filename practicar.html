@@ -1,0 +1,3768 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Golazo | Modo Práctica</title>
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="shortcut icon" href="/favicon.ico" />
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+<meta name="apple-mobile-web-app-title" content="Golazo" />
+<link rel="manifest" href="/site.webmanifest" />
+
+<!-- Google AdSense -->
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7910038078519460"
+    crossorigin="anonymous"></script>
+
+    <style>
+        :root { 
+            --verde-fondo: #1a3c2a;
+            --verde-mesa: #1e4430;
+            --verde-oscuro: #0f2b1a;
+            --verde-claro: #2d5a3f;
+            --dorado: #c8a84e;
+            --dorado-claro: #d4b356;
+            --blanco: #f5f5f0;
+            --negro: #111;
+            --rojo: #c0392b;
+            --rojo-oscuro: #962d22;
+            --azul: #2980b9;
+            --gris-oscuro: #1a1a1a;
+            --gris-medio: #333;
+            --gris-claro: #888;
+            --borde-carta: #1a1a1a;
+            --sombra-carta: 0 8px 24px rgba(0, 0, 0, 0.5);
+            --sombra-suave: 0 4px 16px rgba(0, 0, 0, 0.35);
+            --transicion: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --transicion-rapida: 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+            --borde-redondo: 14px;
+            --borde-redondo-carta: 10px;
+            --carta-mesa: clamp(238.29px, 52.728vmin, 461.37px);
+            --carta-mesa-max-h: clamp(330.05px, 72.501vmin, 645.918px);
+            --carta-mano: clamp(223.08px, 46.137vmin, 412.088px);
+            --carta-mano-max-h: clamp(313.073px, 66.0vmin, 576.713px);
+            --carta-cpu: clamp(105.456px, 22.308vmin, 186.576px);
+            --carta-cpu-max-h: clamp(146.016px, 30.34vmin, 263.64px);
+            --mano-altura: clamp(279.15px, 45.63vmin, 443.625px);
+            --btn-font: clamp(15px, 3.6vmin, 22px);
+            --btn-pad-y: clamp(10px, 2.2vmin, 18px);
+            --btn-pad-x: clamp(12px, 3vmin, 28px);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--verde-fondo);
+            color: var(--blanco);
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        .juego {
+            display: grid;
+            height: 100dvh;
+            max-height: 100dvh;
+            width: 100vw;
+            max-width: 100vw;
+            overflow: hidden;
+            position: relative;
+            gap: clamp(3px, 0.8vh, 10px);
+            padding: clamp(4px, 1vh, 10px);
+            grid-template-rows: auto minmax(0, 1fr) auto auto auto;
+            grid-template-columns: 1fr;
+            grid-template-areas:
+                "cpu"
+                "mesa"
+                "botones"
+                "jugador"
+                "marcador";
+        }
+
+        .zona-cpu { grid-area: cpu; }
+        .zona-mesa { grid-area: mesa; }
+        .zona-botones { grid-area: botones; }
+        .zona-jugador { grid-area: jugador; }
+        .panel-marcador { grid-area: marcador; }
+
+        /* Zona CPU */
+        .zona-cpu {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: clamp(2px, 0.5vh, 6px);
+            padding: 0 4px 0;
+            flex-shrink: 0;
+        }
+
+        .etiqueta-turno {
+            font-size: clamp(13px, 2.8vmin, 17px);
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            color: rgba(255, 255, 255, 0.6);
+            text-transform: uppercase;
+            transition: color 0.3s, transform 0.3s;
+        }
+
+        @keyframes latido {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.12); }
+        }
+
+        .etiqueta-turno.activo {
+            color: var(--dorado);
+            animation: latido 0.9s ease-in-out infinite;
+        }
+
+        .mano-cpu {
+            display: flex;
+            gap: clamp(4px, 1vmin, 8px);
+            justify-content: center;
+            flex-wrap: nowrap;
+            margin-top: calc(-1 * clamp(4px, 1vh, 10px));
+            overflow: hidden;
+            height: calc(var(--carta-cpu-max-h) * 0.6);
+            align-items: flex-end;
+        }
+
+        /* Zona mesa */
+        .zona-mesa {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            min-height: 0;
+            background: radial-gradient(ellipse at center, rgba(30, 68, 48, 0.7) 0%, transparent 70%);
+            border-radius: var(--borde-redondo);
+            margin: 0 2px;
+            overflow: visible;
+        }
+
+        .indicador-canto {
+            font-size: clamp(14px, 3.2vmin, 19px);
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            color: var(--dorado);
+            text-align: center;
+            min-height: 0;
+            padding: clamp(3px, 0.6vh, 5px) clamp(10px, 2.5vmin, 15px);
+            flex-shrink: 0;
+            border-radius: 20px;
+            background: rgba(0,0,0,0.3);
+            margin-bottom: 8px;
+            transition: opacity 0.3s;
+            opacity: 0;
+        }
+
+        .indicador-canto.visible {
+            opacity: 1;
+        }
+
+        .mesa-cartas {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            position: relative;
+            min-height: 0;
+            padding: 12px;
+            overflow: visible;
+        }
+
+        .mesa-fila {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            width: auto;
+            min-height: 0;
+        }
+
+        .mesa-cartas .carta-contenedor {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            transition: var(--transicion);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+        }
+
+        .mesa-cartas .carta-contenedor.ganadora {
+            z-index: 6;
+            transform: translate(-50%, -50%) translateY(-10px) scale(1.02);
+            filter: drop-shadow(0 10px 14px rgba(200,168,78,0.5));
+        }
+
+        .mesa-cartas .carta-contenedor.perdedora {
+            z-index: 2;
+            transform: translate(-50%, -50%) translateY(6px);
+            opacity: 0.9;
+        }
+
+        /* Enfrentamiento de cartas: quien gana brilla, quien pierde se atenúa */
+        .mesa-cartas .carta-contenedor.ganadora-ronda {
+            z-index: 20 !important;
+            filter: brightness(1.08) drop-shadow(0 0 10px rgba(200, 168, 78, 0.65));
+        }
+
+        .mesa-cartas .carta-contenedor.perdedora-ronda {
+            opacity: 0.75;
+            filter: saturate(0.7);
+        }
+
+        .mesa-cartas .carta-img {
+            width: var(--carta-mano);
+            height: auto;
+            max-height: var(--carta-mano-max-h);
+            filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.4));
+        }
+
+        /* Botones */
+        .zona-botones {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: center;
+            gap: clamp(6px, 1.5vmin, 12px);
+            padding: clamp(2px, 0.5vh, 6px) 4px;
+            flex-shrink: 0;
+        }
+
+        .botones-laterales {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: stretch;
+            gap: clamp(4px, 1vmin, 8px);
+            padding: 0;
+        }
+
+        .grupo-botones {
+            display: flex;
+            gap: clamp(4px, 1vmin, 8px);
+            justify-content: center;
+        }
+
+        .btn-accion {
+            padding: var(--btn-pad-y) var(--btn-pad-x);
+            border-radius: 50px;
+            font-size: var(--btn-font);
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: var(--transicion-rapida);
+            background: var(--gris-medio);
+            color: var(--blanco);
+            white-space: nowrap;
+            position: relative;
+            min-width: clamp(90px, 20vmin, 140px);
+            text-align: center;
+        }
+
+        .btn-accion:active:not(:disabled) {
+            transform: scale(0.95);
+        }
+
+        .btn-accion:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            filter: grayscale(0.5);
+        }
+
+        .btn-penal {
+            background: var(--rojo);
+            border-color: var(--rojo-oscuro);
+        }
+
+        .btn-penal:not(:disabled):hover {
+            background: #d44235;
+            box-shadow: 0 4px 16px rgba(192, 57, 43, 0.4);
+        }
+
+        .btn-gol {
+            background: var(--dorado);
+            border-color: #a8883a;
+            color: #1a2a10;
+        }
+
+        .btn-gol:not(:disabled):hover {
+            background: var(--dorado-claro);
+            box-shadow: 0 4px 16px rgba(200, 168, 78, 0.5);
+        }
+
+        .btn-golazo {
+            background: #e67e22;
+            border-color: #c0651f;
+            color: #fff;
+        }
+
+        .btn-golazo:not(:disabled):hover {
+            background: #f08c34;
+            box-shadow: 0 4px 16px rgba(230, 126, 34, 0.5);
+        }
+
+        .btn-quiero {
+            background: #27ae60;
+            border-color: #1e8449;
+        }
+
+        .btn-quiero:not(:disabled):hover {
+            background: #2ecc71;
+            box-shadow: 0 4px 16px rgba(39, 174, 96, 0.4);
+        }
+
+        .btn-no-quiero {
+            background: #7f8c8d;
+            border-color: #6c7a7a;
+        }
+
+        .btn-no-quiero:not(:disabled):hover {
+            background: #95a5a6;
+        }
+
+        .btn-var {
+            background: #2980b9;
+            border-color: #1f6da0;
+        }
+
+        .btn-jugar-carta {
+            background: #8e44ad;
+            border-color: #6c3483;
+        }
+
+        .btn-jugar-carta:not(:disabled):hover {
+            background: #9b59b6;
+            box-shadow: 0 4px 16px rgba(142, 68, 173, 0.4);
+        }
+
+        .btn-var:not(:disabled):hover {
+            background: #3498db;
+            box-shadow: 0 4px 16px rgba(41, 128, 185, 0.4);
+        }
+
+        /* Zona jugador */
+        .zona-jugador {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: clamp(2px, 0.5vh, 6px);
+            padding: 0 4px clamp(2px, 0.5vh, 6px);
+            flex-shrink: 0;
+        }
+
+        .mano-jugador {
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            position: relative;
+            height: var(--mano-altura);
+            min-height: 0;
+            width: min(100%, 920px);
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 0 16px;
+        }
+
+        .mano-jugador .carta-contenedor {
+            position: absolute;
+            transition: var(--transicion);
+            cursor: pointer;
+            transform-origin: bottom center;
+        }
+
+        .mano-jugador .carta-contenedor.seleccionada {
+            transform: translateY(clamp(-10px, -2vh, -20px)) scale(1.06);
+            z-index: 10 !important;
+            filter: brightness(1.1);
+        }
+
+        /* Panel marcador */
+        .panel-marcador {
+            background: var(--gris-oscuro);
+            border-radius: var(--borde-redondo);
+            padding: clamp(6px, 1.2vh, 10px) clamp(10px, 2.5vw, 16px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: clamp(6px, 1.5vw, 12px);
+            margin: 0;
+            box-shadow: var(--sombra-suave);
+            cursor: pointer;
+            transition: var(--transicion);
+            flex-shrink: 0;
+        }
+
+        /* Botones de sonido */
+        .botones-sonido {
+            display: flex;
+            gap: clamp(6px, 1vmin, 10px);
+            flex-shrink: 0;
+        }
+
+        .btn-sonido {
+            padding: clamp(6px, 1.2vh, 10px) clamp(10px, 2vw, 14px);
+            border-radius: 50px;
+            font-size: clamp(12px, 2.8vmin, 16px);
+            font-weight: 700;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: var(--transicion-rapida);
+            background: var(--gris-medio);
+            color: var(--blanco);
+            white-space: nowrap;
+            min-width: clamp(50px, 12vmin, 70px);
+            text-align: center;
+        }
+
+        .btn-sonido:hover {
+            background: #444;
+            transform: scale(1.05);
+        }
+
+        .btn-sonido:active {
+            transform: scale(0.95);
+        }
+
+        .btn-sonido.desactivado {
+            opacity: 0.4;
+            background: var(--gris-oscuro);
+            border-color: var(--gris-medio);
+        }
+
+        .btn-sonido.activo {
+            background: #27ae60;
+            border-color: #1e8449;
+        }
+
+        .panel-marcador:hover {
+            background: #222;
+        }
+
+        .panel-marcador:active {
+            transform: scale(0.98);
+        }
+
+        .panel-marcador .jugador-info,
+        .panel-marcador .cpu-info {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            min-width: 60px;
+        }
+
+        .panel-marcador .nombre {
+            font-size: clamp(12px, 2.6vmin, 15px);
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .panel-marcador .goles-numero {
+            font-size: clamp(26px, 6.5vmin, 44px);
+            font-weight: 900;
+            color: var(--blanco);
+            line-height: 1;
+        }
+
+        .panel-marcador .estrellas {
+            display: flex;
+            gap: 5px;
+            font-size: clamp(15px, 3.8vmin, 20px);
+        }
+
+        .panel-marcador .estrellas .estrella {
+            color: rgba(255, 255, 255, 0.2);
+            transition: var(--transicion);
+        }
+
+        .panel-marcador .estrellas .estrella.encendida {
+            color: var(--dorado);
+            text-shadow: 0 0 8px rgba(200, 168, 78, 0.5);
+        }
+
+        .panel-marcador .centro-marcador {
+            font-size: clamp(14px, 3.2vmin, 18px);
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            color: rgba(255, 255, 255, 0.5);
+            text-align: center;
+        }
+
+        .panel-marcador .minuto {
+            font-size: clamp(13px, 2.8vmin, 16px);
+            color: var(--dorado);
+        }
+
+        /* Cartas */
+        .carta-img {
+            display: block;
+            background: transparent;
+            object-fit: contain;
+            transition: var(--transicion);
+        }
+
+        .mano-cpu .carta-img {
+            width: var(--carta-cpu);
+            height: auto;
+            max-height: var(--carta-cpu-max-h);
+        }
+
+        .mano-jugador .carta-img {
+            width: var(--carta-mano);
+            height: auto;
+            max-height: var(--carta-mano-max-h);
+            background: transparent;
+            filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.35));
+        }
+
+        /* Overlay bienvenida */
+        .overlay-bienvenida {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 300;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .overlay-bienvenida.oculto {
+            display: none;
+        }
+
+        .bienvenida-contenedor {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            width: 100%;
+            max-width: 360px;
+            background: var(--gris-oscuro);
+            border-radius: var(--borde-redondo);
+            padding: 32px 24px;
+            box-shadow: var(--sombra-carta);
+        }
+
+        .bienvenida-titulo {
+            font-size: clamp(32px, 8vw, 48px);
+            font-weight: 900;
+            letter-spacing: -0.02em;
+            color: var(--dorado);
+            text-align: center;
+        }
+
+        .bienvenida-subtitulo {
+            font-size: clamp(14px, 3.5vmin, 18px);
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.7);
+            text-align: center;
+        }
+
+        .btn-empezar {
+            width: 100%;
+            padding: 16px 24px;
+            border-radius: 50px;
+            font-size: clamp(16px, 4vmin, 20px);
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            cursor: pointer;
+            border: none;
+            background: var(--dorado);
+            color: #1a2a10;
+            transition: var(--transicion);
+        }
+
+        .btn-empezar:hover {
+            background: var(--dorado-claro);
+            box-shadow: 0 4px 20px rgba(200, 168, 78, 0.4);
+        }
+
+        .btn-empezar:active {
+            transform: scale(0.97);
+        }
+
+        /* Bienvenida con sesión de Google */
+        .foto-inicio {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid var(--dorado);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+        }
+
+        .bienvenida-usuario {
+            font-size: clamp(18px, 4.5vmin, 24px);
+            font-weight: 800;
+            color: var(--blanco);
+            text-align: center;
+        }
+
+        .mensaje-inicio-sesion {
+            font-size: clamp(13px, 3vmin, 15px);
+            color: var(--rojo);
+            text-align: center;
+            line-height: 1.5;
+            padding: 12px;
+            background: rgba(192, 57, 43, 0.12);
+            border: 1px solid rgba(192, 57, 43, 0.3);
+            border-radius: 12px;
+        }
+
+        .btn-inicio-bienvenida {
+            width: 100%;
+            padding: 12px 24px;
+            border-radius: 50px;
+            font-size: clamp(14px, 3.5vmin, 16px);
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            background: transparent;
+            color: var(--blanco);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            transition: var(--transicion);
+        }
+
+        .btn-inicio-bienvenida:hover {
+            border-color: var(--dorado);
+            color: var(--dorado);
+            background: rgba(200, 168, 78, 0.08);
+        }
+
+        /* Overlay marcador */
+        .overlay-marcador {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.92);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .overlay-marcador.oculto {
+            display: none;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .overlay-marcador .tabla-marcador {
+            width: 100%;
+            max-width: 500px;
+            border-collapse: collapse;
+        }
+
+        .overlay-marcador .tabla-marcador th,
+        .overlay-marcador .tabla-marcador td {
+            padding: 14px 12px;
+            text-align: center;
+            font-size: clamp(16px, 4vmin, 22px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .overlay-marcador .tabla-marcador th {
+            font-size: clamp(14px, 3.5vmin, 18px);
+            letter-spacing: 0.06em;
+            color: rgba(255, 255, 255, 0.5);
+            text-transform: uppercase;
+        }
+
+        .overlay-marcador .tabla-marcador .fila-actual {
+            background: rgba(200, 168, 78, 0.15);
+            border-radius: 8px;
+        }
+
+        .overlay-marcador .tabla-marcador .fila-actual td {
+            color: var(--dorado);
+            font-weight: 700;
+        }
+
+        .overlay-marcador .btn-volver {
+            margin-top: 24px;
+            padding: 14px 40px;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            background: var(--blanco);
+            color: var(--negro);
+            border: none;
+            cursor: pointer;
+            transition: var(--transicion);
+        }
+
+        .overlay-marcador .btn-volver:hover {
+            background: #fff;
+            box-shadow: 0 4px 20px rgba(255, 255, 255, 0.2);
+        }
+
+        /* Overlay fin */
+        .overlay-fin {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            padding: 20px;
+            animation: fadeIn 0.5s ease;
+            overflow-y: auto;
+        }
+
+        /* Publicidad al final de la partida */
+        .ads-fin {
+            width: 100%;
+            max-width: 480px;
+            text-align: center;
+            overflow: hidden;
+        }
+
+        .ads-fin ins.adsbygoogle {
+            display: block;
+            width: 100%;
+        }
+
+        .overlay-fin.oculto {
+            display: none;
+        }
+
+        .overlay-fin .resultado-titulo {
+            font-size: clamp(36px, 8vw, 60px);
+            font-weight: 900;
+            letter-spacing: -0.02em;
+            text-align: center;
+        }
+
+        .overlay-fin .resultado-titulo.ganaste { color: #2ecc71; }
+        .overlay-fin .resultado-titulo.perdiste { color: #e74c3c; }
+        .overlay-fin .resultado-titulo.empate { color: var(--dorado); }
+
+        .overlay-fin .resultado-marcador {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--blanco);
+        }
+
+        .overlay-fin .botones-fin {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .overlay-fin .btn-fin {
+            padding: 14px 32px;
+            border-radius: 50px;
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            border: none;
+            transition: var(--transicion);
+        }
+
+        .btn-revancha {
+            background: var(--dorado);
+            color: #1a2a10;
+        }
+
+        .btn-revancha:hover {
+            background: var(--dorado-claro);
+            box-shadow: 0 4px 20px rgba(200, 168, 78, 0.4);
+        }
+
+        .btn-inicio {
+            background: transparent;
+            color: var(--blanco);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-inicio:hover {
+            border-color: var(--blanco);
+        }
+
+        .btn-compartir {
+            background: #2980b9;
+            color: #fff;
+        }
+
+        .btn-compartir:hover {
+            background: #3498db;
+            box-shadow: 0 4px 20px rgba(41, 128, 185, 0.4);
+        }
+
+        /* Panel VAR */
+        .var-panel {
+            background: rgba(0, 0, 0, 0.85);
+            border: 2px solid var(--dorado);
+            color: var(--dorado);
+            padding: 8px 12px;
+            border-radius: 10px;
+            font-size: clamp(12px, 2.6vmin, 16px);
+            font-weight: 800;
+            letter-spacing: 0.03em;
+            text-align: center;
+            opacity: 0;
+            transition: opacity 0.3s;
+            max-width: 100%;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+            pointer-events: none;
+        }
+
+        .var-panel.visible {
+            opacity: 1;
+        }
+
+        .var-panel .var-titulo {
+            display: block;
+            font-size: clamp(10px, 2.2vmin, 13px);
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 3px;
+        }
+
+        /* Mensaje flotante */
+        .mensaje-flotante {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            background: rgba(0, 0, 0, 0.9);
+            color: var(--dorado);
+            padding: 20px 36px;
+            border-radius: 50px;
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            z-index: 150;
+            pointer-events: none;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            text-align: center;
+        }
+
+        .mensaje-flotante.mostrar {
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        /* ---------- Overlay de advertencia al salir ---------- */
+        .overlay-salida {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.92);
+            z-index: 400;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .overlay-salida.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .salida-contenedor {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            width: 100%;
+            max-width: 380px;
+            background: var(--gris-oscuro);
+            border-radius: var(--borde-redondo);
+            padding: 32px 24px;
+            box-shadow: var(--sombra-carta);
+            text-align: center;
+        }
+
+        .salida-titulo {
+            font-size: clamp(24px, 6vw, 32px);
+            font-weight: 800;
+            color: var(--blanco);
+            text-align: center;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .salida-titulo .icono-advertencia {
+            color: var(--rojo);
+        }
+
+        .salida-mensaje {
+            font-size: clamp(14px, 3vmin, 16px);
+            color: rgba(255, 255, 255, 0.7);
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        .salida-mensaje .destacado-salida {
+            color: var(--dorado);
+            font-weight: 700;
+        }
+
+        .botones-salida {
+            display: flex;
+            gap: 12px;
+            width: 100%;
+            margin-top: 8px;
+        }
+
+        .btn-salida {
+            flex: 1;
+            padding: 14px 20px;
+            border-radius: 50px;
+            font-size: clamp(14px, 3vmin, 16px);
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            border: none;
+            transition: var(--transicion);
+            font-family: inherit;
+            text-align: center;
+        }
+
+        .btn-cancelar-salida {
+            background: transparent;
+            color: var(--blanco);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-cancelar-salida:hover {
+            border-color: var(--blanco);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .btn-salir-salida {
+            background: var(--rojo);
+            border-color: var(--rojo-oscuro);
+            color: var(--blanco);
+        }
+
+        .btn-salir-salida:hover {
+            background: #d44235;
+            box-shadow: 0 4px 16px rgba(192, 57, 43, 0.4);
+        }
+
+        /* Responsive - móviles */
+
+        @media (max-width: 767px) {
+
+            /* 1. Cartas jugadas: al fondo de la mesa, dejando espacio arriba para indicador */
+            .mesa-fila {
+                height: 100%;
+                width: 100%;
+            }
+
+            .indicador-canto {
+                margin-bottom: 4px;
+            }
+
+            /* 3. Etiqueta turno jugador: bajar en Y en móviles */
+            .zona-jugador .etiqueta-turno {
+                margin-top: clamp(4px, 0.8vh, 8px);
+            }
+
+            /* 2. Botones: columnas verticales a los lados con espacio central */
+            .zona-botones {
+                justify-content: space-between;
+                align-items: flex-start;
+                padding: 0;
+                gap: 0;
+            }
+
+            .botones-laterales {
+                flex: 0 0 auto;
+                max-width: 28%;
+                flex-direction: column;
+                gap: clamp(4px, 0.8vmin, 6px);
+                padding: 0;
+            }
+
+            .botones-laterales.izquierda {
+                grid-area: auto;
+                justify-content: flex-start;
+                align-items: stretch;
+                align-self: flex-start;
+            }
+
+            .botones-laterales.derecha {
+                justify-content: flex-end;
+                align-items: stretch;
+                align-self: flex-start;
+            }
+
+            .btn-accion {
+                min-width: 0;
+                width: 100%;
+                flex: 0 0 auto;
+                height: clamp(28px, 6vmin, 34px);
+                font-size: clamp(10px, 2.4vmin, 14px);
+                padding: var(--btn-pad-y) clamp(8px, 2vmin, 12px);
+                white-space: nowrap;
+                text-align: center;
+                line-height: 1.2;
+                letter-spacing: 0.01em;
+            }
+        }
+
+        @media (min-width: 768px) {
+            .mano-cpu {
+                margin-top: calc(-1 * clamp(8px, 1.5vh, 14px));
+            }
+
+            .juego {
+                grid-template-rows: auto minmax(0, 1fr) auto auto;
+                grid-template-columns: minmax(120px, 13vw) 1fr minmax(120px, 13vw);
+                grid-template-areas:
+                    "cpu cpu cpu"
+                    "botones-izq mesa botones-der"
+                    "jugador jugador jugador"
+                    "marcador marcador marcador";
+                gap: clamp(6px, 1.2vh, 14px);
+                padding: clamp(8px, 1.5vh, 14px) clamp(10px, 2vw, 18px);
+                max-width: 1400px;
+                margin: 0 auto;
+            }
+
+            .zona-botones {
+                display: contents;
+            }
+
+            .botones-laterales.izquierda {
+                grid-area: botones-izq;
+                gap: clamp(6px, 1.2vh, 12px);
+            }
+
+            .botones-laterales.derecha {
+                grid-area: botones-der;
+                gap: clamp(6px, 1.2vh, 12px);
+            }
+
+            .btn-accion {
+                min-width: clamp(140px, 16vw, 200px);
+                width: 100%;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .juego {
+                grid-template-columns: minmax(140px, 14vw) 1fr minmax(140px, 14vw);
+                max-width: 1500px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Overlay de bienvenida -->
+    <div class="overlay-bienvenida" id="overlayBienvenida">
+        <div class="bienvenida-contenedor">
+            <div class="bienvenida-titulo">🎯 PRÁCTICA</div>
+            <div class="bienvenida-subtitulo">⚽ GOLAZO · El Truco del Fútbol</div>
+            <div class="bienvenida-usuario">Sin puntos en juego</div>
+            <button class="btn-empezar" id="btnEmpezar">▶ PRACTICAR</button>
+            <button class="btn-inicio-bienvenida" id="btnIrAlInicio">🏠 Volver al inicio</button>
+        </div>
+    </div>
+
+    <!-- Overlay marcador detallado -->
+    <div class="overlay-marcador oculto" id="overlayMarcador">
+        <table class="tabla-marcador" id="tablaMarcador">
+            <thead>
+                <tr>
+                    <th>Minuto</th>
+                    <th id="thJugador">Jugador</th>
+                    <th></th>
+                    <th>CPU</th>
+                </tr>
+            </thead>
+            <tbody id="cuerpoTablaMarcador"></tbody>
+        </table>
+        <button class="btn-volver" id="btnVolverMarcador">VOLVER</button>
+    </div>
+
+    <!-- Overlay fin de partido -->
+    <div class="overlay-fin oculto" id="overlayFin">
+        <div class="resultado-titulo" id="resultadoTitulo"></div>
+        <div class="resultado-marcador" id="resultadoMarcador"></div>
+        <div class="botones-fin">
+            <button class="btn-fin btn-revancha" id="btnRevancha">⚽ Jugar otra vez</button>
+            <button class="btn-fin btn-compartir" id="btnCompartir">📤 Compartir resultado</button>
+            <button class="btn-fin btn-inicio" id="btnInicio">🏠 Volver al inicio</button>
+        </div>
+
+        <!-- Publicidad (solo visible al finalizar la partida) -->
+        <div class="ads-fin">
+            <!-- Publicidad: con los Anuncios automáticos de AdSense activados,
+                 Google inserta los anuncios por su cuenta (no hace falta poner
+                 bloques <ins> acá). Si querés uno manual, crealo en AdSense →
+                 Anuncios → Por unidad de anuncios y pegalo con su data-ad-slot real. -->
+        </div>
+    </div>
+
+    <!-- Overlay de advertencia al salir -->
+    <div class="overlay-salida" id="overlaySalida">
+        <div class="salida-contenedor">
+            <div class="salida-titulo"><span class="icono-advertencia">⚠️</span> ¿Estás seguro?</div>
+            <div class="salida-mensaje">Estás en <span class="destacado-salida">modo práctica</span>: podés salir tranquilo, <span class="destacado-salida">no perdés puntos</span>.</div>
+            <div class="botones-salida">
+                <button class="btn-salida btn-cancelar-salida" id="btnCancelarSalida">✕ Cancelar</button>
+                <button class="btn-salida btn-salir-salida" id="btnConfirmarSalida">🚪 Salir</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mensaje flotante -->
+
+    <div class="mensaje-flotante" id="mensajeFlotante"></div>
+
+    <!-- Audio de fondo -->
+    <audio id="audioFondo" loop preload="auto">
+        <source src="sounds/background.mp3" type="audio/mpeg">
+    </audio>
+
+    <!-- Elementos de audio estáticos para móviles -->
+    <audio id="sndCarta" preload="auto"><source src="sounds/carta.mp3" type="audio/mpeg"></audio>
+    <audio id="sndGol" preload="auto"><source src="sounds/gol.mp3" type="audio/mpeg"></audio>
+    <audio id="sndGolazo" preload="auto"><source src="sounds/golazo.mp3" type="audio/mpeg"></audio>
+    <audio id="sndGolcpu" preload="auto"><source src="sounds/golcpu.mp3" type="audio/mpeg"></audio>
+    <audio id="sndGolplayer" preload="auto"><source src="sounds/golplayer.mp3" type="audio/mpeg"></audio>
+    <audio id="sndQuiero" preload="auto"><source src="sounds/quiero.mp3" type="audio/mpeg"></audio>
+    <audio id="sndMmmquiero" preload="auto"><source src="sounds/mmmquiero.mp3" type="audio/mpeg"></audio>
+    <audio id="sndNoquiero" preload="auto"><source src="sounds/noquiero.mp3" type="audio/mpeg"></audio>
+    <audio id="sndPenal" preload="auto"><source src="sounds/penal.mp3" type="audio/mpeg"></audio>
+    <audio id="sndPuntocpu" preload="auto"><source src="sounds/puntocpu.mp3" type="audio/mpeg"></audio>
+    <audio id="sndPuntoplayer" preload="auto"><source src="sounds/puntoplayer.mp3" type="audio/mpeg"></audio>
+    <audio id="sndVar" preload="auto"><source src="sounds/var.mp3" type="audio/mpeg"></audio>
+    <audio id="sndGanar" preload="auto"><source src="sounds/ganar.mp3" type="audio/mpeg"></audio>
+    <audio id="sndEmpate" preload="auto"><source src="sounds/empate.mp3" type="audio/mpeg"></audio>
+    <audio id="sndPerder" preload="auto"><source src="sounds/perder.mp3" type="audio/mpeg"></audio>
+
+    <!-- Sonidos de cantos del jugador -->
+    <audio id="sndPenaljugador" preload="auto"><source src="sounds/penaljugador.mp3" type="audio/mpeg"></audio>
+    <audio id="sndQuierojugador" preload="auto"><source src="sounds/quierojugador.mp3" type="audio/mpeg"></audio>
+    <audio id="sndNoquierojugador" preload="auto"><source src="sounds/noquierojugador.mp3" type="audio/mpeg"></audio>
+    <audio id="sndVarjugador" preload="auto"><source src="sounds/varjugador.mp3" type="audio/mpeg"></audio>
+    <audio id="sndGoljugador" preload="auto"><source src="sounds/goljugador.mp3" type="audio/mpeg"></audio>
+    <audio id="sndGolazojugador" preload="auto"><source src="sounds/golazojugador.mp3" type="audio/mpeg"></audio>
+
+    <!-- Sonidos de cantos del CPU -->
+    <audio id="sndPenalcpu" preload="auto"><source src="sounds/penalcpu.mp3" type="audio/mpeg"></audio>
+    <audio id="sndQuierocpu" preload="auto"><source src="sounds/quierocpu.mp3" type="audio/mpeg"></audio>
+    <audio id="sndNoquierocpu" preload="auto"><source src="sounds/noquierocpu.mp3" type="audio/mpeg"></audio>
+    <audio id="sndPidoverelvarcpu" preload="auto"><source src="sounds/pidoverelvarcpu.mp3" type="audio/mpeg"></audio>
+    <audio id="sndGolcpucanto" preload="auto"><source src="sounds/golcpucanto.mp3" type="audio/mpeg"></audio>
+    <audio id="sndGolazocpu" preload="auto"><source src="sounds/golazocpu.mp3" type="audio/mpeg"></audio>
+
+    <!-- Contenedor del juego -->
+    <div class="juego" id="juego">
+        <!-- Zona CPU -->
+        <div class="zona-cpu">
+            <div class="mano-cpu" id="manoCpu"></div>
+            <span class="etiqueta-turno" id="etiquetaCpu">Turno de CPU</span>
+        </div>
+
+        <!-- Zona mesa -->
+        <div class="zona-mesa">
+            <div class="indicador-canto" id="indicadorCanto"></div>
+            <div class="mesa-cartas" id="mesaCartas"></div>
+        </div>
+
+        <!-- Botones -->
+        <div class="zona-botones">
+            <div class="botones-laterales izquierda" id="botonesIzquierda">
+                <button class="btn-accion btn-penal" id="btnPenal" disabled>🥅 Penal</button>
+                <button class="btn-accion btn-quiero" id="btnQuieroIzq" disabled>✓ Quiero</button>
+                <button class="btn-accion btn-no-quiero" id="btnNoQuieroIzq" disabled>✗ No quiero</button>
+                <button class="btn-accion btn-var" id="btnVar" disabled>📺 VAR</button>
+            </div>
+
+            <div class="botones-laterales derecha" id="botonesDerecha">
+                <button class="btn-accion btn-gol" id="btnGol" disabled>⚽ Gol</button>
+                <button class="btn-accion btn-quiero" id="btnQuieroDer" disabled>✓ Quiero</button>
+                <button class="btn-accion btn-no-quiero" id="btnNoQuieroDer" disabled>✗ No quiero</button>
+                <button class="btn-accion btn-golazo" id="btnGolazo" disabled>💥 Golazo</button>
+                <div class="var-panel" id="varPanel">
+                    <span class="var-titulo">📺 VAR</span>
+                    <span id="varPanelTexto"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Zona jugador -->
+        <div class="zona-jugador">
+            <span class="etiqueta-turno" id="etiquetaJugador">Turno de <span id="nombreEnTurno">Jugador</span></span>
+            <div class="mano-jugador" id="manoJugador"></div>
+        </div>
+
+        <!-- Panel marcador -->
+        <div class="panel-marcador" id="panelMarcador">
+            <div class="jugador-info">
+                <span class="nombre" id="nombreJugadorEtiqueta">Jugador</span>
+                <span class="goles-numero" id="golesJugador">0</span>
+                <span class="estrellas" id="estrellasJugador">
+                    <span class="estrella">★</span><span class="estrella">★</span><span class="estrella">★</span>
+                </span>
+            </div>
+            <div class="centro-marcador">
+                <div>⚽</div>
+                <div class="minuto" id="minutoActual">0'</div>
+            </div>
+            <div class="cpu-info">
+                <span class="nombre">CPU</span>
+                <span class="goles-numero" id="golesCpu">0</span>
+                <span class="estrellas" id="estrellasCpu">
+                    <span class="estrella">★</span><span class="estrella">★</span><span class="estrella">★</span>
+                </span>
+            </div>
+            <div class="botones-sonido">
+                <button class="btn-sonido activo" id="btnSonido" title="Efectos de sonido">🔊</button>
+                <button class="btn-sonido activo" id="btnMusica" title="Música de fondo">🎵</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        (function() {
+            // ============================================================
+            // GOLAZO - MODO PRÁCTICA (idéntico a Jugar vs CPU, pero sin
+            // puntos de entrada, sin ranking y sin castigo por abandono)
+            // ============================================================
+
+            // Constantes
+            const POSICIONES = ['Arq', 'Def', 'Vol', 'Del'];
+            const NUMEROS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+            const CARTAS_POR_JUGADOR = 4;
+            const TOTAL_MANOS = 9;
+            const PUNTOS_PARA_GOL = 3;
+            const MINUTOS = ["0' a 10'", "10' a 20'", "20' a 30'", "30' a 40'", "40' a 50'", "50' a 60'", "60' a 70'", "70' a 80'", "80' a 90'"];
+            const RUTA_IMAGENES = 'img/';
+            const RUTA_DORSO = 'img/Dorso.png';
+            const RUTA_SONIDOS = 'sounds/';
+
+            // Estado global del juego
+            const estado = {
+                mazo: [],
+                manoJugador: [],
+                manoCpu: [],
+                golesJugador: 0,
+                golesCpu: 0,
+                golesInicioManoJugador: 0,
+                golesInicioManoCpu: 0,
+                golEnMano: false,
+                puntosJugador: 0,
+                puntosCpu: 0,
+                puntosManoJugador: 0,
+                puntosManoCpu: 0,
+                manoActual: 0,
+                rondaActual: 0,
+                turnoInicial: 'jugador',
+                turnoActual: 'jugador',
+                cartasEnMesa: [],
+                cartaSeleccionada: null,
+                fase: 'esperando_seleccion',
+                penalUsado: false,
+                penalCantadoPor: null,
+                penalActivo: false,
+                penalAtacante: null,
+                penalCartas: [],
+                golActivo: false,
+                golAtacante: null,
+                golCartas: [],
+                golUsado: false,
+                golazoUsado: false,
+                cantoPedidoPor: null,
+                cantoActual: null,
+                cantoPendiente: null,
+                varPedidoPor: null,
+                varDeclaraciones: { jugador: null, cpu: null },
+                varTurnoDeclarar: null,
+                esperandoRespuestaDe: null,
+                historialManos: [],
+                inicioRonda: 0,
+                pausado: false,
+                nombreJugador: 'Jugador',
+                ganadorManoAnterior: null,
+                sonidosActivados: true,
+                musicaActivada: true,
+                partidoActivo: false,
+            };
+
+            // Referencias DOM cacheadas
+            const dom = {};
+
+            function cacheDom() {
+                dom.manoCpu = document.getElementById('manoCpu');
+                dom.manoJugador = document.getElementById('manoJugador');
+                dom.mesaCartas = document.getElementById('mesaCartas');
+                dom.golesJugador = document.getElementById('golesJugador');
+                dom.golesCpu = document.getElementById('golesCpu');
+                dom.estrellasJugador = document.getElementById('estrellasJugador');
+                dom.estrellasCpu = document.getElementById('estrellasCpu');
+                dom.minutoActual = document.getElementById('minutoActual');
+                dom.panelMarcador = document.getElementById('panelMarcador');
+                dom.overlayMarcador = document.getElementById('overlayMarcador');
+                dom.cuerpoTablaMarcador = document.getElementById('cuerpoTablaMarcador');
+                dom.btnVolverMarcador = document.getElementById('btnVolverMarcador');
+                dom.overlayFin = document.getElementById('overlayFin');
+                dom.resultadoTitulo = document.getElementById('resultadoTitulo');
+                dom.resultadoMarcador = document.getElementById('resultadoMarcador');
+                dom.btnRevancha = document.getElementById('btnRevancha');
+                dom.btnCompartir = document.getElementById('btnCompartir');
+                dom.btnInicio = document.getElementById('btnInicio');
+                dom.mensajeFlotante = document.getElementById('mensajeFlotante');
+                dom.varPanel = document.getElementById('varPanel');
+                dom.varPanelTexto = document.getElementById('varPanelTexto');
+                dom.btnPenal = document.getElementById('btnPenal');
+                dom.btnQuieroIzq = document.getElementById('btnQuieroIzq');
+                dom.btnNoQuieroIzq = document.getElementById('btnNoQuieroIzq');
+                dom.btnVar = document.getElementById('btnVar');
+                dom.btnGol = document.getElementById('btnGol');
+                dom.btnQuieroDer = document.getElementById('btnQuieroDer');
+                dom.btnNoQuieroDer = document.getElementById('btnNoQuieroDer');
+                dom.btnGolazo = document.getElementById('btnGolazo');
+                dom.btnSonido = document.getElementById('btnSonido');
+                dom.btnMusica = document.getElementById('btnMusica');
+                dom.indicadorCanto = document.getElementById('indicadorCanto');
+                dom.etiquetaCpu = document.getElementById('etiquetaCpu');
+                dom.etiquetaJugador = document.getElementById('etiquetaJugador');
+                dom.overlayBienvenida = document.getElementById('overlayBienvenida');
+                dom.btnEmpezar = document.getElementById('btnEmpezar');
+                dom.bienvenidaSubtitulo = document.getElementById('bienvenidaSubtitulo');
+                dom.bienvenidaFoto = document.getElementById('bienvenidaFoto');
+                dom.bienvenidaNombre = document.getElementById('bienvenidaNombre');
+                dom.mensajeSinSesion = document.getElementById('mensajeSinSesion');
+                dom.btnIrAlInicio = document.getElementById('btnIrAlInicio');
+                dom.thJugador = document.getElementById('thJugador');
+                dom.nombreEnTurno = document.getElementById('nombreEnTurno');
+                dom.nombreJugadorEtiqueta = document.getElementById('nombreJugadorEtiqueta');
+                dom.audioFondo = document.getElementById('audioFondo');
+
+                // Cachear elementos del overlay de advertencia de salida
+                dom.overlaySalida = document.getElementById('overlaySalida');
+                dom.btnCancelarSalida = document.getElementById('btnCancelarSalida');
+                dom.btnConfirmarSalida = document.getElementById('btnConfirmarSalida');
+
+                // Cachear elementos de audio estáticos para móviles
+                dom.audioCarta = document.getElementById('sndCarta');
+
+                dom.audioGol = document.getElementById('sndGol');
+                dom.audioGolazo = document.getElementById('sndGolazo');
+                dom.audioGolcpu = document.getElementById('sndGolcpu');
+                dom.audioGolplayer = document.getElementById('sndGolplayer');
+                dom.audioQuiero = document.getElementById('sndQuiero');
+                dom.audioMmmquiero = document.getElementById('sndMmmquiero');
+                dom.audioNoquiero = document.getElementById('sndNoquiero');
+                dom.audioPenal = document.getElementById('sndPenal');
+                dom.audioPuntocpu = document.getElementById('sndPuntocpu');
+                dom.audioPuntoplayer = document.getElementById('sndPuntoplayer');
+                dom.audioVar = document.getElementById('sndVar');
+                dom.audioGanar = document.getElementById('sndGanar');
+                dom.audioEmpate = document.getElementById('sndEmpate');
+                dom.audioPerder = document.getElementById('sndPerder');
+
+                // Sonidos de cantos del jugador
+                dom.audioPenaljugador = document.getElementById('sndPenaljugador');
+                dom.audioQuierojugador = document.getElementById('sndQuierojugador');
+                dom.audioNoquierojugador = document.getElementById('sndNoquierojugador');
+                dom.audioVarjugador = document.getElementById('sndVarjugador');
+                dom.audioGoljugador = document.getElementById('sndGoljugador');
+                dom.audioGolazojugador = document.getElementById('sndGolazojugador');
+
+                // Sonidos de cantos del CPU
+                dom.audioPenalcpu = document.getElementById('sndPenalcpu');
+                dom.audioQuierocpu = document.getElementById('sndQuierocpu');
+                dom.audioNoquierocpu = document.getElementById('sndNoquierocpu');
+                dom.audioPidoverelvarcpu = document.getElementById('sndPidoverelvarcpu');
+                dom.audioGolcpucanto = document.getElementById('sndGolcpucanto');
+                dom.audioGolazocpu = document.getElementById('sndGolazocpu');
+
+                // Mapeo de sonidos
+                dom.sonidos = {
+                    'carta': dom.audioCarta,
+                    'gol': dom.audioGol,
+                    'golazo': dom.audioGolazo,
+                    'golcpu': dom.audioGolcpu,
+                    'golplayer': dom.audioGolplayer,
+                    'quiero': dom.audioQuiero,
+                    'mmmquiero': dom.audioMmmquiero,
+                    'noquiero': dom.audioNoquiero,
+                    'penal': dom.audioPenal,
+                    'puntocpu': dom.audioPuntocpu,
+                    'puntoplayer': dom.audioPuntoplayer,
+                    'var': dom.audioVar,
+                    'ganar': dom.audioGanar,
+                    'empate': dom.audioEmpate,
+                    'perder': dom.audioPerder,
+                    'penaljugador': dom.audioPenaljugador,
+                    'quierojugador': dom.audioQuierojugador,
+                    'noquierojugador': dom.audioNoquierojugador,
+                    'varjugador': dom.audioVarjugador,
+                    'goljugador': dom.audioGoljugador,
+                    'golazojugador': dom.audioGolazojugador,
+                    'penalcpu': dom.audioPenalcpu,
+                    'quierocpu': dom.audioQuierocpu,
+                    'noquierocpu': dom.audioNoquierocpu,
+                    'pidoverelvarcpu': dom.audioPidoverelvarcpu,
+                    'golcpucanto': dom.audioGolcpucanto,
+                    'golazocpu': dom.audioGolazocpu,
+                };
+            }
+
+            let ultimoSonidoQuiero = 0;
+
+            function reproducirSonidoCpu(nombre) {
+                if (!estado.sonidosActivados) return;
+                const audio = dom.sonidos[nombre];
+                if (!audio) return;
+                audio.volume = 0.7;
+                audio.currentTime = 0;
+                audio.play().catch(() => {});
+            }
+
+            function reproducirAudioFondo() {
+                if (!estado.musicaActivada) return;
+                if (dom.audioFondo) {
+                    dom.audioFondo.volume = 0.3;
+                    dom.audioFondo.play().catch(() => {});
+                }
+            }
+
+            function detenerAudioFondo() {
+                if (dom.audioFondo) {
+                    dom.audioFondo.pause();
+                    dom.audioFondo.currentTime = 0;
+                }
+            }
+
+            function reproducirSonidoQuiero() {
+                ultimoSonidoQuiero++;
+                if (ultimoSonidoQuiero % 2 === 0) {
+                    reproducirSonidoCpu('quiero');
+                } else {
+                    reproducirSonidoCpu('mmmquiero');
+                }
+            }
+
+            function reproducirSonidoPunto(quien) {
+                if (quien === 'jugador') {
+                    reproducirSonidoCpu('puntoplayer');
+                } else {
+                    reproducirSonidoCpu('puntocpu');
+                }
+            }
+
+            function reproducirSonidoGol(quien) {
+                if (quien === 'jugador') {
+                    reproducirSonidoCpu('golplayer');
+                } else {
+                    reproducirSonidoCpu('golcpu');
+                }
+            }
+
+            function aplicarNombreJugador() {
+                dom.nombreJugadorEtiqueta.textContent = estado.nombreJugador;
+                dom.nombreEnTurno.textContent = estado.nombreJugador;
+                dom.thJugador.textContent = estado.nombreJugador;
+            }
+
+            function reproducirSonidoFinPartido(resultado) {
+                if (resultado === 'ganar') {
+                    reproducirSonidoCpu('ganar');
+                } else if (resultado === 'empate') {
+                    reproducirSonidoCpu('empate');
+                } else if (resultado === 'perder') {
+                    reproducirSonidoCpu('perder');
+                }
+            }
+
+            // --- Utilidades de cartas ---
+            function crearCarta(posicion, numero) {
+                const nombresPos = { Arq: 'Arquero', Def: 'Defensor', Vol: 'Volante', Del: 'Delantero' };
+                return {
+                    id: `${posicion}${numero}`,
+                    posicion,
+                    numero,
+                    nombre: `${nombresPos[posicion]} ${numero}`,
+                    imagen: `${RUTA_IMAGENES}${nombresPos[posicion]}${numero}.png`,
+                };
+            }
+
+            function crearMazo() {
+                const mazo = [];
+                for (const pos of POSICIONES) {
+                    for (const num of NUMEROS) {
+                        mazo.push(crearCarta(pos, num));
+                    }
+                }
+                return mazo;
+            }
+
+            function mezclarMazo(mazo) {
+                const copia = [...mazo];
+                for (let i = copia.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [copia[i], copia[j]] = [copia[j], copia[i]];
+                }
+                return copia;
+            }
+
+            function repartir(mazo) {
+                const manoJ = [], manoC = [], restante = [...mazo];
+                for (let i = 0; i < CARTAS_POR_JUGADOR; i++) {
+                    manoJ.push(restante.pop());
+                    manoC.push(restante.pop());
+                }
+                return { manoJ, manoC, mazoRestante: restante };
+            }
+
+            function ordenarMano(mano) {
+                const orden = { Arq: 0, Def: 1, Vol: 2, Del: 3 };
+                return [...mano].sort((a, b) => orden[a.posicion] - orden[b.posicion] || b.numero - a.numero);
+            }
+
+            function mejorCartaDe(mano, pos) {
+                const cartas = mano.filter(c => c.posicion === pos);
+                return cartas.length ? cartas.reduce((a, b) => a.numero > b.numero ? a : b) : null;
+            }
+
+            function mejorCartaDeVarias(mano, posiciones) {
+                let mejor = null;
+                for (const p of posiciones) {
+                    const c = mejorCartaDe(mano, p);
+                    if (c && (!mejor || c.numero > mejor.numero)) mejor = c;
+                }
+                return mejor;
+            }
+
+            function numeroMasAltoArqDel(mano) {
+                return Math.max(mejorCartaDe(mano, 'Arq')?.numero || 0, mejorCartaDe(mano, 'Del')?.numero || 0);
+            }
+
+            function cartaMasAlta(mano) {
+                return mano.length ? mano.reduce((a, b) => a.numero > b.numero ? a : b) : null;
+            }
+
+            // --- Escalado dinámico al viewport ---
+            function actualizarEscalado() {
+                const vh = window.innerHeight;
+                const vw = window.innerWidth;
+                const vmin = Math.min(vh, vw);
+                const isWide = vw >= 768;
+                const aspectRatio = 1039 / 744;
+
+                const zonaCpu = vh * (isWide ? 0.055 : 0.09);
+                const zonaBotones = isWide ? 0 : vh * 0.12;
+                const zonaJugador = vh * (isWide ? 0.19 : 0.18);
+                const zonaMarcador = vh * 0.08;
+                const gaps = vh * 0.035;
+                const espacioMesa = vh - zonaCpu - zonaBotones - zonaJugador - zonaMarcador - gaps;
+
+                let cartaMesa = Math.min(espacioMesa * 0.52, vw * (isWide ? 0.24 : 0.42), vmin * 0.36, 210);
+                cartaMesa = Math.max(cartaMesa, vmin * 0.15);
+
+                let cartaMano = Math.min(zonaJugador * 0.95, vw * 0.34, cartaMesa * 1.25, vmin * 0.31, 200);
+                cartaMano = Math.max(cartaMano, vmin * 0.16);
+
+                let cartaCpu = Math.min(cartaMano * 0.8, vw * 0.2, vmin * 0.21, 140) * 0.8;
+                cartaCpu = Math.max(cartaCpu, vmin * 0.13);
+
+                const btnFont = Math.max(15, Math.min(24, vmin * 0.05));
+                const btnPadY = Math.max(10, Math.min(20, vmin * 0.028));
+                const btnPadX = Math.max(14, Math.min(32, vmin * 0.04));
+                const manoAltura = cartaMano * aspectRatio + (isWide ? 18 : 14);
+
+                const root = document.documentElement;
+                root.style.setProperty('--carta-mesa', cartaMesa + 'px');
+                root.style.setProperty('--carta-mesa-max-h', (cartaMesa * aspectRatio) + 'px');
+                root.style.setProperty('--carta-mano', cartaMano + 'px');
+                root.style.setProperty('--carta-mano-max-h', (cartaMano * aspectRatio) + 'px');
+                root.style.setProperty('--carta-cpu', cartaCpu + 'px');
+                root.style.setProperty('--carta-cpu-max-h', (cartaCpu * aspectRatio) + 'px');
+                root.style.setProperty('--mano-altura', manoAltura + 'px');
+                root.style.setProperty('--btn-font', btnFont + 'px');
+                root.style.setProperty('--btn-pad-y', btnPadY + 'px');
+                root.style.setProperty('--btn-pad-x', btnPadX + 'px');
+            }
+
+            // --- Renderizado ---
+            function renderizarManoCpu() {
+                dom.manoCpu.innerHTML = '';
+                estado.manoCpu.forEach(() => {
+                    const c = document.createElement('div');
+                    c.className = 'carta-contenedor';
+                    const img = document.createElement('img');
+                    img.src = RUTA_DORSO;
+                    img.className = 'carta-img dorso';
+                    img.draggable = false;
+                    c.appendChild(img);
+                    dom.manoCpu.appendChild(c);
+                });
+            }
+
+            function renderizarManoJugador() {
+                dom.manoJugador.innerHTML = '';
+                const mano = estado.manoJugador;
+                const style = getComputedStyle(document.documentElement);
+                const anchoCarta = parseFloat(style.getPropertyValue('--carta-mano')) || 100;
+                const manoAltura = parseFloat(style.getPropertyValue('--mano-altura')) || 130;
+
+                if (!mano.length) {
+                    dom.manoJugador.style.height = manoAltura + 'px';
+                    return;
+                }
+
+                const anchoDisponible = Math.min(window.innerWidth - 32, 920);
+                let anchoCartaJugador = anchoCarta * 1.25;
+                const factorSuperp = 0.85;
+                let superp = anchoCartaJugador * factorSuperp;
+                const anchoTotal = (mano.length - 1) * superp + anchoCartaJugador;
+                if (anchoTotal > anchoDisponible) {
+                    anchoCartaJugador = anchoDisponible / (1 + (mano.length - 1) * factorSuperp);
+                    superp = anchoCartaJugador * factorSuperp;
+                }
+                if (anchoCartaJugador > anchoDisponible) {
+                    anchoCartaJugador = anchoDisponible;
+                    superp = anchoCartaJugador * factorSuperp;
+                }
+                const offsetBase = (anchoDisponible - ((mano.length - 1) * superp + anchoCartaJugador)) / 2;
+                dom.manoJugador.style.height = manoAltura + 'px';
+                mano.forEach((carta, i) => {
+                    const cont = document.createElement('div');
+                    cont.className = 'carta-contenedor';
+                    cont.dataset.index = i;
+                    cont.style.zIndex = i;
+                    cont.style.left = `${offsetBase + i * superp}px`;
+                    if (estado.cartaSeleccionada === i) {
+                        cont.classList.add('seleccionada');
+                        cont.style.zIndex = 20;
+                    }
+                    const img = document.createElement('img');
+                    img.src = carta.imagen;
+                    img.className = 'carta-img';
+                    img.draggable = false;
+                    img.style.width = anchoCartaJugador + 'px';
+                    cont.appendChild(img);
+                    cont.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        if (estado.fase !== 'esperando_seleccion' || estado.pausado || estado.turnoActual !== 'jugador') return;
+                        if (estado.cartaSeleccionada === i) {
+                            jugarCartaSeleccionada();
+                        } else {
+                            seleccionarCarta(i);
+                        }
+                    });
+                    dom.manoJugador.appendChild(cont);
+                });
+            }
+
+            function renderizarMesa() {
+                dom.mesaCartas.innerHTML = '';
+                const esMovil = window.innerWidth < 768;
+
+                // Durante un canto (penal/gol/golazo) solo se muestran las cartas del canto,
+                // para que se vean bien y no se mezclen con las de rondas anteriores.
+                let cartasVisibles;
+                if (estado.penalActivo && estado.penalCartas.length) {
+                    cartasVisibles = estado.penalCartas;
+                } else if (estado.golActivo && estado.golCartas.length) {
+                    cartasVisibles = estado.golCartas;
+                } else {
+                    const inicio = estado.inicioRonda || 0;
+                    cartasVisibles = estado.cartasEnMesa.slice(inicio);
+                }
+                if (!cartasVisibles.length) return;
+
+                const filaMesa = document.createElement('div');
+                filaMesa.className = 'mesa-fila';
+
+                // Agrupar cartas por ronda (de a 2: una mía + una del CPU)
+                const rondas = [];
+                for (let i = 0; i < cartasVisibles.length; i += 2) {
+                    rondas.push(cartasVisibles.slice(i, i + 2));
+                }
+
+                let idxGlobal = 0;
+                rondas.forEach((ronda, ri) => {
+                    const uj = ronda.find(c => c.origen === 'jugador');
+                    const uc = ronda.find(c => c.origen === 'cpu');
+                    const ambos = uj && uc;
+                    // Quién gana el enfrentamiento de esta ronda
+                    let ganadorOrigen = null;
+                    if (ambos) {
+                        if (uj.carta.numero > uc.carta.numero) ganadorOrigen = 'jugador';
+                        else if (uc.carta.numero > uj.carta.numero) ganadorOrigen = 'cpu';
+                    }
+                    const esRondaActual = ri === rondas.length - 1;
+
+                    ronda.forEach((item) => {
+                        const cont = document.createElement('div');
+                        cont.className = 'carta-contenedor';
+                        const img = document.createElement('img');
+                        img.src = item.carta.imagen;
+                        img.className = 'carta-img';
+                        img.draggable = false;
+                        cont.appendChild(img);
+                        cont.style.zIndex = ++idxGlobal;
+
+                        const esCpu = item.origen === 'cpu';
+                        // Si ambas cartas están en la mesa, se superponen como en un juego real:
+                        // cada carta queda del lado de quien la tiró y se acercan al enfrentar.
+                        // En móvil se baja el grupo para que quede entre los textos de turno.
+                        const sep = ambos ? (esMovil ? 7 : 12) : (esMovil ? 10 : 24);
+                        const ty = esCpu ? -sep : sep;
+                        const tx = (ri % 2 === 0 ? -1 : 1) * 8;
+
+                        cont.style.top = esMovil ? '95%' : '50%';
+                        cont.style.left = '50%';
+                        cont.style.transform = `translate(-50%, -50%) translateX(${tx}px) translateY(${ty}%)`;
+
+                        // Resaltar quién mata a quién
+                        if (ganadorOrigen === item.origen) {
+                            cont.classList.add('ganadora-ronda');
+                        } else if (ganadorOrigen) {
+                            cont.classList.add('perdedora-ronda');
+                        }
+                        // Rondas anteriores se atenúan
+                        if (!esRondaActual) cont.style.opacity = '0.45';
+
+                        filaMesa.appendChild(cont);
+                    });
+                });
+                dom.mesaCartas.appendChild(filaMesa);
+            }
+
+            function renderizarEstrellas(mostrarTresEstrellas) {
+                const pJ = mostrarTresEstrellas ? 3 : estado.puntosJugador;
+                const pC = mostrarTresEstrellas ? 3 : estado.puntosCpu;
+                dom.estrellasJugador.querySelectorAll('.estrella').forEach((el, i) => {
+                    el.classList.toggle('encendida', i < pJ);
+                });
+                dom.estrellasCpu.querySelectorAll('.estrella').forEach((el, i) => {
+                    el.classList.toggle('encendida', i < pC);
+                });
+            }
+
+            function renderizarMarcador(mostrarTresEstrellas) {
+                dom.golesJugador.textContent = estado.golesJugador;
+                dom.golesCpu.textContent = estado.golesCpu;
+                dom.minutoActual.textContent = MINUTOS[estado.manoActual];
+                renderizarEstrellas(mostrarTresEstrellas);
+                actualizarTablaMarcador();
+            }
+
+            function actualizarIndicadorCanto() {
+                if (estado.cantoActual) {
+                    const textos = { penal: '🥅 PENAL', gol: '⚽ GOL', golazo: '💥 GOLAZO' };
+                    dom.indicadorCanto.textContent = textos[estado.cantoActual] || '';
+                    dom.indicadorCanto.classList.add('visible');
+                } else {
+                    dom.indicadorCanto.classList.remove('visible');
+                }
+            }
+
+            function actualizarEtiquetasTurno() {
+                if (estado.fase === 'esperando_seleccion' || estado.fase === 'esperando_cpu') {
+                    if (estado.turnoActual === 'jugador') {
+                        dom.etiquetaJugador.classList.add('activo');
+                        dom.etiquetaCpu.classList.remove('activo');
+                    } else {
+                        dom.etiquetaCpu.classList.add('activo');
+                        dom.etiquetaJugador.classList.remove('activo');
+                    }
+                } else {
+                    dom.etiquetaJugador.classList.remove('activo');
+                    dom.etiquetaCpu.classList.remove('activo');
+                }
+            }
+
+            function renderizarTodo(mostrarTresEstrellas) {
+                actualizarEscalado();
+                renderizarManoCpu();
+                renderizarManoJugador();
+                renderizarMesa();
+                renderizarMarcador(mostrarTresEstrellas);
+                actualizarIndicadorCanto();
+                actualizarEtiquetasTurno();
+                actualizarBotones();
+            }
+
+            // --- Botones ---
+            function actualizarBotones() {
+                const todos = [
+                    dom.btnPenal, dom.btnQuieroIzq, dom.btnNoQuieroIzq, dom.btnVar,
+                    dom.btnGol, dom.btnQuieroDer, dom.btnNoQuieroDer, dom.btnGolazo
+                ];
+                todos.forEach(b => b.disabled = true);
+
+                if (estado.pausado) return;
+
+                const fase = estado.fase;
+                const quedan = estado.manoJugador.length > 0;
+                const ultimaRonda = estado.rondaActual === 3;
+                const algunSinCartas = estado.manoJugador.length === 0 || estado.manoCpu.length === 0;
+                const puedeCantarGol = estado.manoJugador.length > 0 && estado.manoCpu.length > 0;
+
+                switch (fase) {
+                    case 'esperando_seleccion':
+                        if (estado.rondaActual === 0 && !estado.penalUsado && !estado.penalCantadoPor && !estado.penalActivo && !estado.golActivo && quedan && estado.turnoActual === 'jugador') {
+                            dom.btnPenal.disabled = false;
+                        }
+                        if (puedeCantarGol && estado.rondaActual >= 1 && !estado.golUsado && !estado.penalActivo && !estado.golActivo && quedan && estado.turnoActual === 'jugador') {
+                            dom.btnGol.disabled = false;
+                        }
+                        break;
+                    case 'penal_pedido':
+                        if (estado.esperandoRespuestaDe === 'jugador') {
+                            dom.btnQuieroIzq.disabled = false;
+                            dom.btnNoQuieroIzq.disabled = false;
+                            dom.btnVar.disabled = false;
+                        }
+                        break;
+                    case 'gol_pedido':
+                        if (estado.esperandoRespuestaDe === 'jugador') {
+                            dom.btnQuieroDer.disabled = false;
+                            dom.btnNoQuieroDer.disabled = false;
+                            dom.btnGolazo.disabled = false;
+                        }
+                        break;
+                    case 'golazo_pedido':
+                        if (estado.esperandoRespuestaDe === 'jugador') {
+                            dom.btnQuieroDer.disabled = false;
+                            dom.btnNoQuieroDer.disabled = false;
+                        }
+                        break;
+                    case 'var_decision':
+                        if (estado.esperandoRespuestaDe === 'jugador') {
+                            dom.btnQuieroIzq.disabled = false;
+                            dom.btnNoQuieroIzq.disabled = false;
+                        }
+                        break;
+                    case 'var_pedido':
+                        if (estado.varTurnoDeclarar === 'jugador') {
+                            dom.btnVar.disabled = false;
+                            dom.btnVar.textContent = '📢 DECLARAR';
+                        } else {
+                            dom.btnVar.textContent = '📺 VAR';
+                        }
+                        break;
+                    default:
+                        dom.btnVar.textContent = '📺 VAR';
+                }
+
+                if (ultimaRonda && algunSinCartas) {
+                    dom.btnGol.disabled = true;
+                    dom.btnQuieroDer.disabled = true;
+                    dom.btnNoQuieroDer.disabled = true;
+                    dom.btnGolazo.disabled = true;
+                }
+            }
+
+            // --- Acciones de juego normal ---
+            function seleccionarCarta(i) {
+                if (estado.fase !== 'esperando_seleccion' || estado.pausado || estado.turnoActual !== 'jugador') return;
+                estado.cartaSeleccionada = i;
+                renderizarManoJugador();
+                actualizarBotones();
+            }
+
+            function jugarCartaSeleccionada() {
+                if (estado.fase !== 'esperando_seleccion' || estado.cartaSeleccionada === null || estado.pausado ||
+                    estado.turnoActual !== 'jugador') return;
+
+                const idx = estado.cartaSeleccionada;
+                const carta = estado.manoJugador[idx];
+                estado.manoJugador.splice(idx, 1);
+                estado.cartaSeleccionada = null;
+                estado.cartasEnMesa.push({ carta, origen: 'jugador' });
+
+                // Reproducir sonido de carta
+                reproducirSonidoCpu('carta');
+
+                // Si hay penal activo, guardar la carta del jugador
+                if (estado.penalActivo) {
+                    estado.penalCartas.push({ carta, origen: 'jugador' });
+                    // Si el CPU ya jugó su carta de penal, resolver
+                    if (estado.penalCartas.some(c => c.origen === 'cpu')) {
+                        estado.fase = 'resolviendo';
+                        renderizarTodo();
+                        setTimeout(resolverRonda, 500);
+                    } else {
+                        // Esperar a que el CPU juegue su carta de penal
+                        estado.fase = 'esperando_cpu';
+                        estado.turnoActual = 'cpu';
+                        renderizarTodo();
+                        setTimeout(turnoCpu, 600 + Math.random() * 400);
+                    }
+                    return;
+                }
+
+                // Si hay gol activo, guardar la carta del jugador
+                if (estado.golActivo) {
+                    estado.golCartas.push({ carta, origen: 'jugador' });
+                    // Si el CPU ya jugó su carta de gol, resolver
+                    if (estado.golCartas.some(c => c.origen === 'cpu')) {
+                        estado.fase = 'resolviendo';
+                        renderizarTodo();
+                        setTimeout(resolverRonda, 500);
+                    } else {
+                        // Esperar a que el CPU juegue su carta de gol
+                        estado.fase = 'esperando_cpu';
+                        estado.turnoActual = 'cpu';
+                        renderizarTodo();
+                        setTimeout(turnoCpu, 600 + Math.random() * 400);
+                    }
+                    return;
+                }
+
+                if (cpuJugoEstaRonda()) {
+                    estado.fase = 'resolviendo';
+                    renderizarTodo();
+                    setTimeout(resolverRonda, 500);
+                } else {
+                    estado.fase = 'esperando_cpu';
+                    estado.turnoActual = 'cpu';
+                    renderizarTodo();
+                    setTimeout(turnoCpu, 600 + Math.random() * 400);
+                }
+            }
+
+            function turnoCpu() {
+                if (estado.pausado) return;
+
+                const hayCartasAmbos = estado.manoJugador.length > 0 && estado.manoCpu.length > 0;
+
+                // Si hay un canto pendiente, la CPU solo debe tirar su carta para completar la ronda
+                if (!estado.cantoPendiente) {
+                    if (estado.rondaActual === 0 && !estado.penalUsado && !estado.penalCantadoPor && !estado.penalActivo && !estado.golActivo && hayCartasAmbos && estado.esperandoRespuestaDe !== 'cpu' && iaDecidirCantarPenal()) {
+                        cpuPidePenal();
+                        return;
+                    }
+                    if (estado.rondaActual >= 1 && !estado.golUsado && !estado.penalActivo && !estado.golActivo && hayCartasAmbos && estado.esperandoRespuestaDe !== 'cpu' && iaDecidirCantarGol()) {
+                        cpuPideGol();
+                        return;
+                    }
+                }
+
+                const carta = iaElegirCarta();
+                if (!carta) {
+                    finalizarMano();
+                    return;
+                }
+
+                estado.manoCpu = estado.manoCpu.filter(c => c.id !== carta.id);
+                estado.cartasEnMesa.push({ carta, origen: 'cpu' });
+
+                // Reproducir sonido de carta
+                reproducirSonidoCpu('carta');
+
+                // Si hay penal activo, guardar la carta del CPU
+                if (estado.penalActivo) {
+                    estado.penalCartas.push({ carta, origen: 'cpu' });
+                    // Si el jugador ya jugó su carta de penal, resolver
+                    if (estado.penalCartas.some(c => c.origen === 'jugador')) {
+                        estado.fase = 'resolviendo';
+                        renderizarTodo();
+                        setTimeout(resolverRonda, 500);
+                    } else {
+                        // Esperar a que el jugador juegue su carta de penal
+                        estado.turnoActual = 'jugador';
+                        estado.fase = 'esperando_seleccion';
+                        estado.cartaSeleccionada = null;
+                        renderizarTodo();
+                    }
+                    return;
+                }
+
+                // Si hay gol activo, guardar la carta del CPU
+                if (estado.golActivo) {
+                    estado.golCartas.push({ carta, origen: 'cpu' });
+                    // Si el jugador ya jugó su carta de gol, resolver
+                    if (estado.golCartas.some(c => c.origen === 'jugador')) {
+                        estado.fase = 'resolviendo';
+                        renderizarTodo();
+                        setTimeout(resolverRonda, 500);
+                    } else {
+                        // Esperar a que el jugador juegue su carta de gol
+                        estado.turnoActual = 'jugador';
+                        estado.fase = 'esperando_seleccion';
+                        estado.cartaSeleccionada = null;
+                        renderizarTodo();
+                    }
+                    return;
+                }
+
+                if (jugadorJugoEstaRonda()) {
+                    estado.fase = 'resolviendo';
+                    renderizarTodo();
+                    setTimeout(resolverRonda, 500);
+                } else {
+                    estado.turnoActual = 'jugador';
+                    estado.fase = 'esperando_seleccion';
+                    renderizarTodo();
+                }
+            }
+
+            // --- IA ---
+            // ============================================================
+            // IA INTELIGENTE: evalúa probabilidades, marcador, cartas
+            // jugadas del oponente y situación de la mano para tomar
+            // la mejor decisión posible en cada circunstancia.
+            // ============================================================
+
+            // Cartas que un jugador ya jugó en toda la mano (visibles en la mesa)
+            function iaCartasJugadasPor(quien) {
+                return estado.cartasEnMesa
+                    .filter(c => c.origen === quien)
+                    .map(c => c.carta);
+            }
+
+            // Deduce las cartas posibles que le quedan al oponente:
+            // todas las cartas del mazo menos las que ya se jugaron en la mesa
+            // y menos las que tiene el CPU en la mano.
+            function iaPosiblesCartasOponente() {
+                const jugadas = iaCartasJugadasPor('jugador');
+                const idsJugadas = new Set(jugadas.map(c => c.id));
+                const idsCpu = new Set(estado.manoCpu.map(c => c.id));
+                const posibles = [];
+                for (const pos of POSICIONES) {
+                    for (const num of NUMEROS) {
+                        const id = `${pos}${num}`;
+                        if (!idsJugadas.has(id) && !idsCpu.has(id)) {
+                            posibles.push(crearCarta(pos, num));
+                        }
+                    }
+                }
+                return posibles;
+            }
+
+            // Probabilidad (0-1) de que una carta gane contra las cartas posibles
+            // del oponente en las posiciones indicadas (o todas si no se filtra).
+            function iaProbabilidadGanar(carta, posicionesOponente) {
+                const posibles = iaPosiblesCartasOponente();
+                const filtradas = posicionesOponente
+                    ? posibles.filter(c => posicionesOponente.includes(c.posicion))
+                    : posibles;
+                if (!filtradas.length) return 0.5;
+                let gana = 0, empata = 0;
+                for (const c of filtradas) {
+                    if (carta.numero > c.numero) gana++;
+                    else if (carta.numero === c.numero) empata++;
+                }
+                // El empate no da punto a nadie, se cuenta como medio éxito
+                return (gana + empata * 0.5) / filtradas.length;
+            }
+
+            // Probabilidad de que el oponente tenga una carta >= umbral
+            // en las posiciones indicadas.
+            function iaProbabilidadOponenteTiene(umbral, posiciones) {
+                const posibles = iaPosiblesCartasOponente();
+                const filtradas = posiciones
+                    ? posibles.filter(c => posiciones.includes(c.posicion))
+                    : posibles;
+                if (!filtradas.length) return 0;
+                const total = filtradas.length;
+                const mayores = filtradas.filter(c => c.numero >= umbral).length;
+                return mayores / total;
+            }
+
+            // Evalúa la fuerza general de una mano (0-100)
+            function iaFuerzaMano(mano) {
+                if (!mano.length) return 0;
+                let suma = 0;
+                for (const c of mano) {
+                    suma += c.numero;
+                }
+                return (suma / (mano.length * 10)) * 100;
+            }
+
+            // Evalúa la fuerza de la mano del oponente basándose en
+            // las cartas que ya jugó y las que le quedan.
+            function iaFuerzaOponente() {
+                const jugadas = iaCartasJugadasPor('jugador');
+                const restantes = estado.manoJugador.length;
+                // Estimación: promedio de cartas jugadas + valor esperado de las restantes (~5.5)
+                const sumaJugadas = jugadas.reduce((s, c) => s + c.numero, 0);
+                const estimado = sumaJugadas + restantes * 5.5;
+                const total = (jugadas.length + restantes) * 10;
+                return total ? (estimado / total) * 100 : 50;
+            }
+
+            // ¿El CPU va ganando en puntos de la mano actual?
+            function iaVentajaPuntos() {
+                return estado.puntosCpu - estado.puntosJugador;
+            }
+
+            // ¿El CPU va ganando en goles del partido?
+            function iaVentajaGoles() {
+                return estado.golesCpu - estado.golesJugador;
+            }
+
+            // ¿Conviene arriesgar? Si va perdiendo, arriesga más.
+            function iaNivelRiesgo() {
+                const ventajaPuntos = iaVentajaPuntos();
+                const ventajaGoles = iaVentajaGoles();
+                // Base: 0.5 (neutral)
+                let riesgo = 0.5;
+                // Si va perdiendo por puntos, arriesga más
+                riesgo += Math.max(-0.25, Math.min(0.25, -ventajaPuntos * 0.08));
+                // Si va perdiendo por goles, arriesga más
+                riesgo += Math.max(-0.15, Math.min(0.15, -ventajaGoles * 0.1));
+                // Si es la última mano, arriesga más si va perdiendo
+                if (estado.manoActual >= TOTAL_MANOS - 1 && ventajaGoles < 0) riesgo += 0.15;
+                return Math.max(0.1, Math.min(0.9, riesgo));
+            }
+
+            // Mejor delantero del CPU
+            function iaMejorDelantero() {
+                return mejorCartaDe(estado.manoCpu, 'Del');
+            }
+
+            // Mejor arquero del CPU
+            function iaMejorArquero() {
+                return mejorCartaDe(estado.manoCpu, 'Arq');
+            }
+
+            // Mejor defensor/arquero del CPU
+            function iaMejorDefensa() {
+                return mejorCartaDeVarias(estado.manoCpu, ['Arq', 'Def']);
+            }
+
+            // Probabilidad de éxito de un penal del CPU:
+            // su mejor Del vs el probable Arq del oponente
+            function iaProbabilidadPenalExitoso() {
+                const del = iaMejorDelantero();
+                if (!del) return 0;
+                // El oponente usará su mejor arquero disponible
+                const probArqAlto = iaProbabilidadOponenteTiene(del.numero, ['Arq']);
+                // Si el oponente no tiene arquero, es gol seguro
+                const probSinArq = iaProbabilidadOponenteTiene(1, ['Arq']);
+                const probArq = 1 - probSinArq;
+                // Probabilidad de éxito = 1 - prob(arq >= del)
+                return 1 - probArqAlto;
+            }
+
+            // Probabilidad de éxito de un gol del CPU:
+            // su mejor Del vs el probable Arq/Def del oponente
+            function iaProbabilidadGolExitoso() {
+                const del = iaMejorDelantero();
+                if (!del) return 0;
+                const probDefAlto = iaProbabilidadOponenteTiene(del.numero, ['Arq', 'Def']);
+                const probSinDef = iaProbabilidadOponenteTiene(1, ['Arq', 'Def']);
+                const probDef = 1 - probSinDef;
+                return 1 - probDefAlto;
+            }
+
+            // Probabilidad de que el oponente gane un penal contra el CPU:
+            // su mejor Del vs el mejor Arq del CPU
+            function iaProbabilidadPenalOponente() {
+                const arq = iaMejorArquero();
+                if (!arq) return 1;
+                // El oponente usará su mejor delantero
+                const probDelAlto = iaProbabilidadOponenteTiene(arq.numero, ['Del']);
+                const probSinDel = iaProbabilidadOponenteTiene(1, ['Del']);
+                const probDel = 1 - probSinDel;
+                return 1 - probDelAlto;
+            }
+
+            // Probabilidad de que el oponente gane un gol contra el CPU:
+            // su mejor Del vs el mejor Arq/Def del CPU
+            function iaProbabilidadGolOponente() {
+                const def = iaMejorDefensa();
+                if (!def) return 1;
+                const probDelAlto = iaProbabilidadOponenteTiene(def.numero, ['Del']);
+                const probSinDel = iaProbabilidadOponenteTiene(1, ['Del']);
+                const probDel = 1 - probSinDel;
+                return 1 - probDelAlto;
+            }
+
+            // --- Elección de carta en juego normal ---
+            function iaElegirCarta() {
+                const mano = estado.manoCpu;
+                if (!mano.length) return null;
+
+                // === FLUJO CON CANTO PENDIENTE ===
+                // Si hay un canto pendiente (el canto fue aceptado pero el rival
+                // ya jugó su carta en la ronda normal), el CPU DEBE COMPLETAR LA
+                // RONDA NORMAL primero con una carta de descarte (la más débil que
+                // no sea la carta de ejecución del canto). La carta de ejecución
+                // del canto se jugará en el siguiente turno cuando
+                // penalActivo/golActivo sea true.
+                if (estado.cantoPendiente) {
+                    const pendiente = estado.cantoPendiente;
+                    const esAtacante = pendiente.pedidoPor === 'cpu';
+
+                    // Determinar qué carta se usará para EJECUTAR el canto luego
+                    let cartaEjecucionCanto = null;
+                    if (pendiente.tipo === 'penal') {
+                        cartaEjecucionCanto = esAtacante
+                            ? mejorCartaDe(mano, 'Del')
+                            : mejorCartaDe(mano, 'Arq');
+                    } else {
+                        cartaEjecucionCanto = esAtacante
+                            ? mejorCartaDe(mano, 'Del')
+                            : mejorCartaDeVarias(mano, ['Arq', 'Def']);
+                    }
+
+                    // Para completar la ronda normal, tirar la carta MÁS DÉBIL
+                    // que NO sea la necesaria para el canto (así la guardamos).
+                    const descartables = cartaEjecucionCanto
+                        ? mano.filter(c => c.id !== cartaEjecucionCanto.id)
+                        : mano;
+
+                    if (descartables.length) {
+                        return descartables.reduce((a, b) => a.numero < b.numero ? a : b);
+                    }
+
+                    // Si solo queda la carta del canto, tirarla (no queda otra)
+                    return cartaEjecucionCanto || mano[0];
+                }
+
+                // Si hay penal activo y CPU es el defensor, jugar el arquero más alto
+                if (estado.penalActivo && estado.penalAtacante === 'jugador') {
+                    const arq = mejorCartaDe(mano, 'Arq');
+                    if (arq) return arq;
+                    return mano.reduce((a, b) => a.numero < b.numero ? a : b);
+                }
+
+                // Si hay penal activo y CPU es el atacante, jugar el delantero más alto
+                if (estado.penalActivo && estado.penalAtacante === 'cpu') {
+                    const del = mejorCartaDe(mano, 'Del');
+                    if (del) return del;
+                    return mano.reduce((a, b) => a.numero < b.numero ? a : b);
+                }
+
+                // Si hay gol activo y CPU es el defensor, jugar Arq/Def más alto
+                if (estado.golActivo && estado.golAtacante === 'jugador') {
+                    const def = mejorCartaDeVarias(mano, ['Arq', 'Def']);
+                    if (def) return def;
+                    return mano.reduce((a, b) => a.numero < b.numero ? a : b);
+                }
+
+                // Si hay gol activo y CPU es el atacante, jugar el delantero más alto
+                if (estado.golActivo && estado.golAtacante === 'cpu') {
+                    const del = mejorCartaDe(mano, 'Del');
+                    if (del) return del;
+                    return mano.reduce((a, b) => a.numero < b.numero ? a : b);
+                }
+
+                // --- Juego normal ---
+                const esMano = estado.turnoActual === estado.turnoInicial;
+                const cartaJugador = cartasDeRondaActual().filter(c => c.origen === 'jugador').pop();
+                const riesgo = iaNivelRiesgo();
+                const puntosCpu = estado.puntosCpu;
+                const puntosJugador = estado.puntosJugador;
+                const quedanRondas = 4 - estado.rondaActual;
+
+                // Guardar el mejor delantero si aún no se usó el canto de gol/penal
+                const puedeCantarPenal = estado.rondaActual === 0 && !estado.penalUsado && !estado.penalCantadoPor;
+                const puedeCantarGol = estado.rondaActual >= 1 && !estado.golUsado;
+                const delantero = mejorCartaDe(mano, 'Del');
+                const guardarDelantero = (puedeCantarPenal || puedeCantarGol) && delantero && delantero.numero >= 6;
+
+                // Jugadores a 1 punto del gol
+                const jugadorAlBordeDelGol = puntosJugador >= PUNTOS_PARA_GOL - 1;
+                const cpuAlBordeDelGol = puntosCpu >= PUNTOS_PARA_GOL - 1;
+
+                // Si el CPU es MANO (empieza la ronda)
+                if (esMano) {
+                    // Si el CPU está a 1 punto del gol, jugar la carta más alta
+                    if (cpuAlBordeDelGol) {
+                        return mano.reduce((a, b) => a.numero > b.numero ? a : b);
+                    }
+
+                    // Si el jugador está a 1 punto del gol, jugar carta fuerte
+                    if (jugadorAlBordeDelGol) {
+                        const candidatas = guardarDelantero
+                            ? mano.filter(c => c.id !== delantero.id)
+                            : mano;
+                        if (candidatas.length) {
+                            return candidatas.reduce((a, b) => a.numero > b.numero ? a : b);
+                        }
+                        return delantero;
+                    }
+
+                    // Si va ganando por puntos y quedan pocas rondas
+                    if (puntosCpu >= 2 && quedanRondas <= 2 && puntosJugador === 0) {
+                        const sinDel = mano.filter(c => !(guardarDelantero && c.id === delantero.id));
+                        if (sinDel.length) {
+                            return sinDel.reduce((a, b) => a.numero > b.numero ? a : b);
+                        }
+                    }
+
+                    // Jugar carta fuerte para presionar (guardando delantero)
+                    const candidatas = guardarDelantero
+                        ? mano.filter(c => c.id !== delantero.id)
+                        : mano;
+
+                    if (candidatas.length) {
+                        return candidatas.reduce((a, b) => a.numero > b.numero ? a : b);
+                    }
+                    return delantero;
+                }
+
+                // Si el CPU es PIE (responde a la carta del jugador)
+                if (cartaJugador) {
+                    const numeroJugador = cartaJugador.carta.numero;
+
+                    // ¿Puedo ganar con alguna carta?
+                    const ganadoras = mano.filter(c => c.numero > numeroJugador);
+                    if (ganadoras.length) {
+                        // Usar carta mínima para ganar (ahorra cartas fuertes)
+                        let mejorOpcion = ganadoras.reduce((a, b) => a.numero < b.numero ? a : b);
+
+                        // Si el CPU está a 1 punto del gol, usar la más alta
+                        if (cpuAlBordeDelGol || jugadorAlBordeDelGol) {
+                            return ganadoras.reduce((a, b) => a.numero > b.numero ? a : b);
+                        }
+
+                        // Si el delantero es la única que gana y hay que guardarlo
+                        if (guardarDelantero && mejorOpcion.id === delantero.id) {
+                            const otrasGanadoras = ganadoras.filter(c => c.id !== delantero.id);
+                            if (otrasGanadoras.length) {
+                                mejorOpcion = otrasGanadoras.reduce((a, b) => a.numero < b.numero ? a : b);
+                            } else {
+                                const ganoConEsto = puntosCpu + 1 >= PUNTOS_PARA_GOL;
+                                const delanteroMuyAlto = delantero.numero >= 9;
+                                if (ganoConEsto || !delanteroMuyAlto || riesgo > 0.6) {
+                                    return mejorOpcion;
+                                }
+                                return mano.reduce((a, b) => a.numero < b.numero ? a : b);
+                            }
+                        }
+                        return mejorOpcion;
+                    }
+
+                    // No puedo ganar: intentar empatar si el rival está a punto de hacer gol
+                    const empates = mano.filter(c => c.numero === numeroJugador);
+                    if (empates.length && puntosJugador + 1 >= PUNTOS_PARA_GOL) {
+                        return empates[0];
+                    }
+
+                    // Sacrificar la carta más débil (guardando el delantero)
+                    const sacrificables = guardarDelantero
+                        ? mano.filter(c => c.id !== delantero.id)
+                        : mano;
+
+                    if (sacrificables.length) {
+                        return sacrificables.reduce((a, b) => a.numero < b.numero ? a : b);
+                    }
+                    return delantero;
+                }
+
+                // Sin carta del jugador visible (caso raro): jugar la más alta
+                return mano.reduce((a, b) => a.numero > b.numero ? a : b);
+            }
+            // --- Decisión de cantar penal ---
+            function iaDecidirCantarPenal() {
+                if (estado.penalUsado || estado.penalCantadoPor || estado.rondaActual !== 0) return false;
+                const del = iaMejorDelantero();
+                if (!del) return false;
+
+                const probExito = iaProbabilidadPenalExitoso();
+                const riesgo = iaNivelRiesgo();
+                const puntosCpu = estado.puntosCpu;
+                const puntosJugador = estado.puntosJugador;
+
+                // Si el delantero es muy alto (9-10), casi siempre conviene cantar
+                if (del.numero >= 9 && probExito >= 0.6) return true;
+
+                // Si el delantero es alto (7-8), cantar si la probabilidad es buena
+                if (del.numero >= 7 && probExito >= 0.55) return true;
+
+                // Si el delantero es medio (5-6), cantar solo si va perdiendo o hay buen riesgo
+                if (del.numero >= 5 && probExito >= 0.5 && riesgo >= 0.55) return true;
+
+                // Si va perdiendo por puntos y tiene un delantero decente, arriesgar
+                if (puntosJugador > puntosCpu && del.numero >= 5 && probExito >= 0.45) return true;
+
+                // Si va perdiendo el partido y es la última mano, arriesgar más
+                if (estado.manoActual >= TOTAL_MANOS - 1 && iaVentajaGoles() < 0 && del.numero >= 5) return true;
+
+                // Pequeña probabilidad de sorpresa si el riesgo es alto
+                if (riesgo >= 0.7 && del.numero >= 4 && probExito >= 0.4) {
+                    return Math.random() < 0.3;
+                }
+
+                return false;
+            }
+
+            // --- Decisión de cantar gol ---
+            function iaDecidirCantarGol() {
+                if (estado.golUsado || estado.rondaActual < 1 || estado.manoJugador.length === 0 || estado.manoCpu.length === 0) return false;
+                const del = iaMejorDelantero();
+                if (!del) return false;
+
+                const probExito = iaProbabilidadGolExitoso();
+                const riesgo = iaNivelRiesgo();
+                const puntosCpu = estado.puntosCpu;
+                const puntosJugador = estado.puntosJugador;
+
+                // Si el jugador tiene 2 o más puntos, CPU siempre quiere cantar
+                // para evitar que el jugador gane un punto automáticamente
+                if (puntosJugador >= 2) return true;
+
+                // Si el delantero es muy alto (9-10), casi siempre conviene cantar
+                if (del.numero >= 9 && probExito >= 0.55) return true;
+
+                // Si el delantero es alto (7-8), cantar si la probabilidad es buena
+                if (del.numero >= 7 && probExito >= 0.5) return true;
+
+                // Si el delantero es medio (5-6), cantar solo si va perdiendo o hay buen riesgo
+                if (del.numero >= 5 && probExito >= 0.45 && riesgo >= 0.55) return true;
+
+                // Si va perdiendo por puntos y tiene un delantero decente, arriesgar
+                if (puntosJugador > puntosCpu && del.numero >= 5 && probExito >= 0.4) return true;
+
+                // Si va perdiendo el partido y es la última mano, arriesgar más
+                if (estado.manoActual >= TOTAL_MANOS - 1 && iaVentajaGoles() < 0 && del.numero >= 5) return true;
+
+                // Pequeña probabilidad de sorpresa si el riesgo es alto
+                if (riesgo >= 0.7 && del.numero >= 4 && probExito >= 0.35) {
+                    return Math.random() < 0.25;
+                }
+
+                return false;
+            }
+
+            // --- Respuesta a cantos del oponente ---
+            function iaResponderCanto(tipo) {
+                const riesgo = iaNivelRiesgo();
+                const puntosCpu = estado.puntosCpu;
+                const puntosJugador = estado.puntosJugador;
+                const r = Math.random();
+
+                if (tipo === 'penal') {
+                    const arq = iaMejorArquero();
+                    const probOponente = iaProbabilidadPenalOponente();
+
+                    // Si no tengo arquero, el penal es gol casi seguro → no querer
+                    if (!arq) return 'no_quiero';
+
+                    // Si mi arquero es muy alto (9-10), aceptar o pedir VAR
+                    if (arq.numero >= 9) {
+                        // Si el oponente probablemente no tiene delantero alto, aceptar
+                        if (probOponente <= 0.4) return 'quiero';
+                        return r < 0.6 ? 'quiero' : 'var';
+                    }
+
+                    // Si mi arquero es alto (7-8)
+                    if (arq.numero >= 7) {
+                        if (probOponente <= 0.35) return 'quiero';
+                        if (probOponente <= 0.6) return r < 0.5 ? 'quiero' : 'var';
+                        return r < 0.4 ? 'var' : 'no_quiero';
+                    }
+
+                    // Si mi arquero es medio (5-6)
+                    if (arq.numero >= 5) {
+                        // Si voy ganando, puedo arriesgar a aceptar
+                        if (iaVentajaPuntos() > 0 && probOponente <= 0.5) {
+                            return r < 0.4 ? 'quiero' : 'var';
+                        }
+                        // Si voy perdiendo, mejor no querer o VAR
+                        return r < 0.3 ? 'var' : 'no_quiero';
+                    }
+
+                    // Arquero bajo (1-4): casi siempre no querer
+                    // Pero si voy perdiendo feo, intentar VAR como última chance
+                    if (iaVentajaPuntos() <= -2 && arq.numero >= 4) {
+                        return r < 0.4 ? 'var' : 'no_quiero';
+                    }
+                    return 'no_quiero';
+                }
+
+                if (tipo === 'gol') {
+                    const def = iaMejorDefensa();
+                    const probOponente = iaProbabilidadGolOponente();
+
+                    // Si no tengo defensa, el gol es casi seguro → no querer
+                    if (!def) return 'no_quiero';
+
+                    // Si mi defensa es muy alta (9-10), aceptar
+                    if (def.numero >= 9) {
+                        if (probOponente <= 0.4) return 'quiero';
+                        return r < 0.5 ? 'quiero' : 'no_quiero';
+                    }
+
+                    // Si mi defensa es alta (7-8)
+                    if (def.numero >= 7) {
+                        if (probOponente <= 0.35) return 'quiero';
+                        if (probOponente <= 0.55) return r < 0.5 ? 'quiero' : 'no_quiero';
+                        // Si voy perdiendo, puedo intentar golazo como contraataque
+                        if (iaVentajaPuntos() < 0 && iaMejorDelantero() && iaMejorDelantero().numero >= 6) {
+                            return r < 0.3 ? 'golazo' : 'no_quiero';
+                        }
+                        return 'no_quiero';
+                    }
+
+                    // Si mi defensa es media (5-6)
+                    if (def.numero >= 5) {
+                        // Si voy ganando, aceptar con moderación
+                        if (iaVentajaPuntos() > 0 && probOponente <= 0.5) {
+                            return r < 0.4 ? 'quiero' : 'no_quiero';
+                        }
+                        // Si voy perdiendo, intentar golazo
+                        if (iaVentajaPuntos() < 0 && iaMejorDelantero() && iaMejorDelantero().numero >= 5) {
+                            return r < 0.35 ? 'golazo' : 'no_quiero';
+                        }
+                        return 'no_quiero';
+                    }
+
+                    // Defensa baja (1-4): no querer, o golazo si voy perdiendo
+                    if (iaVentajaPuntos() < 0 && iaMejorDelantero() && iaMejorDelantero().numero >= 6) {
+                        return r < 0.3 ? 'golazo' : 'no_quiero';
+                    }
+                    return 'no_quiero';
+                }
+
+                if (tipo === 'golazo') {
+                    const def = iaMejorDefensa();
+                    const probOponente = iaProbabilidadGolOponente();
+
+                    // Si no tengo defensa, no querer (el golazo es muy costoso)
+                    if (!def) return 'no_quiero';
+
+                    // Si mi defensa es muy alta (9-10), aceptar
+                    if (def.numero >= 9 && probOponente <= 0.5) return 'quiero';
+
+                    // Si mi defensa es alta (7-8) y voy ganando, aceptar
+                    if (def.numero >= 7 && iaVentajaPuntos() > 0 && probOponente <= 0.45) {
+                        return r < 0.6 ? 'quiero' : 'no_quiero';
+                    }
+
+                    // Si voy perdiendo mucho, aceptar el riesgo (un golazo puede empatar el partido)
+                    if (iaVentajaGoles() <= -2 && def.numero >= 6) {
+                        return r < 0.5 ? 'quiero' : 'no_quiero';
+                    }
+
+                    // En general, no querer un golazo (cuesta 2 puntos si se rechaza)
+                    return 'no_quiero';
+                }
+
+                return 'no_quiero';
+            }
+
+            // --- Decisión de aceptar/rechazar VAR ---
+            function iaDecidirVar() {
+                // El VAR compara el número más alto entre Arq y Del de cada jugador
+                const miMejor = numeroMasAltoArqDel(estado.manoCpu);
+                const suMejor = numeroMasAltoArqDel(estado.manoJugador);
+
+                // Si mi mejor es mayor, aceptar el VAR (voy a ganar)
+                if (miMejor > suMejor) return 'quiero';
+
+                // Si mi mejor es menor, rechazar (voy a perder)
+                if (miMejor < suMejor) return 'no_quiero';
+
+                // Empate: el VAR se ejecuta sin puntos para nadie
+                // Si voy perdiendo, aceptar (puede anular el penal)
+                // Si voy ganando, rechazar (mejor asegurar)
+                if (iaVentajaPuntos() < 0) return 'quiero';
+                if (iaVentajaPuntos() > 0) return 'no_quiero';
+
+                // Empate en puntos: 50/50
+                return Math.random() < 0.5 ? 'quiero' : 'no_quiero';
+            }
+
+            function iaDeclararVar() {
+                const real = numeroMasAltoArqDel(estado.manoCpu);
+                const suMejor = numeroMasAltoArqDel(estado.manoJugador);
+                const riesgo = iaNivelRiesgo();
+                const ventajaPuntos = iaVentajaPuntos();
+
+                // Si mi valor real es mayor que el del oponente, declarar la verdad
+                if (real > suMejor) return real;
+
+                // Si mi valor real es menor, puedo intentar mentir
+                if (real < suMejor) {
+                    // Mentir solo si el riesgo es alto (voy perdiendo) y tengo algo que ganar
+                    // El VAR: si miento y me descubren, pierdo automáticamente
+                    // Si no miento, pierdo igual (mi valor es menor)
+                    // Así que mentir es la única chance de ganar
+                    if (riesgo >= 0.6) {
+                        // Mentir declarando un valor mayor que el del oponente
+                        // (pero no demasiado alto para no ser obvio)
+                        const mentira = suMejor + 1;
+                        // Solo mentir si no es demasiado descarado (máximo 10)
+                        if (mentira <= 10) {
+                            // Probabilidad de mentir según el riesgo
+                            const probMentir = Math.min(0.7, riesgo);
+                            if (Math.random() < probMentir) {
+                                return mentira;
+                            }
+                        }
+                    }
+                    // Si no miento, declaro la verdad
+                    return real;
+                }
+
+                // Empate: mi valor es igual al del oponente
+                // Si voy perdiendo, puedo intentar mentir para ganar
+                if (ventajaPuntos < 0 && riesgo >= 0.6) {
+                    const mentira = real + 1;
+                    if (mentira <= 10 && Math.random() < 0.5) {
+                        return mentira;
+                    }
+                }
+                // Si voy ganando, declarar la verdad (el empate ejecuta el penal sin puntos)
+                return real;
+            }
+
+            // --- Resolución de ronda ---
+            function resolverRonda() {
+                if (estado.penalActivo) {
+                    resolverPenal();
+                    return;
+                }
+                if (estado.golActivo) {
+                    resolverGol();
+                    return;
+                }
+                const cartasRonda = cartasDeRondaActual();
+                const uj = cartasRonda.filter(c => c.origen === 'jugador').pop();
+                const uc = cartasRonda.filter(c => c.origen === 'cpu').pop();
+                if (!uj || !uc) return;
+
+                if (uj.carta.numero > uc.carta.numero) {
+                    estado.puntosJugador++;
+                    estado.turnoInicial = 'jugador';
+                    mostrarMensaje('¡Ganaste la ronda!');
+                    reproducirSonidoPunto('jugador');
+                } else if (uc.carta.numero > uj.carta.numero) {
+                    estado.puntosCpu++;
+                    estado.turnoInicial = 'cpu';
+                    mostrarMensaje('CPU gana la ronda');
+                    reproducirSonidoPunto('cpu');
+                } else {
+                    mostrarMensaje('Empate');
+                }
+                estado.rondaActual++;
+                renderizarMarcador();
+                renderizarTodo();
+
+                // Si alguien llegó a 3 puntos en esta ronda, se convierte el gol
+                // y termina la mano, sin importar si hay un canto pendiente.
+                if (verificarGolPorPuntos()) {
+                    setTimeout(() => finalizarMano(), 2200);
+                    return;
+                }
+
+                // Si hay un canto pendiente (se aceptó un canto con una carta ya jugada),
+                // ahora se ejecuta el canto: el mano (turnoInicial) tira la carta de ejecución
+                if (estado.cantoPendiente) {
+                    const pendiente = estado.cantoPendiente;
+                    estado.cantoPendiente = null;
+                    setTimeout(() => iniciarEjecucionCanto(pendiente.tipo, pendiente.pedidoPor), 800);
+                    return;
+                }
+
+                setTimeout(continuarFlujo, 800);
+            }
+
+            function resolverPenal() {
+                // Usar solo las cartas del penal (no las de la ronda normal)
+                const cartasPenal = estado.penalCartas;
+                const uj = cartasPenal.filter(c => c.origen === 'jugador').pop();
+                const uc = cartasPenal.filter(c => c.origen === 'cpu').pop();
+                if (!uj || !uc) {
+                    estado.penalActivo = false;
+                    estado.penalAtacante = null;
+                    estado.penalCartas = [];
+                    finalizarCanto();
+                    return;
+                }
+
+                const atacanteEsJugador = estado.penalAtacante === 'jugador';
+                const cartaAtacante = atacanteEsJugador ? uj : uc;
+                const cartaDefensor = atacanteEsJugador ? uc : uj;
+
+                const atacanteJugoDel = cartaAtacante.carta.posicion === 'Del';
+                const defensorJugoArq = cartaDefensor.carta.posicion === 'Arq';
+
+                const quienAtaca = estado.penalAtacante;
+                estado.penalActivo = false;
+                estado.penalAtacante = null;
+                estado.penalCartas = [];
+
+                if (!atacanteJugoDel) {
+                    const golPorPuntos = sumarPuntos(atacanteEsJugador ? 'cpu' : 'jugador', 2);
+                    mostrarMensaje('Atacante sin delantero - +2 defensor');
+                    if (golPorPuntos) {
+                        setTimeout(finalizarMano, 2200);
+                    } else {
+                        finalizarCanto();
+                    }
+                } else if (!defensorJugoArq) {
+                    convertirGol(quienAtaca);
+                    mostrarMensaje('⚽ ¡GOL! Defensor sin arquero');
+                    if (estado.golEnMano) {
+                        setTimeout(finalizarMano, 2200);
+                    } else {
+                        finalizarCanto();
+                    }
+                } else {
+                    if (cartaAtacante.carta.numero > cartaDefensor.carta.numero) {
+                        convertirGol(quienAtaca);
+                        mostrarMensaje('⚽ ¡GOL! Penal exitoso');
+                    } else {
+                        sumarPuntos(atacanteEsJugador ? 'cpu' : 'jugador', 2);
+                        mostrarMensaje('Arquero ataja el penal');
+                    }
+                    if (estado.golEnMano) {
+                        setTimeout(finalizarMano, 2200);
+                    } else {
+                        finalizarCanto();
+                    }
+                }
+            }
+
+            function resolverGol() {
+                const cartasGol = estado.golCartas;
+                const uj = cartasGol.filter(c => c.origen === 'jugador').pop();
+                const uc = cartasGol.filter(c => c.origen === 'cpu').pop();
+                if (!uj || !uc) return;
+
+                const atacanteEsJugador = estado.golAtacante === 'jugador';
+                const cartaAtacante = atacanteEsJugador ? uj : uc;
+                const cartaDefensor = atacanteEsJugador ? uc : uj;
+
+                const atacanteJugoDel = cartaAtacante.carta.posicion === 'Del';
+                const defensorJugoArqDef = cartaDefensor.carta.posicion === 'Arq' || cartaDefensor.carta.posicion === 'Def';
+
+                const quienAtaca = estado.golAtacante;
+                estado.golActivo = false;
+                estado.golAtacante = null;
+                estado.golCartas = [];
+
+                // Solo puede ganar el atacante si jugó un Delantero
+                if (!atacanteJugoDel) {
+                    convertirGol(atacanteEsJugador ? 'cpu' : 'jugador');
+                    mostrarMensaje('⚽ ¡GOL DE ' + (atacanteEsJugador ? 'CPU' : estado.nombreJugador.toUpperCase()) + '! Atacante sin delantero');
+                    setTimeout(finalizarMano, 2200);
+                    return;
+                }
+
+                // Solo puede defenderse con Arquero o Defensor
+                if (!defensorJugoArqDef) {
+                    convertirGol(quienAtaca);
+                    mostrarMensaje('⚽ ¡GOL DE ' + (quienAtaca === 'jugador' ? estado.nombreJugador.toUpperCase() : 'CPU') + '! Sin defensor');
+                    setTimeout(finalizarMano, 2200);
+                    return;
+                }
+
+                if (cartaAtacante.carta.numero > cartaDefensor.carta.numero) {
+                    convertirGol(quienAtaca);
+                    mostrarMensaje('⚽ ¡GOL DE ' + (quienAtaca === 'jugador' ? estado.nombreJugador.toUpperCase() : 'CPU') + '!');
+                    setTimeout(finalizarMano, 2200);
+                } else {
+                    // El defensor gana el enfrentamiento → gol para el defensor
+                    const quienDefiende = atacanteEsJugador ? 'cpu' : 'jugador';
+                    convertirGol(quienDefiende);
+                    mostrarMensaje('⚽ ¡GOL DE ' + (quienDefiende === 'jugador' ? estado.nombreJugador.toUpperCase() : 'CPU') + '! Defendido');
+                    setTimeout(finalizarMano, 2200);
+                }
+            }
+
+            function alguienSinCartas() {
+                return estado.manoJugador.length === 0 || estado.manoCpu.length === 0;
+            }
+
+            function cartasDeRondaActual() {
+                return estado.cartasEnMesa.slice(estado.inicioRonda || 0);
+            }
+
+            function jugadorJugoEstaRonda() {
+                return cartasDeRondaActual().some(c => c.origen === 'jugador');
+            }
+
+            function cpuJugoEstaRonda() {
+                return cartasDeRondaActual().some(c => c.origen === 'cpu');
+            }
+
+            function verificarGolPorPuntos() {
+                if (estado.golEnMano) return false;
+                let gol = false;
+                if (estado.puntosJugador >= PUNTOS_PARA_GOL) {
+                    estado.golesJugador++;
+                    estado.puntosManoJugador += estado.puntosJugador;
+                    estado.puntosManoCpu += estado.puntosCpu;
+                    estado.puntosJugador = 0;
+                    estado.puntosCpu = 0;
+                    estado.golEnMano = true;
+                    estado.ganadorManoAnterior = 'jugador';
+                    mostrarMensaje('⚽ ¡GOL DE ' + estado.nombreJugador.toUpperCase() + '!');
+                    reproducirSonidoGol('jugador');
+                    gol = true;
+                }
+                if (estado.puntosCpu >= PUNTOS_PARA_GOL) {
+                    estado.golesCpu++;
+                    estado.puntosManoJugador += estado.puntosJugador;
+                    estado.puntosManoCpu += estado.puntosCpu;
+                    estado.puntosCpu = 0;
+                    estado.puntosJugador = 0;
+                    estado.golEnMano = true;
+                    estado.ganadorManoAnterior = 'cpu';
+                    mostrarMensaje('⚽ Gol de la CPU');
+                    reproducirSonidoGol('cpu');
+                    gol = true;
+                }
+                if (gol) {
+                    renderizarMarcador(true);
+                    renderizarTodo(true);
+                }
+                return gol;
+            }
+
+            function continuarFlujo() {
+                // Si alguien llegó a 3 puntos, se convierte el gol y termina la mano
+                if (verificarGolPorPuntos()) {
+                    setTimeout(() => finalizarMano(), 2200);
+                    return;
+                }
+
+                if (alguienSinCartas() || estado.rondaActual >= 4) {
+                    setTimeout(finalizarMano, 1000);
+                    return;
+                }
+
+                estado.turnoActual = estado.turnoInicial;
+                estado.fase = 'esperando_seleccion';
+                estado.cartaSeleccionada = null;
+                estado.inicioRonda = estado.cartasEnMesa.length;
+
+                if (estado.turnoActual === 'cpu') {
+                    if (estado.rondaActual === 0 && !estado.penalUsado && !estado.penalCantadoPor && !estado.penalActivo && !estado.golActivo && estado.esperandoRespuestaDe !== 'cpu' && iaDecidirCantarPenal()) {
+                        cpuPidePenal();
+                        return;
+                    }
+                    if (estado.rondaActual >= 1 && !estado.golUsado && !estado.penalActivo && !estado.golActivo && estado.esperandoRespuestaDe !== 'cpu' && iaDecidirCantarGol()) {
+                        cpuPideGol();
+                        return;
+                    }
+                    estado.fase = 'esperando_cpu';
+                    renderizarTodo();
+                    setTimeout(turnoCpu, 500 + Math.random() * 400);
+                } else {
+                    renderizarTodo();
+                }
+            }
+
+            // --- Cantos ---
+            function jugadorPidePenal() {
+                if (estado.fase !== 'esperando_seleccion' || estado.rondaActual !== 0 || estado.penalUsado || estado.penalCantadoPor || estado.esperandoRespuestaDe !== null) return;
+                estado.fase = 'penal_pedido';
+                estado.cantoActual = 'penal';
+                estado.cantoPedidoPor = 'jugador';
+                estado.esperandoRespuestaDe = 'cpu';
+                estado.penalUsado = true;
+                estado.penalCantadoPor = 'jugador';
+                renderizarTodo();
+                reproducirSonidoCpu('penaljugador');
+                mostrarMensaje(`🥅 PENAL de ${estado.nombreJugador}`);
+                setTimeout(() => procesarRespuestaCpu(iaResponderCanto('penal')), 800 + Math.random() * 600);
+            }
+
+            function cpuPidePenal() {
+                if (estado.penalCantadoPor || estado.esperandoRespuestaDe === 'cpu') return;
+                estado.fase = 'penal_pedido';
+                estado.cantoActual = 'penal';
+                estado.cantoPedidoPor = 'cpu';
+                estado.esperandoRespuestaDe = 'jugador';
+                estado.penalUsado = true;
+                estado.penalCantadoPor = 'cpu';
+                renderizarTodo();
+                reproducirSonidoCpu('penalcpu');
+                mostrarMensaje('🥅 PENAL de CPU');
+            }
+
+            function jugadorPideGol() {
+                if (estado.fase !== 'esperando_seleccion' || estado.rondaActual < 1 || estado.golUsado || estado.manoJugador.length === 0 || estado.manoCpu.length === 0) return;
+                estado.fase = 'gol_pedido';
+                estado.cantoActual = 'gol';
+                estado.cantoPedidoPor = 'jugador';
+                estado.esperandoRespuestaDe = 'cpu';
+                estado.golUsado = true;
+                renderizarTodo();
+                reproducirSonidoCpu('goljugador');
+                mostrarMensaje(`⚽ ¡GOL! de ${estado.nombreJugador}`);
+                setTimeout(() => procesarRespuestaCpu(iaResponderCanto('gol')), 800 + Math.random() * 600);
+            }
+
+            function cpuPideGol() {
+                if (estado.manoJugador.length === 0 || estado.manoCpu.length === 0) return;
+                estado.fase = 'gol_pedido';
+                estado.cantoActual = 'gol';
+                estado.cantoPedidoPor = 'cpu';
+                estado.esperandoRespuestaDe = 'jugador';
+                estado.golUsado = true;
+                renderizarTodo();
+                reproducirSonidoCpu('golcpucanto');
+                mostrarMensaje('⚽ ¡GOL! de CPU');
+            }
+
+            // --- Respuestas ---
+            function jugadorRespondeQuiero() {
+                if (estado.esperandoRespuestaDe === 'jugador') procesarRespuestaJugador('quiero');
+            }
+
+            function jugadorRespondeNoQuiero() {
+                if (estado.esperandoRespuestaDe === 'jugador') procesarRespuestaJugador('no_quiero');
+            }
+
+            function jugadorRespondeVar() {
+                if (estado.esperandoRespuestaDe === 'jugador' && estado.cantoActual === 'penal') procesarRespuestaJugador('var');
+            }
+
+            function jugadorRespondeGolazo() {
+                if (estado.esperandoRespuestaDe === 'jugador' && estado.cantoActual === 'gol') procesarRespuestaJugador('golazo');
+            }
+
+            function procesarRespuestaJugador(resp) {
+                // Fase var_decision: el atacante decide aceptar/rechazar el VAR
+                if (estado.fase === 'var_decision') {
+                    if (resp === 'no_quiero') {
+                        // Atacante rechaza VAR → defensor (quien pidió VAR) +1 punto
+                        sumarPuntos(estado.varPedidoPor, 1);
+                        reproducirSonidoCpu('noquierojugador');
+                        mostrarMensaje(`${estado.nombreJugador}: No quiero el VAR`);
+                        finalizarCanto();
+                    } else {
+                        // Atacante acepta VAR
+                        reproducirSonidoCpu('quierojugador');
+                        mostrarMensaje(`${estado.nombreJugador}: ¡Quiero el VAR!`);
+                        iniciarVar();
+                    }
+                    return;
+                }
+
+                const { cantoActual, cantoPedidoPor } = estado;
+                if (resp === 'no_quiero') {
+                    const quienCanto = cantoPedidoPor === 'cpu' ? 'cpu' : 'jugador';
+                    const puntos = cantoActual === 'golazo' ? 2 : 1;
+                    const golPorPuntos = sumarPuntos(quienCanto, puntos);
+                    reproducirSonidoCpu('noquierojugador');
+                    mostrarMensaje(`${estado.nombreJugador}: ✗ No quiso`);
+                    if (golPorPuntos) {
+                        setTimeout(finalizarMano, 2200);
+                    } else {
+                        finalizarCanto();
+                    }
+                } else if (resp === 'var') {
+                    // Jugador pide VAR → CPU (atacante) decide aceptar/rechazar
+                    estado.fase = 'var_decision';
+                    estado.varPedidoPor = 'jugador';
+                    estado.esperandoRespuestaDe = 'cpu';
+                    renderizarTodo();
+                    reproducirSonidoCpu('varjugador');
+                    mostrarMensaje(`📺 ${estado.nombreJugador} pide VAR`);
+                    setTimeout(() => procesarRespuestaCpu(iaDecidirVar()), 800);
+                } else if (resp === 'golazo') {
+                    estado.fase = 'golazo_pedido';
+                    estado.cantoActual = 'golazo';
+                    estado.cantoPedidoPor = 'jugador';
+                    estado.esperandoRespuestaDe = 'cpu';
+                    estado.golazoUsado = true;
+                    renderizarTodo();
+                    reproducirSonidoCpu('golazojugador');
+                    mostrarMensaje(`💥 ${estado.nombreJugador} canta GOLAZO`);
+                    setTimeout(() => procesarRespuestaCpu(iaResponderCanto('golazo')), 800);
+                } else if (resp === 'quiero') {
+                    reproducirSonidoCpu('quierojugador');
+                    mostrarMensaje(`${estado.nombreJugador}: ✓ ¡Quiero!`);
+                    ejecutarCanto(cantoActual, cantoPedidoPor);
+                }
+            }
+
+            function procesarRespuestaCpu(resp) {
+                // Fase var_decision: el atacante (CPU) decide aceptar/rechazar el VAR
+                if (estado.fase === 'var_decision') {
+                    if (resp === 'no_quiero') {
+                        // Atacante rechaza VAR → defensor (quien pidió VAR) +1 punto
+                        sumarPuntos(estado.varPedidoPor, 1);
+                        reproducirSonidoCpu('noquierocpu');
+                        mostrarMensaje('CPU: ✗ No quiero el VAR');
+                        finalizarCanto();
+                    } else {
+                        // Atacante acepta VAR
+                        reproducirSonidoCpu('quierocpu');
+                        mostrarMensaje('CPU: ✓ ¡Quiero el VAR!');
+                        iniciarVar();
+                    }
+                    return;
+                }
+
+                const { cantoActual, cantoPedidoPor } = estado;
+                if (resp === 'no_quiero') {
+                    const quienCanto = cantoPedidoPor === 'cpu' ? 'cpu' : 'jugador';
+                    const puntos = cantoActual === 'golazo' ? 2 : 1;
+                    const golPorPuntos = sumarPuntos(quienCanto, puntos);
+                    mostrarMensaje('CPU: No quiero');
+                    reproducirSonidoCpu('noquierocpu');
+                    if (golPorPuntos) {
+                        setTimeout(finalizarMano, 2200);
+                    } else {
+                        finalizarCanto();
+                    }
+                } else if (resp === 'quiero') {
+                    reproducirSonidoCpu('quierocpu');
+                    mostrarMensaje('CPU: ✓ ¡Quiero!');
+                    ejecutarCanto(cantoActual, cantoPedidoPor);
+                } else if (resp === 'var') {
+                    // CPU pide VAR → jugador (atacante) decide aceptar/rechazar
+                    estado.fase = 'var_decision';
+                    estado.varPedidoPor = 'cpu';
+                    estado.esperandoRespuestaDe = 'jugador';
+                    renderizarTodo();
+                    mostrarMensaje('📺 CPU pide VAR');
+                    setTimeout(() => reproducirSonidoCpu('pidoverelvarcpu'), 300);
+                } else if (resp === 'golazo') {
+                    estado.fase = 'golazo_pedido';
+                    estado.cantoActual = 'golazo';
+                    estado.cantoPedidoPor = 'cpu';
+                    estado.esperandoRespuestaDe = 'jugador';
+                    estado.golazoUsado = true;
+                    renderizarTodo();
+                    reproducirSonidoCpu('golazocpu');
+                    mostrarMensaje('💥 CPU canta GOLAZO');
+                }
+            }
+
+            // --- VAR ---
+            function mostrarPanelVar() {
+                const dj = estado.varDeclaraciones.jugador;
+                const dc = estado.varDeclaraciones.cpu;
+                if (dom.varPanel && dom.varPanelTexto) {
+                    dom.varPanelTexto.textContent = `${estado.nombreJugador} ${dj} vs CPU ${dc}`;
+                    dom.varPanel.classList.add('visible');
+                }
+            }
+
+            function ocultarPanelVar() {
+                if (dom.varPanel) {
+                    dom.varPanel.classList.remove('visible');
+                }
+            }
+
+            function iniciarVar() {
+                estado.fase = 'var_pedido';
+                estado.varTurnoDeclarar = 'jugador';
+                estado.varDeclaraciones.cpu = iaDeclararVar();
+                const dj = numeroMasAltoArqDel(estado.manoJugador);
+                estado.varDeclaraciones.jugador = dj;
+                const dc = estado.varDeclaraciones.cpu;
+                mostrarPanelVar();
+                mostrarMensaje(`📺 VAR: ${estado.nombreJugador} ${dj} vs CPU ${dc}`);
+                renderizarTodo();
+                setTimeout(declararVarJugador, 300);
+            }
+
+            function declararVarJugador() {
+    const real = numeroMasAltoArqDel(estado.manoJugador);
+    estado.varDeclaraciones.jugador = real;
+
+    const dj = estado.varDeclaraciones.jugador;
+    const dc = estado.varDeclaraciones.cpu;
+    const varPedidoPor = estado.varPedidoPor;
+    const cantoPedidoPor = estado.cantoPedidoPor;
+
+    mostrarPanelVar();
+    mostrarMensaje(`📺 VAR: ${estado.nombreJugador} ${dj} vs CPU ${dc}`);
+
+    if (dj > dc) {
+        // Jugador gana el VAR
+        if (varPedidoPor === 'jugador') {
+            // Jugador (defensor) pidió VAR → +2 puntos, penal cancelado
+            sumarPuntos('jugador', 2);
+            mostrarMensaje(`📺 VAR: ${estado.nombreJugador} ${dj} vs CPU ${dc} - Ganaste. Penal cancelado`);
+            finalizarCanto();
+    } else {
+        // CPU (defensor) pidió VAR, jugador (atacante) gana → +2 puntos, penal se ejecuta
+        sumarPuntos('jugador', 2);
+        mostrarMensaje(`📺 VAR: ${estado.nombreJugador} ${dj} vs CPU ${dc} - Ganaste. Se ejecuta el penal`);
+        if (estado.golEnMano) {
+            setTimeout(finalizarMano, 2200);
+        } else {
+            ejecutarCanto('penal', cantoPedidoPor);
+        }
+    }
+    } else if (dc > dj) {
+        // CPU gana el VAR
+        if (varPedidoPor === 'cpu') {
+            // CPU (defensor) pidió VAR → +2 puntos, penal cancelado
+            sumarPuntos('cpu', 2);
+            mostrarMensaje(`📺 VAR: CPU ${dc} vs ${estado.nombreJugador} ${dj} - CPU gana. Penal cancelado`);
+            finalizarCanto();
+    } else {
+        // Jugador (defensor) pidió VAR, CPU (atacante) gana → +2 puntos, penal se ejecuta
+        sumarPuntos('cpu', 2);
+        mostrarMensaje(`📺 VAR: CPU ${dc} vs ${estado.nombreJugador} ${dj} - CPU gana. Se ejecuta el penal`);
+        if (estado.golEnMano) {
+            setTimeout(finalizarMano, 2200);
+        } else {
+            ejecutarCanto('penal', cantoPedidoPor);
+        }
+    }
+    } else {
+        // Empate → penal se ejecuta sin puntos
+        mostrarMensaje(`📺 VAR: ${estado.nombreJugador} ${dj} vs CPU ${dc} - Empate. Se ejecuta el penal`);
+        ejecutarCanto('penal', cantoPedidoPor);
+    }
+}
+
+            // --- Ejecutar canto (penal, gol, golazo: elección manual de cartas) ---
+            function ejecutarCanto(tipo, pedidoPor) {
+                // Si ya hay una carta jugada en la ronda actual, primero se debe completar la ronda normal
+                const jugadorJugo = jugadorJugoEstaRonda();
+                const cpuJugo = cpuJugoEstaRonda();
+
+                if (jugadorJugo && !cpuJugo) {
+                    // El jugador ya tiró su carta → la CPU debe tirar la suya para resolver la ronda
+                    estado.fase = 'esperando_cpu';
+                    estado.turnoActual = 'cpu';
+                    estado.cantoPendiente = { tipo, pedidoPor };
+                    renderizarTodo();
+                    setTimeout(turnoCpu, 500 + Math.random() * 400);
+                    return;
+                }
+                if (cpuJugo && !jugadorJugo) {
+                    // La CPU ya tiró su carta → el jugador debe tirar la suya para resolver la ronda
+                    estado.turnoActual = 'jugador';
+                    estado.fase = 'esperando_seleccion';
+                    estado.cartaSeleccionada = null;
+                    estado.cantoPendiente = { tipo, pedidoPor };
+                    renderizarTodo();
+                    return;
+                }
+
+                // Nadie jugó todavía en esta ronda → ejecutar el canto directamente
+                iniciarEjecucionCanto(tipo, pedidoPor);
+            }
+
+            function iniciarEjecucionCanto(tipo, pedidoPor) {
+                if (tipo === 'penal') {
+                    estado.penalActivo = true;
+                    estado.penalAtacante = pedidoPor;
+                    estado.penalCartas = [];
+                    // El mano (turnoInicial) tira primero la carta de ejecución del canto
+                    if (estado.turnoInicial === 'cpu') {
+                        estado.fase = 'esperando_cpu';
+                        estado.turnoActual = 'cpu';
+                        renderizarTodo();
+                        setTimeout(turnoCpu, 500 + Math.random() * 400);
+                    } else {
+                        estado.fase = 'esperando_seleccion';
+                        estado.turnoActual = 'jugador';
+                        estado.cartaSeleccionada = null;
+                        renderizarTodo();
+                    }
+                    mostrarMensaje(`🥅 ¡PENAL de ${pedidoPor === 'jugador' ? estado.nombreJugador : 'CPU'}!`);
+                    return;
+                }
+
+                // Gol o Golazo: elección manual de cartas como el penal
+                estado.golActivo = true;
+                estado.golAtacante = pedidoPor;
+                estado.golCartas = [];
+                // El mano (turnoInicial) tira primero la carta de ejecución del canto
+                if (estado.turnoInicial === 'cpu') {
+                    estado.fase = 'esperando_cpu';
+                    estado.turnoActual = 'cpu';
+                    renderizarTodo();
+                    setTimeout(turnoCpu, 500 + Math.random() * 400);
+                } else {
+                    estado.fase = 'esperando_seleccion';
+                    estado.turnoActual = 'jugador';
+                    estado.cartaSeleccionada = null;
+                    renderizarTodo();
+                }
+                const nombreAtacante = pedidoPor === 'jugador' ? estado.nombreJugador : 'CPU';
+                mostrarMensaje((tipo === 'golazo' ? '💥' : '⚽') + ' ¡' + (tipo === 'golazo' ? 'GOLAZO' : 'GOL') + ` de ${nombreAtacante}!`);
+            }
+
+            function finalizarCanto() {
+                estado.cantoActual = null;
+                estado.cantoPedidoPor = null;
+                estado.cantoPendiente = null;
+                estado.esperandoRespuestaDe = null;
+                estado.varDeclaraciones = { jugador: null, cpu: null };
+                estado.varTurnoDeclarar = null;
+                estado.varPedidoPor = null;
+                estado.penalActivo = false;
+                estado.penalAtacante = null;
+                estado.penalCartas = [];
+                estado.golActivo = false;
+                estado.golAtacante = null;
+                estado.golCartas = [];
+
+                if (estado.golEnMano || alguienSinCartas() || estado.rondaActual >= 4) {
+                    setTimeout(finalizarMano, 800);
+                    return;
+                }
+
+                // Si el canto fue rechazado y ya hay una carta jugada en la ronda,
+                // el otro jugador debe tirar su carta para completar la ronda.
+                const jugadorJugo = jugadorJugoEstaRonda();
+                const cpuJugo = cpuJugoEstaRonda();
+
+                if (jugadorJugo && !cpuJugo) {
+                    // El jugador ya tiró → la CPU debe tirar para completar la ronda
+                    estado.fase = 'esperando_cpu';
+                    estado.turnoActual = 'cpu';
+                    renderizarTodo();
+                    setTimeout(turnoCpu, 500 + Math.random() * 400);
+                    return;
+                }
+                if (cpuJugo && !jugadorJugo) {
+                    // La CPU ya tiró → el jugador debe tirar para completar la ronda
+                    estado.turnoActual = 'jugador';
+                    estado.fase = 'esperando_seleccion';
+                    estado.cartaSeleccionada = null;
+                    renderizarTodo();
+                    return;
+                }
+
+                // Nadie tiró todavía en esta ronda → continuar con el flujo normal.
+                // Las cartas del canto ya se jugaron en la mesa.
+                // Actualizar inicioRonda para que la próxima ronda normal no las considere.
+                estado.inicioRonda = estado.cartasEnMesa.length;
+
+                // Continuar con el flujo normal: el mano (turnoInicial) empieza la próxima ronda
+                estado.turnoActual = estado.turnoInicial;
+                estado.fase = 'esperando_seleccion';
+                estado.cartaSeleccionada = null;
+                continuarFlujo();
+            }
+
+            function convertirGol(quien) {
+                if (quien === 'jugador') {
+                    estado.golesJugador++;
+                    reproducirSonidoGol('jugador');
+                } else {
+                    estado.golesCpu++;
+                    reproducirSonidoGol('cpu');
+                }
+                estado.puntosManoJugador += estado.puntosJugador;
+                estado.puntosManoCpu += estado.puntosCpu;
+                estado.puntosJugador = 0;
+                estado.puntosCpu = 0;
+                estado.golEnMano = true;
+                estado.ganadorManoAnterior = quien;
+                renderizarMarcador();
+            }
+
+            function sumarPuntos(quien, cant) {
+                let gol = false;
+                for (let i = 0; i < cant; i++) {
+                    if (quien === 'jugador') {
+                        estado.puntosJugador++;
+                        if (estado.puntosJugador >= PUNTOS_PARA_GOL) {
+                            estado.golesJugador++;
+                            estado.puntosManoJugador += estado.puntosJugador;
+                            estado.puntosManoCpu += estado.puntosCpu;
+                            estado.puntosJugador = 0;
+                            estado.puntosCpu = 0;
+                            estado.golEnMano = true;
+                            estado.ganadorManoAnterior = 'jugador';
+                            mostrarMensaje('⚽ ¡GOL DE ' + estado.nombreJugador.toUpperCase() + '!');
+                            reproducirSonidoGol('jugador');
+                            gol = true;
+                        } else {
+                            reproducirSonidoPunto('jugador');
+                        }
+                    } else {
+                        estado.puntosCpu++;
+                        if (estado.puntosCpu >= PUNTOS_PARA_GOL) {
+                            estado.golesCpu++;
+                            estado.puntosManoJugador += estado.puntosJugador;
+                            estado.puntosManoCpu += estado.puntosCpu;
+                            estado.puntosCpu = 0;
+                            estado.puntosJugador = 0;
+                            estado.golEnMano = true;
+                            estado.ganadorManoAnterior = 'cpu';
+                            mostrarMensaje('⚽ Gol CPU');
+                            reproducirSonidoGol('cpu');
+                            gol = true;
+                        } else {
+                            reproducirSonidoPunto('cpu');
+                        }
+                    }
+                }
+                renderizarMarcador();
+                return gol;
+            }
+
+            function finalizarMano() {
+                const golesManoJ = estado.golesJugador - estado.golesInicioManoJugador;
+                const golesManoC = estado.golesCpu - estado.golesInicioManoCpu;
+                estado.puntosManoJugador += estado.puntosJugador;
+                estado.puntosManoCpu += estado.puntosCpu;
+                estado.historialManos.push({
+                    minuto: MINUTOS[estado.manoActual],
+                    golesJugador: golesManoJ,
+                    golesCpu: golesManoC,
+                    puntosJugador: estado.puntosManoJugador,
+                    puntosCpu: estado.puntosManoCpu,
+                    turnoInicial: estado.turnoInicial,
+                });
+                estado.manoActual++;
+                if (estado.manoActual >= TOTAL_MANOS) {
+                    estado.fase = 'fin_partido';
+                    renderizarTodo();
+                    setTimeout(mostrarFinPartido, 600);
+                    return;
+                }
+                iniciarNuevaMano();
+            }
+
+            function iniciarNuevaMano() {
+                // El ganador de la mano anterior comienza la siguiente.
+                // Si no hubo gol (empate), conserva el turnoInicial.
+                const nuevoTurnoInicial = estado.ganadorManoAnterior || estado.turnoInicial;
+
+                estado.golesInicioManoJugador = estado.golesJugador;
+                estado.golesInicioManoCpu = estado.golesCpu;
+                estado.golEnMano = false;
+                estado.puntosJugador = 0;
+                estado.puntosCpu = 0;
+                estado.puntosManoJugador = 0;
+                estado.puntosManoCpu = 0;
+                estado.rondaActual = 0;
+                estado.cartasEnMesa = [];
+                estado.inicioRonda = 0;
+                estado.cartaSeleccionada = null;
+                estado.penalUsado = false;
+                estado.penalCantadoPor = null;
+                estado.penalActivo = false;
+                estado.penalAtacante = null;
+                estado.penalCartas = [];
+                estado.golActivo = false;
+                estado.golAtacante = null;
+                estado.golCartas = [];
+                estado.golUsado = false;
+                estado.golazoUsado = false;
+                estado.cantoActual = null;
+                estado.cantoPedidoPor = null;
+                estado.cantoPendiente = null;
+                estado.esperandoRespuestaDe = null;
+                estado.varDeclaraciones = { jugador: null, cpu: null };
+                estado.varPedidoPor = null;
+                estado.ganadorManoAnterior = null;
+                ocultarPanelVar();
+
+                const mazo = mezclarMazo(crearMazo());
+                const { manoJ, manoC } = repartir(mazo);
+                estado.manoJugador = ordenarMano(manoJ);
+                estado.manoCpu = ordenarMano(manoC);
+
+                estado.turnoInicial = nuevoTurnoInicial;
+                estado.turnoActual = estado.turnoInicial;
+                estado.fase = 'esperando_seleccion';
+
+                renderizarTodo();
+                if (estado.turnoActual === 'cpu') {
+                    estado.fase = 'esperando_cpu';
+                    setTimeout(turnoCpu, 600);
+                }
+            }
+
+            // --- Overlays ---
+            function actualizarTablaMarcador() {
+                dom.cuerpoTablaMarcador.innerHTML = '';
+                let acumJ = 0, acumC = 0;
+                for (let i = 0; i < TOTAL_MANOS; i++) {
+                    const minuto = MINUTOS[i];
+                    const tr = document.createElement('tr');
+                    const esActual = i === estado.manoActual && estado.fase !== 'fin_partido';
+                    const esPasada = i < estado.manoActual;
+                    if (esActual) tr.classList.add('fila-actual');
+                    const hist = estado.historialManos.find(h => h.minuto === minuto);
+
+                    let gJ, gC, pJ, pC;
+                    if (esActual) {
+                        gJ = estado.golesJugador;
+                        gC = estado.golesCpu;
+                        pJ = estado.puntosManoJugador + estado.puntosJugador;
+                        pC = estado.puntosManoCpu + estado.puntosCpu;
+                    } else if (esPasada && hist) {
+                        acumJ += hist.golesJugador;
+                        acumC += hist.golesCpu;
+                        gJ = acumJ;
+                        gC = acumC;
+                        pJ = hist.puntosJugador;
+                        pC = hist.puntosCpu;
+                    } else {
+                        gJ = '-';
+                        gC = '-';
+                        pJ = 0;
+                        pC = 0;
+                    }
+
+                    let eJ = '', eC = '';
+                    for (let s = 0; s < Math.min(pJ, 3); s++) {
+                        eJ += '★';
+                    }
+                    for (let s = 0; s < Math.min(pC, 3); s++) {
+                        eC += '★';
+                    }
+                    tr.innerHTML =
+                        `<td>${minuto}</td><td>${eJ} ⚽${gJ}</td><td style="color:rgba(255,255,255,0.3)">vs</td><td>⚽${gC} ${eC}</td>`;
+                    dom.cuerpoTablaMarcador.appendChild(tr);
+                }
+            }
+
+            function mostrarMarcadorDetallado() {
+                estado.pausado = true;
+                dom.overlayMarcador.classList.remove('oculto');
+                actualizarTablaMarcador();
+            }
+
+            function ocultarMarcadorDetallado() {
+                estado.pausado = false;
+                dom.overlayMarcador.classList.add('oculto');
+                if (estado.fase !== 'fin_partido') {
+                    renderizarTodo();
+                    if (estado.fase === 'esperando_cpu' && estado.turnoActual === 'cpu') setTimeout(turnoCpu, 400);
+                }
+            }
+
+            function mostrarFinPartido() {
+                estado.pausado = true;
+                dom.overlayFin.classList.remove('oculto');
+                const gJ = estado.golesJugador, gC = estado.golesCpu;
+                let resultado;
+                if (gJ > gC) {
+                    dom.resultadoTitulo.textContent = '¡GANASTE!';
+                    dom.resultadoTitulo.className = 'resultado-titulo ganaste';
+                    resultado = 'ganar';
+                } else if (gC > gJ) {
+                    dom.resultadoTitulo.textContent = 'PERDISTE';
+                    dom.resultadoTitulo.className = 'resultado-titulo perdiste';
+                    resultado = 'perder';
+                } else {
+                    dom.resultadoTitulo.textContent = 'EMPATE';
+                    dom.resultadoTitulo.className = 'resultado-titulo empate';
+                    resultado = 'empate';
+                }
+                dom.resultadoMarcador.textContent = `${estado.nombreJugador} ${gJ} - ${gC} CPU`;
+                reproducirSonidoFinPartido(resultado);
+                // Al terminar la práctica NO se guarda ningún resultado ni se
+                // registran abandonos: no hay puntos, ranking ni logros en juego.
+                estado.partidoActivo = false;
+            }
+
+            let timeoutMensaje;
+
+            function mostrarMensaje(t) {
+                if (timeoutMensaje) clearTimeout(timeoutMensaje);
+                dom.mensajeFlotante.textContent = t;
+                dom.mensajeFlotante.classList.add('mostrar');
+                timeoutMensaje = setTimeout(() => dom.mensajeFlotante.classList.remove('mostrar'), 1800);
+            }
+
+            // --- Inicialización ---
+            function partidoEnCurso() {
+                return estado.partidoActivo && estado.fase !== 'fin_partido';
+            }
+
+            // En modo práctica NO se registran abandonos: cerrar o recargar la
+            // página, irse del navegador o minimizar mucho tiempo no tiene
+            // ninguna consecuencia sobre puntos ni estadísticas.
+
+            function iniciarPartido() {
+                dom.overlayBienvenida.classList.add('oculto');
+                // Recién al presionar PRACTICAR la partida se considera activa.
+                // En práctica no hay detección de abandonos ni penalización.
+                estado.partidoActivo = true;
+
+                estado.pausado = false;
+                renderizarTodo();
+
+                // Empujar un estado de historial para interceptar el botón "atrás"
+                history.pushState({ juegoIniciado: true }, '', location.href);
+
+                // Reproducir audio de fondo
+                if (dom.audioFondo) {
+                    dom.audioFondo.volume = 0.3;
+                    dom.audioFondo.play().catch(() => {});
+                }
+            }
+
+            // ---------- Advertencia de salida ----------
+            function mostrarAdvertenciaSalida(callbackConfirmada) {
+                estado.pausado = true;
+                dom.overlaySalida.classList.add('visible');
+
+                const onConfirmar = () => {
+                    dom.overlaySalida.classList.remove('visible');
+                    dom.btnCancelarSalida.removeEventListener('click', onCancelar);
+                    dom.btnConfirmarSalida.removeEventListener('click', onConfirmar);
+                    estado.pausado = false;
+                    if (callbackConfirmada) callbackConfirmada();
+                };
+
+                const onCancelar = () => {
+                    dom.overlaySalida.classList.remove('visible');
+                    dom.btnCancelarSalida.removeEventListener('click', onCancelar);
+                    dom.btnConfirmarSalida.removeEventListener('click', onConfirmar);
+                    estado.pausado = false;
+                };
+
+                dom.btnCancelarSalida.addEventListener('click', onCancelar);
+                dom.btnConfirmarSalida.addEventListener('click', onConfirmar);
+            }
+
+            // Interceptar navegación hacia atrás (botón del navegador).
+            // En práctica solo se avisa antes de cortar la partida: sin castigo.
+            window.addEventListener('popstate', (e) => {
+                if (partidoEnCurso()) {
+                    e.preventDefault();
+                    mostrarAdvertenciaSalida(() => {
+                        window.location.href = 'index.html';
+                    });
+                    // Mantener en la página empujando un nuevo estado
+                    history.pushState({ juegoIniciado: true }, '', location.href);
+                }
+            });
+
+            // En modo práctica NO hace falta pedir confirmación al cerrar o
+            // recargar la página, ni vigilar cuánto tiempo estuvo oculta la
+            // pestaña: nada de eso tiene consecuencias (no hay puntos en juego).
+
+            function reiniciarPartido() {
+                detenerAudioFondo();
+                dom.overlayFin.classList.add('oculto');
+                // Reactivar la partida: mostrarFinPartido() apagó partidoActivo,
+                // así que hay que volver a encenderlo para la revancha.
+                estado.partidoActivo = true;
+                estado.pausado = false;
+                Object.assign(estado, {
+                    golesJugador: 0,
+                    golesCpu: 0,
+                    golesInicioManoJugador: 0,
+                    golesInicioManoCpu: 0,
+                    golEnMano: false,
+                    puntosJugador: 0,
+                    puntosCpu: 0,
+                    puntosManoJugador: 0,
+                    puntosManoCpu: 0,
+                    manoActual: 0,
+                    rondaActual: 0,
+                    cartasEnMesa: [],
+                    inicioRonda: 0,
+                    cartaSeleccionada: null,
+                    historialManos: [],
+                    penalUsado: false,
+                    penalCantadoPor: null,
+                    penalActivo: false,
+                    penalAtacante: null,
+                    penalCartas: [],
+                    golActivo: false,
+                    golAtacante: null,
+                    golCartas: [],
+                    golUsado: false,
+                    golazoUsado: false,
+                    cantoActual: null,
+                    cantoPedidoPor: null,
+                    cantoPendiente: null,
+                    esperandoRespuestaDe: null,
+                    varDeclaraciones: { jugador: null, cpu: null },
+                    varPedidoPor: null,
+                    turnoInicial: 'jugador',
+                    turnoActual: 'jugador',
+                    fase: 'esperando_seleccion',
+                    ganadorManoAnterior: null,
+                });
+                const mazo = mezclarMazo(crearMazo());
+                const { manoJ, manoC } = repartir(mazo);
+                estado.manoJugador = ordenarMano(manoJ);
+                estado.manoCpu = ordenarMano(manoC);
+                estado.partidoActivo = true;
+                ocultarPanelVar();
+                renderizarTodo();
+                reproducirAudioFondo();
+                history.pushState({ juegoIniciado: true }, '', location.href);
+            }
+
+            function inicializarJuego() {
+                cacheDom();
+                
+                const mazo = mezclarMazo(crearMazo());
+                const { manoJ, manoC } = repartir(mazo);
+                estado.manoJugador = ordenarMano(manoJ);
+                estado.manoCpu = ordenarMano(manoC);
+                estado.golesInicioManoJugador = 0;
+                estado.golesInicioManoCpu = 0;
+                estado.golEnMano = false;
+                estado.fase = 'esperando_seleccion';
+                estado.turnoInicial = 'jugador';
+                estado.turnoActual = 'jugador';
+                estado.pausado = true;
+
+                dom.btnEmpezar.addEventListener('click', () => {
+                    // En modo práctica NO se requiere iniciar sesión.
+                    // Desbloquear audio en móviles reproduciendo y pausando todos los audios estáticos
+                    Object.values(dom.sonidos).forEach(audio => {
+                        if (audio) {
+                            audio.currentTime = 0;
+                            audio.play().then(() => {
+                                audio.pause();
+                                audio.currentTime = 0;
+                            }).catch(() => {});
+                        }
+                    });
+                    iniciarPartido();
+                });
+
+                // En modo práctica no hay sesión de Firebase ni nickname: se juega
+                // siempre como "Jugador" y nada se guarda en la base de datos.
+
+
+                dom.btnIrAlInicio.addEventListener('click', () => {
+                    if (partidoEnCurso()) {
+                        mostrarAdvertenciaSalida(() => {
+                            window.location.href = 'index.html';
+                        });
+                    } else {
+                        window.location.href = 'index.html';
+                    }
+                });
+
+                dom.btnPenal.addEventListener('click', () => { if (!dom.btnPenal.disabled) jugadorPidePenal(); });
+                dom.btnQuieroIzq.addEventListener('click', () => { if (!dom.btnQuieroIzq.disabled) jugadorRespondeQuiero(); });
+                dom.btnNoQuieroIzq.addEventListener('click', () => { if (!dom.btnNoQuieroIzq.disabled) jugadorRespondeNoQuiero(); });
+                dom.btnVar.addEventListener('click', () => {
+                    if (!dom.btnVar.disabled) {
+
+                        if (estado.fase === 'var_pedido' && estado.varTurnoDeclarar === 'jugador') declararVarJugador();
+                        else if (estado.fase === 'penal_pedido') jugadorRespondeVar();
+                    }
+                });
+                dom.btnGol.addEventListener('click', () => { if (!dom.btnGol.disabled) jugadorPideGol(); });
+                dom.btnQuieroDer.addEventListener('click', () => { if (!dom.btnQuieroDer.disabled) jugadorRespondeQuiero(); });
+                dom.btnNoQuieroDer.addEventListener('click', () => { if (!dom.btnNoQuieroDer.disabled) jugadorRespondeNoQuiero(); });
+                dom.btnGolazo.addEventListener('click', () => { if (!dom.btnGolazo.disabled) jugadorRespondeGolazo(); });
+
+                dom.btnSonido.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    estado.sonidosActivados = !estado.sonidosActivados;
+                    dom.btnSonido.classList.toggle('activo', estado.sonidosActivados);
+                    dom.btnSonido.classList.toggle('desactivado', !estado.sonidosActivados);
+                    dom.btnSonido.textContent = estado.sonidosActivados ? '🔊' : '🔇';
+                });
+
+                dom.btnMusica.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    estado.musicaActivada = !estado.musicaActivada;
+                    dom.btnMusica.classList.toggle('activo', estado.musicaActivada);
+                    dom.btnMusica.classList.toggle('desactivado', !estado.musicaActivada);
+                    dom.btnMusica.textContent = estado.musicaActivada ? '🎵' : '🎵';
+                    if (!estado.musicaActivada) {
+                        detenerAudioFondo();
+                    } else {
+                        reproducirAudioFondo();
+                    }
+                });
+
+                dom.panelMarcador.addEventListener('click', (e) => {
+                    // No abrir marcador si se clickea los botones de sonido
+                    if (dom.btnSonido.contains(e.target) || dom.btnMusica.contains(e.target)) return;
+                    if (!estado.pausado || !dom.overlayMarcador.classList.contains('oculto')) mostrarMarcadorDetallado();
+                });
+                dom.btnVolverMarcador.addEventListener('click', ocultarMarcadorDetallado);
+                dom.btnRevancha.addEventListener('click', reiniciarPartido);
+
+                // ---------- Compartir resultado (link de referidos) ----------
+                dom.btnCompartir.addEventListener('click', async () => {
+                    const titulo = dom.resultadoTitulo.textContent || '';
+                    const marcador = dom.resultadoMarcador.textContent || '';
+                    const base = location.origin + location.pathname.replace(/[^/]*$/, '');
+                    const link = base + 'index.html?ref=' + encodeURIComponent(estado.nombreJugador || 'Jugador');
+                    const texto = `⚽ ${titulo} | ${marcador}\n🎮 Jugá GOLAZO - El Truco del Fútbol:\n${link}`;
+                    try {
+                        if (navigator.share) {
+                            await navigator.share({ title: 'GOLAZO', text: texto });
+                        } else {
+                            await navigator.clipboard.writeText(texto);
+                            mostrarMensaje('📋 Resultado copiado. ¡Pegalo donde quieras!');
+                        }
+                    } catch (e) {
+                        // El usuario canceló el compartir o falló el portapapeles
+                        console.log('Compartir cancelado:', e);
+                    }
+                });
+                dom.btnInicio.addEventListener('click', () => {
+                    detenerAudioFondo();
+                    if (partidoEnCurso()) {
+                        mostrarAdvertenciaSalida(() => {
+                            window.location.href = 'index.html';
+                        });
+                    } else {
+                        window.location.href = 'index.html';
+                    }
+                });
+
+                window.addEventListener('resize', () => { if (!estado.pausado) renderizarTodo(); });
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape' && !dom.overlayMarcador.classList.contains('oculto')) ocultarMarcadorDetallado();
+                    if (e.key === 'Enter' && estado.fase === 'esperando_seleccion' && estado.cartaSeleccionada !== null) jugarCartaSeleccionada();
+                });
+
+                renderizarTodo();
+            }
+
+            document.addEventListener('DOMContentLoaded', inicializarJuego);
+        })();
+    </script>
+</body>
+</html>
