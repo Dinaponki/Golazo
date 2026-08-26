@@ -2894,21 +2894,18 @@
                             dom.varPanel.classList.remove('visible');
                         }
                     }
+                    // Pintar SIEMPRE el texto del panel (pendiente con "?",
+                    // completo, o resultado final), no solo durante var_pedido:
+                    // si el rival resolvió, la fase ya cambió cuando este evento
+                    // llega y sin esto el texto quedaba congelado en "X - ?".
+                    actualizarPanelVar();
 
                     // ============ VAR: DECLARACIÓN Y RESOLUCIÓN AUTOMÁTICA ============
                     // Si estamos en fase var_pedido
                     if (estado.juego.fase === 'var_pedido' && !varYaResolviendo) {
                         const miDeclare = estado.juego.varDeclaraciones.jugador;
                         const rivalDeclare = estado.juego.varDeclaraciones.rival;
-                        // Actualizar el panel VAR: solo se muestra un número si la
-                        // declaración es válida PARA LA MANO ACTUAL; cualquier resto
-                        // de otra mano se ve como "?" (nunca un número equivocado)
-                        if (dom.varPanel && dom.varPanelTexto) {
-                            const dj = varDeclTexto(miDeclare);
-                            const dr = varDeclTexto(rivalDeclare);
-                            dom.varPanelTexto.textContent = `${estado.nickname || 'Jugador'} ${dj} vs ${estado.rivalNombre} ${dr}`;
-                            dom.varPanel.classList.add('visible');
-                        }
+                        // El TEXTO del panel lo pinta actualizarPanelVar() arriba.
                         // Si yo aún no declaré (para ESTA mano), declaro. La guardia
                         // interna de pedirDeclararVar evita reintentos apilados.
                         if (!varDeclValida(miDeclare)) {
@@ -3392,6 +3389,8 @@
             // borraba la declaración que el rival YA había hecho en esta mano.
             estado.juego.varPedidoPor = null;
             estado.juego.varPanelVisible = false;
+            // Nueva mano: descartar el resultado congelado del VAR de la mano anterior
+            varResultadoFinal = null;
             estado.juego.ganadorManoAnterior = null;
             if (dom.varPanel) dom.varPanel.classList.remove('visible');
 
@@ -3648,6 +3647,8 @@
             estado.juego.varTurnoDeclarar = estado.juego.varPedidoPor;
             // Mostrar el panel VAR sincronizado para ambos jugadores
             estado.juego.varPanelVisible = true;
+            // Nuevo VAR de esta mano: descartar cualquier resultado congelado anterior
+            varResultadoFinal = null;
             if (dom.varPanel && dom.varPanelTexto) {
                 dom.varPanelTexto.textContent = `${estado.nickname || 'Jugador'} ? vs ${estado.rivalNombre} ?`;
                 dom.varPanel.classList.add('visible');
@@ -3673,6 +3674,45 @@
                 d.m === estado.juego.manoActual;
         }
         function varDeclTexto(d) { return varDeclValida(d) ? d.v : '?'; }
+
+        // Resultado CONGELADO del VAR de esta mano (lo fija quien resuelve):
+        // permite que el panel siga mostrando los dos números finales aunque la
+        // fase ya haya cambiado y las declaraciones se hayan limpiado localmente.
+        let varResultadoFinal = null;
+
+        // ÚNICO punto que pinta el texto del panel VAR. Se llama en CADA evento
+        // del listener mientras el panel esté visible. Antes el texto solo se
+        // actualizaba dentro del bloque fase==='var_pedido': si el rival pedía
+        // el VAR, ÉL era quien resolvía y sus escrituras (declaración +
+        // resolución) llegaban casi juntas como UN solo evento donde la fase ya
+        // había cambiado → el bloque nunca corría en mi pantalla y el texto
+        // quedaba congelado en "X - ?" hasta el fin de la mano (mientras que en
+        // la pantalla del resolutor se veía perfecto, porque él escribía el
+        // resultado directamente). Con esta función el panel converge siempre.
+        function actualizarPanelVar() {
+            if (!dom.varPanel || !dom.varPanelTexto) return;
+            if (!estado.juego.varPanelVisible) return;
+            let texto = null;
+            const res = (varResultadoFinal && varResultadoFinal.m === estado.juego.manoActual)
+                ? varResultadoFinal : null;
+            const djD = estado.juego.varDeclaraciones ? estado.juego.varDeclaraciones.jugador : null;
+            const drD = estado.juego.varDeclaraciones ? estado.juego.varDeclaraciones.rival : null;
+            if (res) {
+                // Yo resolví el VAR: mostrar MI resultado congelado
+                texto = `${estado.nickname || 'Jugador'} ${res.v1} vs ${estado.rivalNombre} ${res.v2}`;
+            } else if (varDeclValida(djD) && varDeclValida(drD)) {
+                // El OTRO resolvió y el estado completo ya llegó acá (la fase puede
+                // haber cambiado ya): mostrar los dos números definitivos igual.
+                texto = `${estado.nickname || 'Jugador'} ${djD.v} vs ${estado.rivalNombre} ${drD.v}`;
+            } else if (estado.juego.fase === 'var_pedido') {
+                // VAR en curso: mostrar lo que haya, con "?" en lo que falta
+                texto = `${estado.nickname || 'Jugador'} ${varDeclTexto(djD)} vs ${estado.rivalNombre} ${varDeclTexto(drD)}`;
+            } else {
+                return; // Nada nuevo que mostrar: no pisar el último texto válido
+            }
+            dom.varPanelTexto.textContent = texto;
+            dom.varPanel.classList.add('visible');
+        }
 
         let varDeclaraEnCurso = false;
         function pedirDeclararVar() {
@@ -3706,14 +3746,9 @@
             // tarde, el receptor la descarta sola por no coincidir la mano.
             const decl = { v: real, m: estado.juego.manoActual };
             estado.juego.varDeclaraciones.jugador = decl;
-            const dr = varDeclTexto(estado.juego.varDeclaraciones.rival);
-            if (dom.varPanel && dom.varPanelTexto) {
-                dom.varPanelTexto.textContent = `${estado.nickname || 'Jugador'} ${real} vs ${estado.rivalNombre} ${dr}`;
-                dom.varPanel.classList.add('visible');
-            }
-            mostrarMensaje(`📺 VAR: ${estado.nickname || 'Jugador'} ${real} vs ${estado.rivalNombre} ${dr}`);
             sincronizarJuego();
             renderizarTodo();
+            actualizarPanelVar();
             verificarVarResolucion();
         }
 
@@ -3733,10 +3768,10 @@
             const varPedidoPor = estado.juego.varPedidoPor;
             const cantoPedidoPor = estado.juego.cantoPedidoPor;
 
-            if (dom.varPanel && dom.varPanelTexto) {
-                dom.varPanelTexto.textContent = `${estado.nickname || 'Jugador'} ${dj} vs ${estado.rivalNombre} ${dr}`;
-                dom.varPanel.classList.add('visible');
-            }
+            // Congelar el RESULTADO de este VAR: así el panel sigue mostrando los
+            // dos números finales hasta el fin de la mano aunque la fase cambie,
+            // en AMBAS pantallas (la del resolutor y la del otro).
+            varResultadoFinal = { v1: dj, v2: dr, m: estado.juego.manoActual };
             mostrarMensaje(`📺 VAR: ${estado.nickname || 'Jugador'} ${dj} vs ${estado.rivalNombre} ${dr}`);
 
             if (dj > dr) {
