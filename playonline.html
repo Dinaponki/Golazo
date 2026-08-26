@@ -1704,16 +1704,16 @@
                 golesInicioManoJugador: estado.miLado === 'jugador' ? estado.juego.golesInicioManoJugador : estado.juego.golesInicioManoRival,
                 golesInicioManoRival: estado.miLado === 'jugador' ? estado.juego.golesInicioManoRival : estado.juego.golesInicioManoJugador
             });
-            // VAR: publicar SOLO MI declaración en MI camino
-            // (varDeclaraciones/<miLado>). Al usar un update PARCIAL que nunca
-            // incluye la clave del rival, su declaración jamás se pisa ni se
-            // borra. Antes se escribía el objeto COMPLETO desde los dos clientes
-            // y como un hijo en null SE BORRA de Firebase, el último cliente en
-            // escribir eliminaba la declaración del rival: el panel volvía a
-            // "yo X - ? rival", quedaba trabado y el VAR nunca se resolvía.
-            const miDeclaracionVar = estado.miLado === 'jugador'
-                ? estado.juego.varDeclaraciones.jugador
-                : estado.juego.varDeclaraciones.rival;
+            // VAR: publicar SOLO MI declaración en MI camino absoluto
+            // (varDeclaraciones/<miLado>). OJO con las convenciones:
+            // - La clave del camino es ABSOLUTA: estado.miLado ya lo es.
+            // - El valor es RELATIVO: en el estado local 'jugador' significa
+            //   SIEMPRE "yo", así que MI declaración está en
+            //   varDeclaraciones.jugador sin importar qué lado absoluto sea.
+            // (Antes se leía .rival cuando miLado era 'rival': eso tomaba la
+            // declaración del OPONENTE y el jugador unido terminaba publicando
+            // el número del otro en su propia clave → ambos veían "X - X".)
+            const miDeclaracionVar = estado.juego.varDeclaraciones.jugador;
             datos['varDeclaraciones/' + estado.miLado] =
                 esNumeroVar(miDeclaracionVar) ? miDeclaracionVar : null;
             // RECONCILIACIÓN DE GOLES antes de escribir: se conserva SIEMPRE el
