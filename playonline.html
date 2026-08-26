@@ -139,6 +139,9 @@
             width: 100%; height: 100%;
             position: relative; min-height: 0;
             padding: 12px; overflow: visible;
+            /* Aísla el contexto de pintado de las cartas: evita que los filtros
+               (drop-shadow) "sangren" hacia otros elementos en Firefox. */
+            isolation: isolate;
         }
 
         .mesa-fila {
@@ -149,9 +152,18 @@
         .mesa-cartas .carta-contenedor {
             position: absolute; top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            transition: var(--transicion);
+            /* SIN transition a propósito: los nodos de la mesa se recrean en
+               cada render (innerHTML=''), así que una transición nunca llega a
+               animar nada y en Firefox SOLO provoca artefactos: "fantasmas" o
+               reflejos de la carta desplazados y líneas del drop-shadow. */
             display: flex; flex-direction: column; align-items: center;
             margin: 0;
+            /* Capa propia de GPU: obliga a Firefox a pintar cada carta en un
+               plano separado y elimina el fantasma/reflejo que dejaba atrás al
+               reposicionarlas (artefacto conocido de filter+transform). */
+            will-change: transform, opacity, filter;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
         }
 
         .mesa-cartas .carta-contenedor.ganadora {
@@ -337,7 +349,11 @@
 
         .panel-marcador .minuto { font-size: clamp(13px, 2.8vmin, 16px); color: var(--dorado); }
 
-        .carta-img { display: block; background: transparent; object-fit: contain; transition: var(--transicion); }
+        .carta-img { display: block; background: transparent; object-fit: contain; transition: var(--transicion);
+            /* Evita líneas/costuras del drop-shadow al escalar en Firefox */
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+        }
         .mano-cpu .carta-img { width: var(--carta-cpu); height: auto; max-height: var(--carta-cpu-max-h); }
         .mano-jugador .carta-img {
             width: var(--carta-mano); height: auto;
@@ -1270,9 +1286,12 @@
                     // su fila (el centro queda libre) y la mesa es
                     // overflow:visible, así que nunca se recortan.
                     // En PC se mantienen centradas (50%).
+                    // El translateZ(0) fuerza una capa propia de GPU para la carta: evita el
+                    // "reflejo/fantasma" y las líneas que Firefox deja al repintar
+                    // cartas con drop-shadow + transform.
                     cont.style.top = esMovil ? '92%' : '50%';
                     cont.style.left = '50%';
-                    cont.style.transform = `translate(-50%, -50%) translateX(${txPx}px) translateY(${tyPx}px)`;
+                    cont.style.transform = `translate(-50%, -50%) translateZ(0) translateX(${txPx}px) translateY(${tyPx}px)`;
 
                     // Resaltar quién mata a quién
                     if (ganadorOrigen === item.origen) {
