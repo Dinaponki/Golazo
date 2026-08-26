@@ -2736,9 +2736,18 @@
                         const numVar = (v) => esNumeroVar(v) ? v : null;
                         const absDeclJ = numVar(j.varDeclaraciones.jugador);
                         const absDeclR = numVar(j.varDeclaraciones.rival);
+                        // Red de seguridad anti-parpadeo: si estoy en plena fase
+                        // VAR y YA declaré localmente pero un evento desactualizado
+                        // aún no trae MI clave desde el servidor, conservo mi
+                        // declaración local en vez de pisarla con null (evita que
+                        // el propio panel me muestre "?" y bucles de re-declarar).
+                        const previas = estado.juego.varDeclaraciones;
+                        const enFaseVar = estado.juego.fase === 'var_pedido';
+                        const mia = (estado.miLado === 'jugador' ? absDeclJ : absDeclR);
+                        const delRival = (estado.miLado === 'jugador' ? absDeclR : absDeclJ);
                         estado.juego.varDeclaraciones = {
-                            jugador: estado.miLado === 'jugador' ? absDeclJ : absDeclR,
-                            rival: estado.miLado === 'jugador' ? absDeclR : absDeclJ
+                            jugador: (mia !== null || !enFaseVar) ? mia : (esNumeroVar(previas.jugador) ? previas.jugador : null),
+                            rival: (delRival !== null || !enFaseVar) ? delRival : (esNumeroVar(previas.rival) ? previas.rival : null)
                         };
                     }
                     estado.juego.golEnMano = j.golEnMano || false;
@@ -3551,7 +3560,12 @@
             estado.juego.cantoPedidoPor = null;
             estado.juego.cantoPendiente = null;
             estado.juego.esperandoRespuestaDe = null;
-            estado.juego.varDeclaraciones = { jugador: null, rival: null };
+            // IMPORTANTE: las declaraciones del VAR NO se limpian acá. El panel
+            // queda visible hasta el fin de la mano y debe seguir mostrando los
+            // dos números reales; si se borran, cada cliente que sincronice su
+            // reset hace que en la pantalla del OTRO aparezca "?" para él.
+            // Solo hay 1 VAR por mano (el penal es de ronda 0 y único), así que
+            // conservarlas es seguro: se reinician solas en iniciarNuevaMano().
             estado.juego.varTurnoDeclarar = null;
             estado.juego.varPedidoPor = null;
             estado.juego.penalActivo = false;
