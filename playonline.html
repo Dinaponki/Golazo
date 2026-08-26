@@ -1132,6 +1132,23 @@
             return esNumeroVar(v) ? String(v) : '?';
         }
 
+        // Número que se declara en el VAR: el MÁS ALTO entre TODAS las cartas de
+        // Arquero y TODAS las cartas de Delantero de la mano.
+        //   - Arquero 7 + Delantero 10  -> 10
+        //   - Delantero 1 + Arquero 3   -> 3
+        //   - Todos delanteros          -> el delantero más alto
+        // Ignora cartas inválidas/fantasma (sin posición o numero fuera de 1..10).
+        function declaracionVarDeMano(mano) {
+            let max = 0;
+            for (const c of (mano || [])) {
+                if (!c || !esNumeroVar(c.numero) || c.numero < 1 || c.numero > 10) continue;
+                if ((c.posicion === 'Arq' || c.posicion === 'Del') && c.numero > max) {
+                    max = c.numero;
+                }
+            }
+            return max;
+        }
+
         // ============ ANTI-REVERSIÓN DE FASES (guerra de escrituras) ============
         // Ambos clientes escriben el estado COMPLETO del juego sobre el mismo
         // nodo de Firebase, así que una escritura desactualizada del rival puede
@@ -3706,24 +3723,29 @@
             if (estado.partidaId) {
                 update(ref(db, 'partidas/' + estado.partidaId + '/juego'), { varDeclaraciones: null }).catch(() => {});
             }
-            const dj = numeroMasAltoArqDel(estado.juego.manoJugador);
-            estado.juego.varDeclaraciones.jugador = dj;
+            const dj = manoPropiaListaParaVar() ? declaracionVarDeMano(estado.juego.manoJugador) : null;
+            if (dj !== null) {
+                estado.juego.varDeclaraciones.jugador = dj;
+            }
             if (dom.varPanel && dom.varPanelTexto) {
                 actualizarPanelVar();
                 dom.varPanel.classList.add('visible');
             }
-            mostrarMensaje(`📺 VAR: ${estado.nickname || 'Jugador'} ${dj} vs ${estado.rivalNombre} ?`);
+            mostrarMensaje(`📺 VAR: ${estado.nickname || 'Jugador'} ${formatoDeclaracionVar(dj)} vs ${estado.rivalNombre} ?`);
             sincronizarJuego();
             renderizarTodo();
-            // Si el rival ya declaró, resolver
+            // Si el rival ya declaró Y yo también, resolver
             verificarVarResolucion();
+            // Si mi mano real aún no llegó (descifrando), mi declaración sale
+            // automáticamente en cuanto esté lista (intentarDeclaracionVarAutomatica)
+            intentarDeclaracionVarAutomatica();
         }
 
         function declararVarJugador() {
             if (estado.juego.fase !== 'var_pedido') return;
             // Ya declaré: no sobrescribir (evita bucles de re-declaración)
             if (esNumeroVar(estado.juego.varDeclaraciones.jugador)) return;
-            const real = numeroMasAltoArqDel(estado.juego.manoJugador);
+            const real = declaracionVarDeMano(estado.juego.manoJugador);
             estado.juego.varDeclaraciones.jugador = real;
             const dr = estado.juego.varDeclaraciones.rival;
             if (dom.varPanel && dom.varPanelTexto) {
