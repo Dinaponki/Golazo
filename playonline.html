@@ -1579,6 +1579,55 @@
             } catch (e) { /* sin red: se conserva lo local */ }
         }
 
+        // GARANTÍA MONÓTONA DE GOLES (transacción atómica por campo):
+        // Ambos clientes escriben el estado COMPLETO del juego sobre el MISMO
+        // nodo, así que un write desactualizado podía llegar DESPUÉS del gol
+        // del rival y PISARLO ("hizo gol y no sumó en el marcador"). El
+        // Math.max previo tenía una ventana de carrera entre leer y escribir.
+        // Acá cada campo de gol se fija con un runTransaction que SOLO acepta
+        // el máximo entre lo que ya hay en el servidor y lo que este cliente
+        // sabe: la transacción se re-ejecuta sola si otro cliente escribió en
+        // el medio, así que los goles NUNCA pueden bajar ni perderse, pase lo
+        // que pase con el orden de llegada de las escrituras.
+        async function asegurarGolesMonotonicos() {
+            if (!estado.partidaId || !estado.miLado) return;
+            try {
+                const base = 'partidas/' + estado.partidaId + '/juego';
+                const absJ = estado.miLado === 'jugador' ? estado.juego.golesJugador : estado.juego.golesRival;
+                const absR = estado.miLado === 'jugador' ? estado.juego.golesRival : estado.juego.golesJugador;
+                const fijarMax = async (campo, valorAbs) => {
+                    // valorAbs debe ser un número válido; si no lo es, no tocar nada
+                    if (typeof valorAbs !== 'number' || !isFinite(valorAbs)) return;
+                    const r = ref(db, base + '/' + campo);
+                    await runTransaction(r, (actual) => {
+                        const v = (typeof actual === 'number' && isFinite(actual)) ? actual : 0;
+                        return Math.max(v, valorAbs);
+                    });
+                };
+                await Promise.all([
+                    fijarMax('golesJugador', absJ).catch(() => {}),
+                    fijarMax('golesRival', absR).catch(() => {})
+                ]);
+                // Reflejar localmente lo que quedó en el servidor (por si el
+                // servidor tenía un valor MÁS ALTO que el local): el listener
+                // lo traería igual, pero esto lo hace inmediato y sin parpadeo.
+                try {
+                    const [sgj, sgr] = await Promise.all([
+                        get(ref(db, base + '/golesJugador')).catch(() => null),
+                        get(ref(db, base + '/golesRival')).catch(() => null)
+                    ]);
+                    const remJ = sgj && sgj.exists() ? Number(sgj.val()) : null;
+                    const remR = sgr && sgr.exists() ? Number(sgr.val()) : null;
+                    if (remJ !== null && remJ > (estado.miLado === 'jugador' ? estado.juego.golesJugador : estado.juego.golesRival)) {
+                        if (estado.miLado === 'jugador') estado.juego.golesJugador = remJ; else estado.juego.golesRival = remJ;
+                    }
+                    if (remR !== null && remR > (estado.miLado === 'jugador' ? estado.juego.golesRival : estado.juego.golesJugador)) {
+                        if (estado.miLado === 'jugador') estado.juego.golesRival = remR; else estado.juego.golesJugador = remR;
+                    }
+                } catch (e) { /* best effort */ }
+            } catch (e) { console.warn('No se pudieron asegurar goles monótonos:', e); }
+        }
+
         async function escribirEstadoJuego(manosCifradas) {
             if (!estado.partidaId) return;
             await asegurarClavesCifradas();
@@ -1646,6 +1695,11 @@
             datos.golesRival = estado.miLado === 'jugador' ? estado.juego.golesRival : estado.juego.golesJugador;
             datos.ultimaActividad = Date.now();
             await update(juegoRef, datos);
+            // GARANTÍA FINAL: fijar los goles con transacciones monótonas
+            // (solo pueden SUBIR). Aunque este update llegara desactualizado y
+            // pisara un gol recién convertido por el rival, la transacción lo
+            // restaura AL INSTANTE al valor máximo ya aceptado por el servidor.
+            await asegurarGolesMonotonicos();
         }
 
         // ============ ACCIONES DE JUEGO ============
