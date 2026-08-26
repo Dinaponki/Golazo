@@ -239,6 +239,24 @@
             opacity: 0.4;
         }
 
+        .fila-mano.seleccionable {
+            cursor: pointer;
+        }
+
+        .fila-mano.seleccionable:hover {
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        /* Indica la fila donde se anota */
+        .hint-fila {
+            width: 100%;
+            text-align: center;
+            font-size: clamp(11px, 2.9vw, 13px);
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            color: var(--dorado-claro);
+        }
+
         .celda-min {
             text-align: center;
             font-size: clamp(11px, 2.9vw, 14px);
@@ -698,6 +716,7 @@
             <button class="btn-gol" data-jugador="0" id="btnGol0">⚽ Gol A</button>
             <button class="btn-gol" data-jugador="1" id="btnGol1">⚽ Gol B</button>
         </div>
+        <div class="hint-fila" id="hintFila"></div>
 
         <!-- Acciones -->
         <div class="acciones">
@@ -715,7 +734,9 @@
                 ✔ ⭐ Golazo rechazado / 📺 VAR ganado: <b>+2 estrellas</b><br>
                 ✔ 🥅 Penal atajado / ⚽ Gol defendido: <b>+2 estrellas</b><br><br>
                 👉 Tocá una estrella para encenderla. Con las <b>3 encendidas</b>, el gol se anota solo.<br>
-                👉 También podés usar los botones <b>⚽ Gol A / Gol B</b>.<br>
+                👉 Tocá la misma estrella marcada para <b>bajarla</b> (si bajás de 3, se quita el gol).<br>
+                👉 <b>Tocá cualquier fila</b> para seleccionarla y anotar o corregir sus estrellas ahí.<br>
+                👉 También podés usar los botones <b>⚽ Gol A / Gol B</b> sobre la fila elegida.<br>
                 👉 Un gol por fila y el partido dura <b>9 filas (90')</b>.
             </div>
         </details>
@@ -789,13 +810,21 @@
             "50'–60'", "60'–70'", "70'–80'", "80'–90'"
         ];
 
+        // Crea las 9 filas de la planilla vacías
+        function crearFilasVacias() {
+            const filas = [];
+            for (let i = 0; i < MAX_MANOS; i++) {
+                filas.push({ p: [0, 0], gol: null }); // p = estrellas, gol = ganador (0/1)
+            }
+            return filas;
+        }
+
         function estadoInicial() {
             return {
                 nombres: ['Jugador A', 'Jugador B'],
-                goles: [0, 0],
-                manos: [],          // manos cerradas: { puntos:[a,b], ganador }
-                puntos: [0, 0],     // estrellas encendidas de la mano en curso
-                terminada: false
+                filas: crearFilasVacias(),
+                activa: 0,              // índice de la fila seleccionada
+                terminadaManual: false  // bandera del botón "Terminar"
             };
         }
 
@@ -810,7 +839,38 @@
                 if (crudo) {
                     const datos = JSON.parse(crudo);
                     if (datos && Array.isArray(datos.nombres) && datos.nombres.length === 2) {
-                        return Object.assign(estadoInicial(), datos);
+                        const nuevo = estadoInicial();
+                        nuevo.nombres = datos.nombres.slice();
+                        if (Array.isArray(datos.filas)) {
+                            // Formato nuevo: filas completas
+                            datos.filas.slice(0, MAX_MANOS).forEach((f, i) => {
+                                nuevo.filas[i] = {
+                                    p: [f.p[0] || 0, f.p[1] || 0],
+                                    gol: (f.gol === 0 || f.gol === 1) ? f.gol : null
+                                };
+                            });
+                            nuevo.activa = Math.min(Math.max(datos.activa || 0, 0), MAX_MANOS - 1);
+                            nuevo.terminadaManual = !!datos.terminadaManual;
+                        } else if (Array.isArray(datos.manos)) {
+                            // Formato anterior (v1): convertir a filas
+                            datos.manos.forEach((m, i) => {
+                                if (i < MAX_MANOS) {
+                                    nuevo.filas[i] = {
+                                        p: [(m.puntos && m.puntos[0]) || 0, (m.puntos && m.puntos[1]) || 0],
+                                        gol: (m.ganador === 0 || m.ganador === 1) ? m.ganador : null
+                                    };
+                                }
+                            });
+                            // Las estrellas de la mano que estaba en curso van a su fila
+                            const idxCurso = Math.min(datos.manos.length, MAX_MANOS - 1);
+                            nuevo.filas[idxCurso].p = [
+                                (datos.puntos && datos.puntos[0]) || 0,
+                                (datos.puntos && datos.puntos[1]) || 0
+                            ];
+                            nuevo.activa = idxCurso;
+                            nuevo.terminadaManual = !!datos.terminada;
+                        }
+                        return nuevo;
                     }
                 }
             } catch (e) { /* storage corrupto o no disponible: empezar limpio */ }
@@ -870,64 +930,101 @@
             } catch (e) { /* sin soporte de vibración */ }
         }
 
+        // ---------- Valores derivados ----------
+        function partidoTerminado() {
+            return estado.terminadaManual || estado.filas.every(f => f.gol !== null);
+        }
+
+        function golesDe(j) {
+            return estado.filas.reduce((n, f) => n + (f.gol === j ? 1 : 0), 0);
+        }
+
         function totalEstrellas(j) {
-            let suma = estado.puntos[j] || 0;
-            estado.manos.forEach(m => { suma += m.puntos[j] || 0; });
-            return suma;
+            return estado.filas.reduce((n, f) => n + (f.p[j] || 0), 0);
         }
 
-        // Cerrar la mano actual anotando el gol de j
-        function cerrarManoConGol(j) {
-            estado.goles[j] += 1;
-            estado.manos.push({
-                puntos: [estado.puntos[0] || 0, estado.puntos[1] || 0],
-                ganador: j
-            });
-            estado.puntos = [0, 0];
-            if (estado.manos.length >= MAX_MANOS) {
-                estado.terminada = true;
-            }
+        // Tras cerrar un gol, salta a la próxima fila sin gol (si hay)
+        function avanzarTrasGol() {
+            let idx = estado.activa + 1;
+            while (idx < MAX_MANOS && estado.filas[idx].gol !== null) idx++;
+            if (idx < MAX_MANOS) { estado.activa = idx; return; }
+            const libre = estado.filas.findIndex(f => f.gol === null);
+            if (libre !== -1) estado.activa = libre;
         }
 
-        // Enciende estrellas hasta `cantidad`. Al llegar a 3, gol automático.
-        function tocarEstrella(j, cantidad) {
-            if (estado.terminada) return;
-            snapshot();
-            estado.puntos[j] = cantidad;
-            if (cantidad >= PTS_PARA_GOL) {
-                cerrarManoConGol(j);
-                guardar();
-                render();
-                vibrar([60, 40, 140]);
-                if (estado.terminada) abrirResultado();
-                else mostrarToast('⚽ ¡Gol de ' + nombre(j) + '!');
-                return;
-            }
+        // Selecciona una fila cualquiera para anotarla o corregirla
+        function seleccionarMano(i) {
+            if (partidoTerminado() || i === estado.activa) return;
+            estado.activa = i;
             guardar();
             render();
-            vibrar(20);
+            vibrar(12);
         }
 
-        // Botón de gol manual (anota el gol sin importar las estrellas)
-        function cantarGol(j) {
-            if (estado.terminada) return;
+        // Enciende/baja estrellas de la FILA ACTIVA. Con 3, gol automático.
+        // Tocar la misma cantidad que ya está marcada baja una (toggle).
+        // Si la fila tenía gol por 3 estrellas y se baja por debajo, se quita.
+        function tocarEstrella(j, pedida) {
+            if (partidoTerminado()) return;
+            const fila = estado.filas[estado.activa];
+            const previo = fila.p[j] || 0;
+            let cantidad = pedida;
+            if (cantidad === previo && cantidad > 0) cantidad -= 1;
+
             snapshot();
-            cerrarManoConGol(j);
+
+            const agregoGol = (cantidad >= PTS_PARA_GOL && fila.gol !== j);
+            const quitoGol = (fila.gol === j && previo >= PTS_PARA_GOL && cantidad < PTS_PARA_GOL);
+
+            fila.p[j] = cantidad;
+            if (agregoGol) {
+                fila.gol = j;
+                avanzarTrasGol();
+            } else if (quitoGol) {
+                fila.gol = null;
+                mostrarToast('Se quitó el gol de ' + nombre(j));
+            }
+
+            guardar();
+            render();
+            vibrar(agregoGol ? [60, 40, 140] : 20);
+
+            if (partidoTerminado()) {
+                abrirResultado();
+            } else if (agregoGol) {
+                mostrarToast('⚽ ¡Gol de ' + nombre(j) + '!');
+            }
+        }
+
+        // Botón de gol manual: anota el gol en la FILA ACTIVA
+        function cantarGol(j) {
+            if (partidoTerminado()) return;
+            const fila = estado.filas[estado.activa];
+            if (fila.gol !== null) {
+                mostrarToast('Esa fila ya tiene gol de ' + nombre(fila.gol));
+                return;
+            }
+            snapshot();
+            fila.gol = j;
+            avanzarTrasGol();
             guardar();
             render();
             vibrar([60, 40, 140]);
-            if (estado.terminada) abrirResultado();
-            else mostrarToast('⚽ ¡Gol de ' + nombre(j) + '!');
+            if (partidoTerminado()) {
+                abrirResultado();
+            } else {
+                mostrarToast('⚽ ¡Gol de ' + nombre(j) + '!');
+            }
         }
 
         // Finaliza el partido manualmente
         function terminarPartido() {
-            if (estado.terminada) {
+            if (partidoTerminado()) {
                 abrirResultado();
                 return;
             }
             snapshot();
-            estado.terminada = true;
+            estado.terminadaManual = true;
             guardar();
             render();
             abrirResultado();
@@ -945,27 +1042,37 @@
 
         // ---------- Render ----------
         function render() {
+            const terminado = partidoTerminado();
+
             // Nombres y goles totales
             $('nombreJ0').textContent = nombre(0);
             $('nombreJ1').textContent = nombre(1);
             $('nombreCol0').textContent = nombre(0);
             $('nombreCol1').textContent = nombre(1);
-            $('golesJ0').textContent = estado.goles[0] || 0;
-            $('golesJ1').textContent = estado.goles[1] || 0;
+            $('golesJ0').textContent = golesDe(0);
+            $('golesJ1').textContent = golesDe(1);
+
+            // Indica en qué fila se van a anotar los goles/estrellas
+            $('hintFila').textContent = terminado
+                ? '🏁 Partido finalizado'
+                : '📍 Anotás en la fila: ' + MINUTOS_MANO[estado.activa];
 
             const tabla = $('tablaManos');
             tabla.innerHTML = '';
-
-            const manoActual = Math.min(estado.manos.length, MAX_MANOS - 1);
             let golesAcum = [0, 0];
 
             for (let i = 0; i < MAX_MANOS; i++) {
-                const esPasada = i < estado.manos.length;
-                const esActual = !estado.terminada && i === estado.manos.length;
-                const esFutura = !esPasada && !esActual;
+                const filaData = estado.filas[i];
+                const esActiva = !terminado && i === estado.activa;
 
                 const fila = document.createElement('div');
-                fila.className = 'fila-mano' + (esActual ? ' actual' : '') + (esFutura ? ' futura' : '');
+                fila.className = 'fila-mano'
+                    + (esActiva ? ' actual' : '')
+                    + (!esActiva && filaData.gol === null ? ' futura' : '')
+                    + (!terminado ? ' seleccionable' : '');
+                if (!terminado) {
+                    fila.addEventListener('click', () => seleccionarMano(i));
+                }
 
                 const celdaMin = document.createElement('div');
                 celdaMin.className = 'celda-min';
@@ -973,6 +1080,9 @@
                 fila.appendChild(celdaMin);
 
                 [0, 1].forEach(j => {
+                    // Goles acumulados hasta el cierre de esta fila
+                    if (filaData.gol === j) golesAcum[j]++;
+
                     const celda = document.createElement('div');
                     celda.className = 'celda-jugador';
                     celda.setAttribute('data-jugador', j);
@@ -984,44 +1094,33 @@
                     num.textContent = golesAcum[j];
                     contGol.appendChild(num);
 
-                    if (esPasada) {
-                        if (estado.manos[i].ganador === j) {
-                            const pelota = document.createElement('span');
-                            pelota.className = 'gol-marcado ' + (j === 0 ? 'gol-fila-j0' : 'gol-fila-j1');
-                            pelota.textContent = '⚽';
-                            contGol.appendChild(pelota);
-                        }
-                        num.textContent = golesAcum[j];
+                    if (filaData.gol === j) {
+                        const pelota = document.createElement('span');
+                        pelota.className = 'gol-marcado ' + (j === 0 ? 'gol-fila-j0' : 'gol-fila-j1');
+                        pelota.textContent = '⚽';
+                        contGol.appendChild(pelota);
                     }
 
-                    // Estrellas de la fila
+                    // Estrellas de la fila (tocables solo en la activa)
                     const contEstrellas = document.createElement('div');
                     contEstrellas.className = 'estrellas';
-                    let ptsFila;
-                    if (esPasada) {
-                        ptsFila = estado.manos[i].puntos[j] || 0;
-                        for (let s = 0; s < PTS_PARA_GOL; s++) {
-                            const est = document.createElement('span');
-                            est.className = 'estrella-ver' + (s < ptsFila ? ' estrella-on' : '');
-                            est.textContent = '★';
-                            contEstrellas.appendChild(est);
-                        }
-                    } else if (esActual) {
-                        ptsFila = Math.min(estado.puntos[j] || 0, PTS_PARA_GOL);
-                        for (let s = 0; s < PTS_PARA_GOL; s++) {
+                    const pts = Math.min(filaData.p[j] || 0, PTS_PARA_GOL);
+                    for (let s = 0; s < PTS_PARA_GOL; s++) {
+                        if (esActiva) {
                             const btn = document.createElement('button');
                             btn.type = 'button';
-                            btn.className = 'estrella-btn' + (s < ptsFila ? ' estrella-on' : '');
+                            btn.className = 'estrella-btn' + (s < pts ? ' estrella-on' : '');
                             btn.textContent = '★';
-                            btn.setAttribute('aria-label', nombre(j) + ': encender ' + (s + 1) + ' estrella(s)');
+                            btn.setAttribute('aria-label', nombre(j) + ': marcar ' + (s + 1) + ' estrella(s)');
                             const cantidad = s + 1;
-                            btn.addEventListener('click', () => tocarEstrella(j, cantidad));
+                            btn.addEventListener('click', (e) => {
+                                e.stopPropagation(); // no cambiar de fila al tocar
+                                tocarEstrella(j, cantidad);
+                            });
                             contEstrellas.appendChild(btn);
-                        }
-                    } else {
-                        for (let s = 0; s < PTS_PARA_GOL; s++) {
+                        } else {
                             const est = document.createElement('span');
-                            est.className = 'estrella-ver';
+                            est.className = 'estrella-ver' + (s < pts ? ' estrella-on' : '');
                             est.textContent = '★';
                             contEstrellas.appendChild(est);
                         }
@@ -1029,20 +1128,17 @@
                     celda.appendChild(contGol);
                     celda.appendChild(contEstrellas);
                     fila.appendChild(celda);
-
-                    // Acumular gol de manos pasadas para el marcador corrido
-                    if (esPasada && estado.manos[i].ganador === j) golesAcum[j]++;
                 });
                 tabla.appendChild(fila);
             }
 
             // Botones de gol manual: deshabilitados si terminó el partido
-            $('btnGol0').disabled = estado.terminada;
-            $('btnGol1').disabled = estado.terminada;
+            $('btnGol0').disabled = terminado;
+            $('btnGol1').disabled = terminado;
 
             $('btnDeshacer').disabled = pilaDeshacer.length === 0;
-            $('btnTerminar').disabled = estado.terminada;
-            $('btnTerminar').textContent = estado.terminada ? '📋 Resultado' : '🏁 Terminar';
+            $('btnTerminar').disabled = terminado;
+            $('btnTerminar').textContent = terminado ? '📋 Resultado' : '🏁 Terminar';
         }
 
         // ---------- Overlays ----------
@@ -1072,8 +1168,8 @@
         }
 
         function abrirResultado() {
-            const g0 = estado.goles[0] || 0;
-            const g1 = estado.goles[1] || 0;
+            const g0 = golesDe(0);
+            const g1 = golesDe(1);
             $('resNombre0').textContent = nombre(0);
             $('resNombre1').textContent = nombre(1);
             $('resGoles0').textContent = g0;
