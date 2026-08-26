@@ -605,6 +605,11 @@
         /* Responsive */
         @media (max-width: 767px) {
             .mesa-fila { height: 100%; width: 100%; }
+            /* En móvil la mano del rival (dorsos) debe quedar siempre centrada y
+               sin desbordarse hacia la izquierda (fallo visual en Firefox móvil) */
+            .mano-cpu { width: 100%; max-width: 100%; justify-content: center; }
+            .mano-cpu .carta-img { max-width: 21vw; }
+            .mesa-cartas { overflow: hidden; }
             .indicador-canto { margin-bottom: 4px; }
             .zona-jugador .etiqueta-turno { margin-top: clamp(4px, 0.8vh, 8px); }
             .zona-botones { justify-content: space-between; align-items: flex-start; padding: 0; gap: 0; }
@@ -1239,15 +1244,16 @@
                     const esRival = item.origen === 'rival';
                     // Si ambas cartas están en la mesa, se superponen como en un juego real:
                     // cada carta queda del lado de quien la tiró y se acercan al enfrentar.
-                    // En móvil se baja un poco el grupo para que no tape el
-                    // texto "Turno de ..." ni los botones; en PC queda centrado.
-                    const sep = ambos ? (esMovil ? 7 : 12) : (esMovil ? 10 : 24);
-                    const ty = esRival ? -sep : sep;
-                    const tx = (ri % 2 === 0 ? -1 : 1) * 8;
+                    // Se usa desplazamiento en PÍXELES desde el centro del contenedor:
+                    // así el grupo nunca se sale de la pantalla hacia los costados
+                    // (bug visual en Firefox móvil con top:95% + translateY en %).
+                    const sepPx = ambos ? (esMovil ? 9 : 13) : 0;
+                    const tyPx = esRival ? -sepPx : sepPx;
+                    const txPx = (ri % 2 === 0 ? -1 : 1) * (esMovil ? 6 : 9);
 
-                    cont.style.top = esMovil ? '95%' : '50%';
+                    cont.style.top = '50%';
                     cont.style.left = '50%';
-                    cont.style.transform = `translate(-50%, -50%) translateX(${tx}px) translateY(${ty}%)`;
+                    cont.style.transform = `translate(-50%, -50%) translateX(${txPx}px) translateY(${tyPx}px)`;
 
                     // Resaltar quién mata a quién
                     if (ganadorOrigen === item.origen) {
@@ -1255,8 +1261,9 @@
                     } else if (ganadorOrigen) {
                         cont.classList.add('perdedora-ronda');
                     }
-                    // Rondas anteriores se atenúan
-                    if (!esRondaActual) cont.style.opacity = '0.45';
+                    // Rondas anteriores se atenúan (pero no tanto como para que
+                    // parezcan "una carta rara a la izquierda con baja opacidad")
+                    if (!esRondaActual) cont.style.opacity = '0.6';
 
                     filaMesa.appendChild(cont);
                 });
@@ -1345,6 +1352,9 @@
             actualizarIndicadorCanto();
             actualizarEtiquetasTurno();
             actualizarBotones();
+            // Seguro anti-congelación: si un canto quedó sin carta por la última
+            // carta del cambio, resolverlo con carta 0 en vez de quedar trabado.
+            verificarCantoFaltado();
         }
 
         // ============ CONVERSIÓN DE LADOS ============
@@ -2815,7 +2825,14 @@
             const cartasRonda = cartasDeRondaActual();
             const uj = cartasRonda.filter(c => c.origen === 'jugador').pop();
             const ur = cartasRonda.filter(c => c.origen === 'rival').pop();
-            if (!uj || !ur) return;
+            if (!uj || !ur) {
+                // Ronda sin el par completo (estado desincronizado): nunca quedarse
+                // congelado esperando una carta que no va a llegar.
+                estado.juego.cantoPendiente = null;
+                sincronizarJuego();
+                setTimeout(finalizarMano, 600);
+                return;
+            }
 
             if (uj.carta.numero > ur.carta.numero) {
                 estado.juego.puntosJugador++;
@@ -2900,7 +2917,17 @@
             const cartasGol = estado.juego.golCartas;
             const uj = cartasGol.filter(c => c.origen === 'jugador').pop();
             const ur = cartasGol.filter(c => c.origen === 'rival').pop();
-            if (!uj || !ur) return;
+            if (!uj || !ur) {
+                // Gol/Golazo sin la carta de un lado (por ejemplo, cuando el tirador
+                // tiró su última carta y no pudo completar la definición): forzar la
+                // resolución para que el juego NO quede congelado sin poder actuar.
+                estado.juego.golActivo = false;
+                estado.juego.golAtacante = null;
+                estado.juego.golCartas = [];
+                sincronizarJuego();
+                setTimeout(finalizarCanto, 400);
+                return;
+            }
             const atacanteEsJugador = estado.juego.golAtacante === 'jugador';
             const cartaAtacante = atacanteEsJugador ? uj : ur;
             const cartaDefensor = atacanteEsJugador ? ur : uj;
@@ -2933,6 +2960,38 @@
                 mostrarMensaje('⚽ ¡GOL! Defendido');
                 setTimeout(finalizarMano, 2200);
             }
+        }
+
+        // ============ SEGURO CONTRA CANTOS TRABADOS (última carta) ============
+        // El Gol/Penal/Golazo requiere que CADA lado tire una carta a la mesa de
+        // definición. Si a uno de los dos ya no le quedan cartas (¡tiró la última
+        // del cambio!), el juego quedaba esperando esa carta para siempre: el otro
+        // jugador NO veía la jugada y ya no se podía hacer nada (congelado).
+        // Acá se detecta ese caso en el cliente del jugador trabado y se fabrica
+        // una carta "fantasma" (número 0). Como 0 pierde siempre contra cualquier
+        // número real, el desenlace es el correcto según las reglas:
+        //   - Atacante sin carta  -> gana el que defendía (quien patea, patea).
+        //   - Defensor sin carta  -> convierte el atacante (no pudo atajar).
+        // Solo lo lanza el cliente dueño del lado sin cartas y UNA sola vez.
+        function verificarCantoFaltado() {
+            if (estado.fase !== 'jugando' || !estado.partidaId) return;
+            const j = estado.juego;
+            // Solo cuando hay un canto en curso con EXACTAMENTE una carta tirada.
+            if (!j.golActivo && !j.penalActivo) return;
+            const arr = j.golActivo ? j.golCartas : j.penalCartas;
+            if (arr.length !== 1) return;
+            // Si no me toca tirar o todavía tengo cartas, no es un caso trabado.
+            if (j.fase !== 'esperando_seleccion' || j.turnoActual !== 'jugador') return;
+            if (j.manoJugador.length > 0) return;
+            // Ya existe mi carta en la definición: no sintetizar dos veces.
+            if (arr.some(c => c.origen === 'jugador')) return;
+            console.warn('Canto trabado: sin cartas para definir. Se resuelve con carta 0.');
+            const cartaFantasma = { posicion: 'Del', numero: 0, nombre: '', imagen: RUTA_DORSO };
+            arr.push({ carta: cartaFantasma, origen: 'jugador' });
+            estado.juego.fase = 'resolviendo';
+            sincronizarJuego();
+            renderizarTodo();
+            setTimeout(resolverRonda, 400);
         }
 
         function verificarGolPorPuntos() {
@@ -3229,6 +3288,13 @@
         }
 
         function ejecutarCanto(tipo, pedidoPor) {
+            // La respuesta del rival al canto YA llegó: nadie queda esperándola.
+            // Si no se borra acá, el "✓ Quiero / ✗ No quiso" del rival (que cada
+            // cliente detecta cuando esperandoRespuestaDe deja de apuntarle) NO
+            // suena al momento: recién se escuchaba cuando iniciaba la ejecución
+            // del canto, es decir DESPUÉS de que ya tiraste tu carta de la ronda
+            // (vía cantoPendiente). Con esta limpieza el sonido llega inmediato.
+            estado.juego.esperandoRespuestaDe = null;
             const jugadorJugo = jugadorJugoEstaRonda();
             const rivalJugo = rivalJugoEstaRonda();
 
