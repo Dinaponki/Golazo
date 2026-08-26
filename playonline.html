@@ -1260,17 +1260,17 @@
                     const tyPx = esRival ? -sepPx : sepPx;
                     const txPx = (ri % 2 === 0 ? -1 : 1) * (esMovil ? 6 : 9);
 
-                    // En MÓVIL las cartas se bajan al 80% de la zona de mesa:
+                    // En MÓVIL las cartas se bajan al 92% de la zona de mesa:
                     // el centro de la mesa cae POR ENCIMA del centro real de la
                     // pantalla (arriba están los dorsos del rival y su texto
                     // "Turno de..."), así que centradas al 50% quedaban altas y
-                    // se mezclaban con ese texto. Con 80% bajan bien hacia el
-                    // centro/abajo de la PANTALLA. Es seguro porque debajo del
-                    // centro de la fila de botones no hay nada (los botones están
-                    // en las puntas izquierda/derecha) y la mesa es
+                    // se mezclaban con ese texto. Con 92% quedan bien abajo,
+                    // cerca del borde inferior de la mesa. Es seguro porque en
+                    // móvil los botones están en las PUNTAS izquierda/derecha de
+                    // su fila (el centro queda libre) y la mesa es
                     // overflow:visible, así que nunca se recortan.
                     // En PC se mantienen centradas (50%).
-                    cont.style.top = esMovil ? '80%' : '50%';
+                    cont.style.top = esMovil ? '92%' : '50%';
                     cont.style.left = '50%';
                     cont.style.transform = `translate(-50%, -50%) translateX(${txPx}px) translateY(${tyPx}px)`;
 
