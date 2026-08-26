@@ -3437,6 +3437,11 @@
 
         function procesarRespuestaJugador(resp) {
                 if (estado.juego.fase === 'var_decision') {
+                    // Blindaje idempotente: solo aceptar la respuesta si REALMENTE
+                    // se me está esperando. Evita que una escritura desactualizada
+                    // del rival (que revive brevemente fase='var_decision') permita
+                    // responder de nuevo en bucle.
+                    if (estado.juego.esperandoRespuestaDe !== 'jugador') return;
                     if (resp === 'no_quiero') {
                         sumarPuntos(estado.juego.varPedidoPor, 1);
                         reproducirSonido('noquierojugador');
@@ -3641,6 +3646,11 @@
 
         function iniciarVar() {
             estado.juego.fase = 'var_pedido';
+            // Ya nadie espera respuesta al canto: el VAR fue aceptado. SIN esta
+            // limpieza, esperandoRespuestaDe seguía apuntándome y una escritura
+            // desactualizada del rival (que reviva fase='var_decision') volvía a
+            // habilitar el botón "Quiero": se podía clickear infinitas veces.
+            estado.juego.esperandoRespuestaDe = null;
             // Quien pidió el VAR (el defensor) es quien declara primero y resuelve
             estado.juego.varTurnoDeclarar = estado.juego.varPedidoPor;
             // Mostrar el panel VAR sincronizado para ambos jugadores
