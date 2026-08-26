@@ -2654,8 +2654,18 @@
                     // CUÁNTAS cartas le quedan, nunca cuáles son.
                     const nCartasRival = estado.miLado === 'jugador' ? (j.nCartasRival || 0) : (j.nCartasJugador || 0);
                     estado.juego.manoRival = crearManoFantasma(nCartasRival);
-                    estado.juego.golesJugador = estado.miLado === 'jugador' ? (j.golesJugador || 0) : (j.golesRival || 0);
-                    estado.juego.golesRival = estado.miLado === 'jugador' ? (j.golesRival || 0) : (j.golesJugador || 0);
+                    // GOLES MONÓTONOS TAMBIÉN EN LOCAL: dentro de una partida los
+                    // goles NUNCA bajan, así que el listener debe conservar el
+                    // MÁXIMO entre lo que ya tengo y lo que trae el servidor.
+                    // Antes se pisaba sin más: si yo acababa de convertir un gol
+                    // en memoria local (canto) y llegaba cualquier evento con el
+                    // valor viejo del servidor, el gol desaparecía del marcador.
+                    {
+                        const servJ = Number(estado.miLado === 'jugador' ? (j.golesJugador || 0) : (j.golesRival || 0)) || 0;
+                        const servR = Number(estado.miLado === 'jugador' ? (j.golesRival || 0) : (j.golesJugador || 0)) || 0;
+                        estado.juego.golesJugador = Math.max(Number(estado.juego.golesJugador) || 0, servJ);
+                        estado.juego.golesRival = Math.max(Number(estado.juego.golesRival) || 0, servR);
+                    }
                     estado.juego.puntosJugador = estado.miLado === 'jugador' ? (j.puntosJugador || 0) : (j.puntosRival || 0);
                     estado.juego.puntosRival = estado.miLado === 'jugador' ? (j.puntosRival || 0) : (j.puntosJugador || 0);
                     estado.juego.puntosManoJugador = estado.miLado === 'jugador' ? (j.puntosManoJugador || 0) : (j.puntosManoRival || 0);
@@ -3182,6 +3192,13 @@
                 }
             }
             renderizarMarcador();
+            // SINCRONIZACIÓN INMEDIATA DE LOS PUNTOS DE CANTO: los puntos que da
+            // un canto rechazado / atajado / defendido / por VAR se sumaban solo
+            // en memoria local en algunos caminos (ej. "No quiso" respondido por
+            // el rival, o resolverVar), y la escritura recién llegaba después.
+            // En esa ventana un evento de Firebase pisaba los puntos locales con
+            // el valor viejo del servidor. Escribir YA cierra el hueco.
+            sincronizarJuego();
             return gol;
         }
 
@@ -3195,6 +3212,15 @@
             estado.juego.golEnMano = true;
             estado.juego.ganadorManoAnterior = quien;
             renderizarMarcador();
+            // SINCRONIZACIÓN INMEDIATA DEL GOL (crítico): los cantos (penal/gol/
+            // golazo) convertían el gol SOLO en memoria local y lo escribían a
+            // Firebase recién ~2.2 s después (en finalizarMano). En esa ventana,
+            // cualquier evento de Firebase (una escritura del rival) hacía que
+            // el listener PISARA el gol local con el valor viejo del servidor:
+            // el gol aparecía y DESAPARECÍA del marcador. Escribiendo YA, la
+            // ventana desaparece y el gol queda aceptado por el servidor al
+            // instante (además, asegurarGolesMonotonicos lo blinda).
+            sincronizarJuego();
         }
 
         function continuarFlujo() {
