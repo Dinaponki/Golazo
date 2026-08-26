@@ -1361,11 +1361,10 @@
                             <th>PE</th>
                             <th>PP</th>
                             <th>EFEC</th>
-                            <th>Racha</th>
                         </tr>
                     </thead>
                     <tbody id="cuerpoRanking">
-                        <tr><td colspan="9" class="cargando-ranking">Cargando ranking...</td></tr>
+                        <tr><td colspan="8" class="cargando-ranking">Cargando ranking...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -1746,8 +1745,6 @@
                         partidosPerdidos: 0,
                         puntos: 0,
                         efectividad: 0,
-                        rachaActual: 0,
-                        mejorRacha: 0,
                         ultimaActualizacion: serverTimestamp()
                     });
                     // Email en nodo PRIVADO: solo legible/escribible por su dueño
@@ -1881,7 +1878,6 @@
                                 partidosJugados,
                                 partidosPerdidos,
                                 efectividad,
-                                rachaActual: 0,
                                 historialPartidos: historialLimitado,
                                 enPartida: false,
                                 ultimaActualizacion: serverTimestamp()
@@ -1931,7 +1927,6 @@
                     // igual que guardarResultadoPartidoOnline (playonline.html).
                     on.puntos = (on.puntos || 0) - 5;
                     on.efectividad = partidosJugados > 0 ? Math.round((partidosGanados / partidosJugados) * 1000) / 10 : 0;
-                    on.rachaActual = 0;
                     const historial = Array.isArray(on.historialPartidos) ? on.historialPartidos : [];
                     historial.push({
                         fecha: Date.now(),
@@ -2216,9 +2211,6 @@
             { id: 'v50', icono: '🎖️', nombre: 'Cincuentón', desc: 'Ganá 50 partidos', check: s => s.pg >= 50 },
             { id: 'v100', icono: '🏆', nombre: 'Centenario', desc: 'Ganá 100 partidos', check: s => s.pg >= 100 },
             { id: 'v500', icono: '👑', nombre: 'Leyenda', desc: 'Ganá 500 partidos', check: s => s.pg >= 500 },
-            { id: 'r5', icono: '🔥', nombre: 'En racha', desc: 'Ganá 5 partidos seguidos', check: s => s.mejorRacha >= 5 },
-            { id: 'r10', icono: '⚡', nombre: 'Imparable', desc: 'Ganá 10 partidos seguidos', check: s => s.mejorRacha >= 10 },
-            { id: 'r20', icono: '🌋', nombre: 'Volcán', desc: 'Ganá 20 partidos seguidos', check: s => s.mejorRacha >= 20 },
             { id: 'g10', icono: '⚽', nombre: 'Goleador', desc: 'Anotá 10 goles', check: s => s.gf >= 10 },
             { id: 'g100', icono: '🎯', nombre: 'Artillero', desc: 'Anotá 100 goles', check: s => s.gf >= 100 },
             { id: 'g500', icono: '💥', nombre: 'Máquina de goles', desc: 'Anotá 500 goles', check: s => s.gf >= 500 },
@@ -2251,8 +2243,6 @@
             const gc = on.golesContra || 0;
             return {
                 pj, pg, pe, pp, gf, gc,
-                mejorRacha: on.mejorRacha || 0,
-                rachaActual: on.rachaActual || 0,
                 efectividad: pj > 0 ? Math.round((pg / pj) * 1000) / 10 : 0,
                 pjOnline: pj,
                 diasConsecutivos: base.loginStreak || 0
@@ -2456,8 +2446,7 @@
                 return {
                     pj, pg, pe, pp, gf, gc,
                     puntos: (pg * 3) + (pe * 1) - (pp * 5),
-                    efectividad: pj > 0 ? Math.round((pg / pj) * 1000) / 10 : 0,
-                    racha: datos.rachaActual || 0
+                    efectividad: pj > 0 ? Math.round((pg / pj) * 1000) / 10 : 0
                 };
             }
 
@@ -2495,8 +2484,7 @@
             return {
                 pj, pg, pe, pp, gf, gc,
                 puntos: (pg * 3) + (pe * 1) - (pp * 5),
-                efectividad: pj > 0 ? Math.round((pg / pj) * 1000) / 10 : 0,
-                racha: 0
+                efectividad: pj > 0 ? Math.round((pg / pj) * 1000) / 10 : 0
             };
         }
 
@@ -2504,7 +2492,7 @@
             const tipoActual = tipo || 'cpu';
             const tbody = document.getElementById('cuerpoRanking');
             if (!lista || lista.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="9" class="vacio-ranking">' + (tipoActual === 'online' ? 'Aún no hay jugadores en el ranking online' : 'Aún no hay jugadores registrados') + '</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="vacio-ranking">' + (tipoActual === 'online' ? 'Aún no hay jugadores en el ranking online' : 'Aún no hay jugadores registrados') + '</td></tr>';
                 return;
             }
 
@@ -2591,8 +2579,7 @@
                     '<td>' + stats.pg + '</td>' +
                     '<td>' + stats.pe + '</td>' +
                     '<td>' + stats.pp + '</td>' +
-                    '<td>' + stats.efectividad + '%</td>' +
-                    '<td>' + (stats.racha > 0 ? '🔥 ' + stats.racha : '—') + '</td>';
+                    '<td>' + stats.efectividad + '%</td>';
                 tbody.appendChild(tr);
             });
         }
@@ -2614,7 +2601,7 @@
             }, (error) => {
                 console.error('Error cargando ranking:', error);
                 document.getElementById('cuerpoRanking').innerHTML =
-                    '<tr><td colspan="9" class="vacio-ranking">No se pudo cargar el ranking</td></tr>';
+                    '<tr><td colspan="8" class="vacio-ranking">No se pudo cargar el ranking</td></tr>';
             });
         }
 

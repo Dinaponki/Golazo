@@ -2568,8 +2568,6 @@
                     datos.partidosGanados = 0;
                     datos.partidosEmpatados = 0;
                     datos.partidosPerdidos = 0;
-                    datos.rachaActual = 0;
-                    datos.mejorRacha = 0;
                     datos.golesFavor = 0;
                     datos.golesContra = 0;
                     datos.historialPartidos = [];
@@ -2593,7 +2591,6 @@
                     // Castigo incremental EXACTO: -5 puntos sobre lo acumulado
                     puntos: (datos.puntos || 0) - 5,
                     efectividad,
-                    rachaActual: 0,
                     historialPartidos: historial.slice(-200),
                     // Limpiar el pendiente para que verificarAbandono (index.html)
                     // NO vuelva a aplicar otro -5 cuando este jugador vuelva
@@ -3925,8 +3922,6 @@
                     datos.partidosGanados = 0;
                     datos.partidosEmpatados = 0;
                     datos.partidosPerdidos = 0;
-                    datos.rachaActual = 0;
-                    datos.mejorRacha = 0;
                     datos.golesFavor = 0;
                     datos.golesContra = 0;
                     datos.historialPartidos = [];
@@ -3943,11 +3938,6 @@
                 const partidosEmpatados = (datos.partidosEmpatados || 0) + (resultadoJugador === 'empate' ? 1 : 0);
                 const partidosPerdidos = (datos.partidosPerdidos || 0) + (resultadoJugador === 'perder' ? 1 : 0);
 
-                let rachaActual = datos.rachaActual || 0;
-                if (resultadoJugador === 'ganar') rachaActual++;
-                if (resultadoJugador === 'perder') rachaActual = 0;
-
-                const mejorRacha = Math.max(datos.mejorRacha || 0, rachaActual);
                 const efectividad = partidosJugados > 0 ? Math.round((partidosGanados / partidosJugados) * 1000) / 10 : 0;
                 // Sumar los puntos INCREMENTALMENTE sobre el acumulado existente:
                 // así el abandono (-5) resta siempre y no se pierde si el jugador
@@ -3976,8 +3966,6 @@
                     partidosPerdidos,
                     puntos,
                     efectividad,
-                    rachaActual,
-                    mejorRacha,
                     golesFavor,
                     golesContra,
                     historialPartidos: historialLimitado,
@@ -4034,7 +4022,6 @@
                     on.partidosPerdidos = partidosPerdidos;
                     on.puntos = (on.puntos || 0) - 5;
                     on.efectividad = partidosJugados > 0 ? Math.round((partidosGanados / partidosJugados) * 1000) / 10 : 0;
-                    on.rachaActual = 0;
                     const historial = Array.isArray(on.historialPartidos) ? on.historialPartidos : [];
                     historial.push({
                         fecha: Date.now(),
@@ -4090,9 +4077,6 @@
             { id: 'v50', icono: '🎖️', nombre: 'Cincuentón', check: s => s.pg >= 50 },
             { id: 'v100', icono: '🏆', nombre: 'Centenario', check: s => s.pg >= 100 },
             { id: 'v500', icono: '👑', nombre: 'Leyenda', check: s => s.pg >= 500 },
-            { id: 'r5', icono: '🔥', nombre: 'En racha', check: s => s.mejorRacha >= 5 },
-            { id: 'r10', icono: '⚡', nombre: 'Imparable', check: s => s.mejorRacha >= 10 },
-            { id: 'r20', icono: '🌋', nombre: 'Volcán', check: s => s.mejorRacha >= 20 },
             { id: 'g10', icono: '⚽', nombre: 'Goleador', check: s => s.gf >= 10 },
             { id: 'g100', icono: '🎯', nombre: 'Artillero', check: s => s.gf >= 100 },
             { id: 'g500', icono: '💥', nombre: 'Máquina de goles', check: s => s.gf >= 500 },
@@ -4122,8 +4106,6 @@
                 pp: on.partidosPerdidos || 0,
                 gf: on.golesFavor || 0,
                 gc: on.golesContra || 0,
-                mejorRacha: on.mejorRacha || 0,
-                rachaActual: on.rachaActual || 0,
                 efectividad: pj > 0 ? Math.round((pg / pj) * 1000) / 10 : 0,
                 pjOnline: pj,
                 diasConsecutivos: (datos && datos.loginStreak) || 0
