@@ -2205,6 +2205,11 @@
         // Catálogo de logros. Para agregar logros nuevos, simplemente
         // agregá un objeto más a esta lista: { id, icono, nombre, desc, check }
         // donde check(stats) devuelve true si el jugador lo cumple.
+        // IMPORTANTE: los logros corresponden EXCLUSIVAMENTE al modo ONLINE
+        // (partidas jugadas desde playonline.html): las stats que recibe cada
+        // check provienen únicamente del nodo onlineStats del jugador, jamás
+        // de las partidas contra la CPU. Se desbloquean solo en playonline.html
+        // (función verificarLogros) y acá se MUESTRAN según esas mismas reglas.
         const LOGROS = [
             { id: 'v1', icono: '🥇', nombre: 'Primera victoria', desc: 'Ganá tu primer partido', check: s => s.pg >= 1 },
             { id: 'v10', icono: '🏅', nombre: 'Diez de oro', desc: 'Ganá 10 partidos', check: s => s.pg >= 10 },
@@ -2227,28 +2232,30 @@
             { id: 'd30', icono: '🌟', nombre: 'Hincha fiel', desc: 'Entrá 30 días consecutivos', check: s => s.diasConsecutivos >= 30 },
             { id: 'ef60', icono: '📈', nombre: 'Efectivo', desc: '60% de efectividad (20+ PJ)', check: s => s.pj >= 20 && s.efectividad >= 60 },
             { id: 'ef75', icono: '🎖️', nombre: 'Élite', desc: '75% de efectividad (50+ PJ)', check: s => s.pj >= 50 && s.efectividad >= 75 },
-            { id: 'on10', icono: '🌐', nombre: 'Online', desc: 'Jugá 10 partidos online', check: s => s.pjOnline >= 10 },
-            { id: 'cpu10', icono: '🤖', nombre: 'Contra la máquina', desc: 'Jugá 10 partidos vs CPU', check: s => s.pjCpu >= 10 },
+            { id: 'on10', icono: '🌐', nombre: 'Online', desc: 'Jugá 10 partidos online', check: s => s.pj >= 10 },
         ];
 
-        // Combina estadísticas vs CPU + online de un jugador
+        // Estadísticas SOLO DEL MODO ONLINE de un jugador, usadas para evaluar
+        // los logros: provienen íntegramente del nodo onlineStats, que es el
+        // único que actualizan las partidas online (playonline.html). Nunca se
+        // mezclan con las partidas vs CPU, así ningún logro puede alcanzarse
+        // jugando contra la máquina.
         function calcularStatsTotales(jugador) {
-            const cpu = jugador || {};
-            const on = (jugador && jugador.onlineStats) || {};
-            const pj = (cpu.partidosJugados || 0) + (on.partidosJugados || 0);
-            const pg = (cpu.partidosGanados || 0) + (on.partidosGanados || 0);
-            const pe = (cpu.partidosEmpatados || 0) + (on.partidosEmpatados || 0);
-            const pp = (cpu.partidosPerdidos || 0) + (on.partidosPerdidos || 0);
-            const gf = (cpu.golesFavor || 0) + (on.golesFavor || 0);
-            const gc = (cpu.golesContra || 0) + (on.golesContra || 0);
+            const base = jugador || {};
+            const on = base.onlineStats || {};
+            const pj = on.partidosJugados || 0;
+            const pg = on.partidosGanados || 0;
+            const pe = on.partidosEmpatados || 0;
+            const pp = on.partidosPerdidos || 0;
+            const gf = on.golesFavor || 0;
+            const gc = on.golesContra || 0;
             return {
                 pj, pg, pe, pp, gf, gc,
-                mejorRacha: Math.max(cpu.mejorRacha || 0, on.mejorRacha || 0),
-                rachaActual: Math.max(cpu.rachaActual || 0, on.rachaActual || 0),
+                mejorRacha: on.mejorRacha || 0,
+                rachaActual: on.rachaActual || 0,
                 efectividad: pj > 0 ? Math.round((pg / pj) * 1000) / 10 : 0,
-                pjCpu: cpu.partidosJugados || 0,
-                pjOnline: on.partidosJugados || 0,
-                diasConsecutivos: (jugador && jugador.loginStreak) || 0
+                pjOnline: pj,
+                diasConsecutivos: base.loginStreak || 0
             };
         }
 

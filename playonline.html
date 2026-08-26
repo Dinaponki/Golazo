@@ -4081,7 +4081,9 @@
         }
 
         // ============ LOGROS ============
-        // Catálogo de logros (debe coincidir con index.html)
+        // Catálogo de logros: SOLO se alcanzan jugando partidas ONLINE
+        // (los checks se evalúan sobre las estadísticas del nodo onlineStats,
+        // nunca sobre las partidas vs CPU). Debe coincidir con index.html.
         const LOGROS = [
             { id: 'v1', icono: '🥇', nombre: 'Primera victoria', check: s => s.pg >= 1 },
             { id: 'v10', icono: '🏅', nombre: 'Diez de oro', check: s => s.pg >= 10 },
@@ -4104,35 +4106,40 @@
             { id: 'd30', icono: '🌟', nombre: 'Hincha fiel', check: s => s.diasConsecutivos >= 30 },
             { id: 'ef60', icono: '📈', nombre: 'Efectivo', check: s => s.pj >= 20 && s.efectividad >= 60 },
             { id: 'ef75', icono: '🎖️', nombre: 'Élite', check: s => s.pj >= 50 && s.efectividad >= 75 },
-            { id: 'on10', icono: '🌐', nombre: 'Online', check: s => s.pjOnline >= 10 },
-            { id: 'cpu10', icono: '🤖', nombre: 'Contra la máquina', check: s => s.pjCpu >= 10 },
+            { id: 'on10', icono: '🌐', nombre: 'Online', check: s => s.pj >= 10 },
         ];
 
+        // Estadísticas EXCLUSIVAMENTE del modo online, base de todos los logros:
+        // provienen del nodo onlineStats (partidas de playonline.html). Las
+        // estadísticas contra la CPU NO cuentan para ningún logro.
         function calcularStatsTotalesLogros(datos) {
-            const cpu = datos || {};
             const on = (datos && datos.onlineStats) || {};
-            const pj = (cpu.partidosJugados || 0) + (on.partidosJugados || 0);
-            const pg = (cpu.partidosGanados || 0) + (on.partidosGanados || 0);
-            const pe = (cpu.partidosEmpatados || 0) + (on.partidosEmpatados || 0);
+            const pj = on.partidosJugados || 0;
+            const pg = on.partidosGanados || 0;
+            const pe = on.partidosEmpatados || 0;
             return {
                 pj, pg, pe,
-                gf: (cpu.golesFavor || 0) + (on.golesFavor || 0),
-                mejorRacha: Math.max(cpu.mejorRacha || 0, on.mejorRacha || 0),
+                pp: on.partidosPerdidos || 0,
+                gf: on.golesFavor || 0,
+                gc: on.golesContra || 0,
+                mejorRacha: on.mejorRacha || 0,
+                rachaActual: on.rachaActual || 0,
                 efectividad: pj > 0 ? Math.round((pg / pj) * 1000) / 10 : 0,
-                pjCpu: cpu.partidosJugados || 0,
-                pjOnline: on.partidosJugados || 0,
+                pjOnline: pj,
                 diasConsecutivos: (datos && datos.loginStreak) || 0
             };
         }
 
-        // Verifica y desbloquea logros nuevos tras terminar una partida
+        // Verifica y desbloquea logros nuevos tras terminar una partida ONLINE.
+        // Devuelve cuántos logros nuevos desbloqueó (útil para reintentos).
         async function verificarLogros() {
             const user = estado.usuario;
-            if (!user) return;
+            if (!user) return 0;
+            let desbloqueados = 0;
             try {
                 const userRef = ref(db, 'usuarios/' + user.uid);
                 const snap = await get(userRef);
-                if (!snap.exists()) return;
+                if (!snap.exists()) return 0;
                 const datos = snap.val();
                 const stats = calcularStatsTotalesLogros(datos);
                 const logrosActuales = datos.logros || {};
@@ -4143,6 +4150,7 @@
                         logrosActuales[l.id] = Date.now();
                     }
                 }
+                desbloqueados = nuevos.length;
                 if (nuevos.length) {
                     await update(userRef, { logros: logrosActuales });
                     mostrarMensaje('🏅 ¡Nuevo logro: ' + nuevos[0].icono + ' ' + nuevos[0].nombre + '!' +
@@ -4151,6 +4159,28 @@
             } catch (e) {
                 console.error('Error verificando logros:', e);
             }
+            return desbloqueados;
+        }
+
+        // Verificación CON REINTENTOS de los logros. Camino normal (partida
+        // terminada en la pantalla): las stats ya se guardaron, así que con la
+        // pasada inmediata + un reintento tardío alcanza. Camino "perdí por
+        // abandono del rival": mis estadísticas las escribió EL CLIENTE DEL
+        // RIVAL (o llegan vía abandonoPendiente cuando yo vuelva a entrar), así
+        // que pueden no estar todavía al mostrarse la pantalla final: se
+        // reintenta varias veces a lo largo de ~25 segundos.
+        // verificarLogros es idempotente (los logros ya guardados nunca se
+        // vuelven a marcar), así que los reintentos no causan dobles
+        // desbloqueos ni mensajes repetidos; si ya no hay nada nuevo, no hacen
+        // absolutamente nada.
+        function programarVerificacionLogros(conAbandonoDelRival) {
+            verificarLogros(); // primera pasada inmediata
+            const pasos = conAbandonoDelRival ? [3000, 8000, 15000, 25000] : [5000];
+            let acumulado = 0;
+            pasos.forEach((espera) => {
+                acumulado += espera;
+                setTimeout(() => { verificarLogros(); }, acumulado);
+            });
         }
 
         // ============ FIN DE PARTIDA ============
@@ -4190,7 +4220,7 @@
             setTimeout(() => intentarBorrarPartidaTerminada(false), 6 * 60 * 1000); // reintento por si el primero falló
         }
 
-        function mostrarFinPartido(resultado) {
+        async function mostrarFinPartido(resultado) {
             // Evitar doble ejecución: esta función puede ser llamada tanto
             // directamente desde finalizarMano() como desde el listener de
             // Firebase (partida.estado === 'terminada'). Solo procesar una vez.
@@ -4222,11 +4252,20 @@
             // castigo directamente en mis stats vía aplicarPenalizacionAbandono,
             // así que mi cliente no debe registrar la derrota otra vez.
             const perdiPorAbandonoDelRival = resultado.abandono && !yoGane && !abandonoIniciadoPorMi;
+            // GUARDAR PRIMERO, VERIFICAR LOGROS DESPUÉS: los logros se calculan
+            // sobre las estadísticas online recién actualizadas, así que el
+            // guardado de stats debe completarse ANTES de verificarlos (antes
+            // corrían en paralelo y verificarLogros leía estadísticas viejas:
+            // el logro merecido NO se desbloqueaba).
             if (!perdiPorAbandonoDelRival) {
-                guardarResultadoPartidoOnline(resultado, gJ, gR);
+                try {
+                    await guardarResultadoPartidoOnline(resultado, gJ, gR);
+                } catch (e) { console.error('Error esperando guardado del resultado:', e); }
             }
-            // Verificar y desbloquear logros nuevos
-            verificarLogros();
+            // Verificar y desbloquear logros nuevos (SOLO modo online), con
+            // reintentos que cubren el caso en que mis stats aún no llegaron
+            // (ej.: las escribió el cliente del rival tras su abandono)
+            programarVerificacionLogros(perdiPorAbandonoDelRival);
 
             if (resultado.abandono) {
                 if (yoGane) {

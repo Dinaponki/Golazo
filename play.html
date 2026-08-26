@@ -1448,37 +1448,13 @@
             };
         }
 
-        // Verifica y desbloquea logros nuevos tras terminar una partida
+        // Verifica y desbloquea logros nuevos tras terminar una partida.
+        // DESHABILITADO: los logros corresponden EXCLUSIVAMENTE al modo ONLINE
+        // (partidas de playonline.html, evaluadas sobre usuarios/$uid/logros y
+        // onlineStats). Ninguna partida contra la CPU puede desbloquearlos,
+        // así que esta función queda como no-op por seguridad.
         async function verificarLogros() {
-            const user = window.GolazoFirebase.usuario;
-            if (!user) return;
-            try {
-                const userRef = ref(db, 'usuarios/' + user.uid);
-                const snap = await get(userRef);
-                if (!snap.exists()) return;
-                const datos = snap.val();
-                const stats = calcularStatsTotalesLogros(datos);
-                const logrosActuales = datos.logros || {};
-                const nuevos = [];
-                for (const l of LOGROS) {
-                    if (!logrosActuales[l.id] && l.check(stats)) {
-                        nuevos.push(l);
-                        logrosActuales[l.id] = Date.now();
-                    }
-                }
-                if (nuevos.length) {
-                    await update(userRef, { logros: logrosActuales });
-                    const msg = document.getElementById('mensajeFlotante');
-                    if (msg) {
-                        msg.textContent = '🏅 ¡Nuevo logro: ' + nuevos[0].icono + ' ' + nuevos[0].nombre + '!' +
-                            (nuevos.length > 1 ? ' (+' + (nuevos.length - 1) + ' más)' : '');
-                        msg.classList.add('mostrar');
-                        setTimeout(() => msg.classList.remove('mostrar'), 3000);
-                    }
-                }
-            } catch (e) {
-                console.error('Error verificando logros:', e);
-            }
+            return 0;
         }
     </script>
 
@@ -3713,12 +3689,12 @@
                         fbTermino.update(fbTermino.ref(fbTermino.db, 'usuarios/' + fbTermino.usuario.uid), { enPartida: false });
                     } catch (e) { console.error('Error marcando partida terminada:', e); }
                 }
-                // Guardar estadísticas del partido en Firebase Realtime Database
+                // LOS LOGROS SOLO SE DESBLOQUEAN EN EL MODO ONLINE: las partidas
+                // contra la CPU no otorgan logros ni suman para ellos (se
+                // evalúan únicamente sobre usuarios/$uid/onlineStats).
                 if (window.GolazoFirebase && window.GolazoFirebase.guardarResultadoPartido) {
                     window.GolazoFirebase.guardarResultadoPartido(resultado, estado.golesJugador, estado.golesCpu);
                 }
-                // Verificar y desbloquear logros nuevos
-                verificarLogros();
             }
 
             let timeoutMensaje;
