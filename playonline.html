@@ -2769,6 +2769,9 @@
                         // si alguna escritura rezagada se la llevó puesta.
                         varServidorTieneMiDecl = varDeclValida(servMiaRel);
                     }
+                    // RESULTADO AUTORITATIVO DEL VAR (escrito por el resolutor):
+                    // ambas pantallas muestran el panel desde acá cuando existe.
+                    estado.juego.varResuelto = j.varResuelto || null;
                     estado.juego.golEnMano = j.golEnMano || false;
                     estado.juego.ganadorManoAnterior = aRelativo(j.ganadorManoAnterior);
                     estado.juego.inicioRonda = j.inicioRonda || 0;
@@ -3389,8 +3392,6 @@
             // borraba la declaración que el rival YA había hecho en esta mano.
             estado.juego.varPedidoPor = null;
             estado.juego.varPanelVisible = false;
-            // Nueva mano: descartar el resultado congelado del VAR de la mano anterior
-            varResultadoFinal = null;
             estado.juego.ganadorManoAnterior = null;
             if (dom.varPanel) dom.varPanel.classList.remove('visible');
 
@@ -3647,8 +3648,6 @@
             estado.juego.varTurnoDeclarar = estado.juego.varPedidoPor;
             // Mostrar el panel VAR sincronizado para ambos jugadores
             estado.juego.varPanelVisible = true;
-            // Nuevo VAR de esta mano: descartar cualquier resultado congelado anterior
-            varResultadoFinal = null;
             if (dom.varPanel && dom.varPanelTexto) {
                 dom.varPanelTexto.textContent = `${estado.nickname || 'Jugador'} ? vs ${estado.rivalNombre} ?`;
                 dom.varPanel.classList.add('visible');
@@ -3675,37 +3674,38 @@
         }
         function varDeclTexto(d) { return varDeclValida(d) ? d.v : '?'; }
 
-        // Resultado CONGELADO del VAR de esta mano (lo fija quien resuelve):
-        // permite que el panel siga mostrando los dos números finales aunque la
-        // fase ya haya cambiado y las declaraciones se hayan limpiado localmente.
-        let varResultadoFinal = null;
+        // RESULTADO AUTORITATIVO DEL VAR (en Firebase: juego/varResuelto):
+        // { vj: valor lado ABSOLUTO 'jugador', vr: valor lado ABSOLUTO 'rival',
+        //   m: mano }. Lo escribe UNA sola vez el RESOLUTOR. Ambas pantallas
+        // muestran el panel EXCLUSIVAMENTE desde acá cuando existe: una única
+        // fuente de verdad garantiza que las dos pantallas muestren SIEMPRE los
+        // mismos números (antes cada una armaba su texto con fuentes locales
+        // distintas — resultado congelado vs. declaraciones mergeadas — y podía
+        // ver pares diferentes).
+        function varResueltoValido(r) {
+            return !!r && typeof r === 'object' &&
+                typeof r.vj === 'number' && isFinite(r.vj) &&
+                typeof r.vr === 'number' && isFinite(r.vr) &&
+                r.m === estado.juego.manoActual;
+        }
 
         // ÚNICO punto que pinta el texto del panel VAR. Se llama en CADA evento
-        // del listener mientras el panel esté visible. Antes el texto solo se
-        // actualizaba dentro del bloque fase==='var_pedido': si el rival pedía
-        // el VAR, ÉL era quien resolvía y sus escrituras (declaración +
-        // resolución) llegaban casi juntas como UN solo evento donde la fase ya
-        // había cambiado → el bloque nunca corría en mi pantalla y el texto
-        // quedaba congelado en "X - ?" hasta el fin de la mano (mientras que en
-        // la pantalla del resolutor se veía perfecto, porque él escribía el
-        // resultado directamente). Con esta función el panel converge siempre.
+        // del listener mientras el panel esté visible. Prioridad:
+        //   1. varResuelto del servidor (idéntico en ambas pantallas).
+        //   2. Declaraciones en vivo durante var_pedido (con "?" en lo que falta).
         function actualizarPanelVar() {
             if (!dom.varPanel || !dom.varPanelTexto) return;
             if (!estado.juego.varPanelVisible) return;
             let texto = null;
-            const res = (varResultadoFinal && varResultadoFinal.m === estado.juego.manoActual)
-                ? varResultadoFinal : null;
-            const djD = estado.juego.varDeclaraciones ? estado.juego.varDeclaraciones.jugador : null;
-            const drD = estado.juego.varDeclaraciones ? estado.juego.varDeclaraciones.rival : null;
-            if (res) {
-                // Yo resolví el VAR: mostrar MI resultado congelado
-                texto = `${estado.nickname || 'Jugador'} ${res.v1} vs ${estado.rivalNombre} ${res.v2}`;
-            } else if (varDeclValida(djD) && varDeclValida(drD)) {
-                // El OTRO resolvió y el estado completo ya llegó acá (la fase puede
-                // haber cambiado ya): mostrar los dos números definitivos igual.
-                texto = `${estado.nickname || 'Jugador'} ${djD.v} vs ${estado.rivalNombre} ${drD.v}`;
+            const res = estado.juego.varResuelto;
+            if (varResueltoValido(res)) {
+                // Resuelto: valores absolutos → relativo a ESTA pantalla
+                const mio = estado.miLado === 'jugador' ? res.vj : res.vr;
+                const delRival = estado.miLado === 'jugador' ? res.vr : res.vj;
+                texto = `${estado.nickname || 'Jugador'} ${mio} vs ${estado.rivalNombre} ${delRival}`;
             } else if (estado.juego.fase === 'var_pedido') {
-                // VAR en curso: mostrar lo que haya, con "?" en lo que falta
+                const djD = estado.juego.varDeclaraciones ? estado.juego.varDeclaraciones.jugador : null;
+                const drD = estado.juego.varDeclaraciones ? estado.juego.varDeclaraciones.rival : null;
                 texto = `${estado.nickname || 'Jugador'} ${varDeclTexto(djD)} vs ${estado.rivalNombre} ${varDeclTexto(drD)}`;
             } else {
                 return; // Nada nuevo que mostrar: no pisar el último texto válido
@@ -3768,10 +3768,23 @@
             const varPedidoPor = estado.juego.varPedidoPor;
             const cantoPedidoPor = estado.juego.cantoPedidoPor;
 
-            // Congelar el RESULTADO de este VAR: así el panel sigue mostrando los
-            // dos números finales hasta el fin de la mano aunque la fase cambie,
-            // en AMBAS pantallas (la del resolutor y la del otro).
-            varResultadoFinal = { v1: dj, v2: dr, m: estado.juego.manoActual };
+            // PUBLICAR el resultado del VAR en Firebase (UNA sola fuente de
+            // verdad para AMBAS pantallas): dj es MI declaración (lado relativo
+            // 'jugador' = yo) y dr la del rival; se convierten a lados ABSOLUTOS
+            // antes de escribir. Ambos clientes mostrarán exactamente este par.
+            // Etiquetado con la mano: se invalida solo al cambiar de mano.
+            try {
+                const resAbs = estado.miLado === 'jugador'
+                    ? { vj: dj, vr: dr, m: estado.juego.manoActual }
+                    : { vj: dr, vr: dj, m: estado.juego.manoActual };
+                // Feedback inmediato en MI pantalla (el eco del servidor llega en
+                // milisegundos y traerá exactamente el mismo par)
+                estado.juego.varResuelto = resAbs;
+                actualizarPanelVar();
+                update(ref(db, 'partidas/' + estado.partidaId + '/juego'), {
+                    varResuelto: resAbs
+                }).catch(() => {});
+            } catch (e) { /* best effort */ }
             mostrarMensaje(`📺 VAR: ${estado.nickname || 'Jugador'} ${dj} vs ${estado.rivalNombre} ${dr}`);
 
             if (dj > dr) {
