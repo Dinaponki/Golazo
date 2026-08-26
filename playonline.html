@@ -178,9 +178,13 @@
         }
 
         .mesa-cartas .carta-img {
-            width: var(--carta-mano);
+            /* Las cartas de la MESA usan el tamaño calculado para la mesa
+               (--carta-mesa): cabe SIEMPRE completa en la zona de mesa, sin
+               recortarse en móviles. Antes usaban el tamaño de la mano
+               (--carta-mano) y podían quedar cortadas. */
+            width: var(--carta-mesa);
             height: auto;
-            max-height: var(--carta-mano-max-h);
+            max-height: var(--carta-mesa-max-h);
             filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.4));
         }
 
@@ -609,7 +613,9 @@
                sin desbordarse hacia la izquierda (fallo visual en Firefox móvil) */
             .mano-cpu { width: 100%; max-width: 100%; justify-content: center; }
             .mano-cpu .carta-img { max-width: 21vw; }
-            .mesa-cartas { overflow: hidden; }
+            /* IMPORTANTE: NO usar overflow:hidden en la mesa en móviles:
+               recorta las cartas que se tiran. La mesa ya es overflow:visible
+               y las cartas se dimensionan con --carta-mesa para caber enteras. */
             .indicador-canto { margin-bottom: 4px; }
             .zona-jugador .etiqueta-turno { margin-top: clamp(4px, 0.8vh, 8px); }
             .zona-botones { justify-content: space-between; align-items: flex-start; padding: 0; gap: 0; }
@@ -1209,8 +1215,11 @@
             }
             if (!cartasVisibles.length) return;
 
-            const filaMesa = document.createElement('div');
-            filaMesa.className = 'mesa-fila';
+            // Las cartas se agregan ABSOLUTAS sobre el contenedor .mesa-cartas
+            // (position:relative, 100% x 100%): así quedan SIEMPRE centradas en
+            // la mesa sin depender del ancho de .mesa-fila, que en algunos
+            // navegadores móviles colapsaba y dejaba las cartas pegadas a un
+            // costado o recortadas.
 
             // Agrupar cartas por ronda (de a 2: una mía + una del rival)
             const rondas = [];
@@ -1265,10 +1274,9 @@
                     // parezcan "una carta rara a la izquierda con baja opacidad")
                     if (!esRondaActual) cont.style.opacity = '0.6';
 
-                    filaMesa.appendChild(cont);
+                    dom.mesaCartas.appendChild(cont);
                 });
             });
-            dom.mesaCartas.appendChild(filaMesa);
         }
 
         function renderizarEstrellas() {
@@ -1516,6 +1524,32 @@
                 .catch((error) => console.error('Error sincronizando:', error));
         }
 
+        // Reconcilia los GOLES del marcador local con los ya aceptados en
+        // Firebase. Cada cliente re-escribe el estado COMPLETO del juego sobre
+        // el MISMO nodo, así que una escritura apenas más vieja podía llegar
+        // DESPUÉS y pisar el gol recién convertido por el rival (marcadores que
+        // perdían goles: "debería haber salido 3-4 y quedó 4-1"). Como los goles
+        // son CUMULATIVOS y nunca bajan durante la partida, siempre se conserva
+        // el máximo entre lo local y lo ya aceptado en el servidor.
+        async function reconciliarGolesConFirebase() {
+            if (!estado.partidaId || !estado.miLado) return;
+            try {
+                const base = 'partidas/' + estado.partidaId + '/juego';
+                const [sgj, sgr] = await Promise.all([
+                    get(ref(db, base + '/golesJugador')).catch(() => null),
+                    get(ref(db, base + '/golesRival')).catch(() => null)
+                ]);
+                const remotoJ = sgj && sgj.exists() ? (Number(sgj.val()) || 0) : null;
+                const remotoR = sgr && sgr.exists() ? (Number(sgr.val()) || 0) : null;
+                const absJ = estado.miLado === 'jugador' ? estado.juego.golesJugador : estado.juego.golesRival;
+                const absR = estado.miLado === 'jugador' ? estado.juego.golesRival : estado.juego.golesJugador;
+                const nuevoJ = remotoJ === null ? absJ : Math.max(absJ, remotoJ);
+                const nuevoR = remotoR === null ? absR : Math.max(absR, remotoR);
+                estado.juego.golesJugador = estado.miLado === 'jugador' ? nuevoJ : nuevoR;
+                estado.juego.golesRival = estado.miLado === 'jugador' ? nuevoR : nuevoJ;
+            } catch (e) { /* sin red: se conserva lo local */ }
+        }
+
         async function escribirEstadoJuego(manosCifradas) {
             if (!estado.partidaId) return;
             await asegurarClavesCifradas();
@@ -1575,6 +1609,12 @@
                 golesInicioManoJugador: estado.miLado === 'jugador' ? estado.juego.golesInicioManoJugador : estado.juego.golesInicioManoRival,
                 golesInicioManoRival: estado.miLado === 'jugador' ? estado.juego.golesInicioManoRival : estado.juego.golesInicioManoJugador
             });
+            // RECONCILIACIÓN DE GOLES antes de escribir: se conserva SIEMPRE el
+            // valor más alto ya aceptado (los goles nunca bajan en la partida),
+            // para que un write desactualizado jamás "borre" un gol del rival.
+            await reconciliarGolesConFirebase();
+            datos.golesJugador = estado.miLado === 'jugador' ? estado.juego.golesJugador : estado.juego.golesRival;
+            datos.golesRival = estado.miLado === 'jugador' ? estado.juego.golesRival : estado.juego.golesJugador;
             datos.ultimaActividad = Date.now();
             await update(juegoRef, datos);
         }
@@ -3103,6 +3143,11 @@
             estado.juego.manoActual++;
             if (estado.juego.manoActual >= TOTAL_MANOS) {
                 estado.juego.fase = 'fin_partido';
+                // Resultado FINAL con el marcador reconciliado contra Firebase:
+                // nunca fijar el resultado con goles perdidos por un write
+                // desactualizado del otro cliente.
+                await reconciliarGolesConFirebase();
+                renderizarMarcador();
                 const gJ = estado.juego.golesJugador;
                 const gR = estado.juego.golesRival;
                 const ganadorRel = gJ > gR ? 'jugador' : (gR > gJ ? 'rival' : 'empate');
