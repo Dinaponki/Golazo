@@ -1527,10 +1527,16 @@
                 return;
             }
             clavesCrypto.ultimaFirmaVista = firma;
+            // Marca la mano como PENDIENTE hasta terminar de descifrarla: evita
+            // que el VAR declare leyendo la mano VIEJA (el penal se canta en la
+            // ronda 0, apenas empieza la mano, y la descifré tarda unos ms).
+            clavesCrypto.manoPendiente = true;
             const token = ++tokenManoRemota;
             descifrarManoPropia(paquete).then((mano) => {
                 if (token !== tokenManoRemota || !Array.isArray(mano) || !mano.length) return;
                 estado.juego.manoJugador = mano;
+                // Mano actual confirmada: ya se puede declarar el VAR con seguridad
+                clavesCrypto.manoPendiente = false;
                 // Si era el regalo del reparto, sobrescribirlo con mi mano cifrada
                 // con MI clave local para no dejar el sobre efímero en Firebase
                 if (paquete.tipo === 'regalo') { reescribirManoPropia().catch(() => {}); }
@@ -1666,10 +1672,6 @@
                 cantoPedidoPor: aAbsoluto(estado.juego.cantoPedidoPor),
                 cantoPendiente: estado.juego.cantoPendiente ? { ...estado.juego.cantoPendiente, pedidoPor: aAbsoluto(estado.juego.cantoPendiente.pedidoPor) } : null,
                 varPedidoPor: aAbsoluto(estado.juego.varPedidoPor),
-                varDeclaraciones: {
-                    jugador: estado.miLado === 'jugador' ? estado.juego.varDeclaraciones.jugador : estado.juego.varDeclaraciones.rival,
-                    rival: estado.miLado === 'jugador' ? estado.juego.varDeclaraciones.rival : estado.juego.varDeclaraciones.jugador
-                },
                 varTurnoDeclarar: aAbsoluto(estado.juego.varTurnoDeclarar),
                 varPanelVisible: estado.juego.varPanelVisible,
                 esperandoRespuestaDe: aAbsoluto(estado.juego.esperandoRespuestaDe),
@@ -1694,12 +1696,50 @@
             datos.golesJugador = estado.miLado === 'jugador' ? estado.juego.golesJugador : estado.juego.golesRival;
             datos.golesRival = estado.miLado === 'jugador' ? estado.juego.golesRival : estado.juego.golesJugador;
             datos.ultimaActividad = Date.now();
+            // DECLARACIONES DEL VAR: cada cliente escribe SOLO su propio campo
+            // (nunca el del rival), salvo en el reinicio de mano, donde se limpian
+            // AMBOS explícitamente para que ninguna declaración vieja sobreviva.
+            if (estado.juego.varReinicioPendiente) {
+                datos.varDeclaraciones = { jugador: null, rival: null };
+                estado.juego.varReinicioPendiente = false;
+            } else {
+                const miCampoVarAbs = estado.miLado === 'jugador' ? 'jugador' : 'rival';
+                const miValVar = estado.miLado === 'jugador'
+                    ? estado.juego.varDeclaraciones.jugador
+                    : estado.juego.varDeclaraciones.rival;
+                if (typeof miValVar === 'number' && isFinite(miValVar)) {
+                    datos['varDeclaraciones/' + miCampoVarAbs] = miValVar;
+                }
+            }
             await update(juegoRef, datos);
             // GARANTÍA FINAL: fijar los goles con transacciones monótonas
             // (solo pueden SUBIR). Aunque este update llegara desactualizado y
             // pisara un gol recién convertido por el rival, la transacción lo
             // restaura AL INSTANTE al valor máximo ya aceptado por el servidor.
             await asegurarGolesMonotonicos();
+            await asegurarMiVarDeclaracion();
+        }
+
+        // PROPIEDAD DE LA DECLARACIÓN DEL VAR: cada cliente escribe SOLO su propio
+        // campo (jugador o rival según su lado) y NUNCA toca el del rival. Antes,
+        // el objeto varDeclaraciones completo viajaba en cada write de estado, y
+        // un write desactualizado volvía a poner null la declaración que el rival
+        // YA había enviado → el panel quedaba en "?" aunque nadie esperara nada.
+        async function asegurarMiVarDeclaracion() {
+            if (!estado.partidaId || !estado.miLado) return;
+            try {
+                const miCampoAbs = estado.miLado === 'jugador' ? 'jugador' : 'rival';
+                const miVal = estado.miLado === 'jugador'
+                    ? estado.juego.varDeclaraciones.jugador
+                    : estado.juego.varDeclaraciones.rival;
+                // Solo fijo mi campo si ya declaré un número válido; si no, no
+                // toco nada (tampoco el campo del rival: es SUYO exclusivo).
+                if (typeof miVal !== 'number' || !isFinite(miVal)) return;
+                const r = ref(db, 'partidas/' + estado.partidaId + '/juego/varDeclaraciones/' + miCampoAbs);
+                // Transacción idempotente: mi declaración SIEMPRE termina valiendo
+                // mi número verdadero, gane o pierda la carrera con otros writes.
+                await runTransaction(r, () => miVal);
+            } catch (e) { /* best effort */ }
         }
 
         // ============ ACCIONES DE JUEGO ============
@@ -2843,10 +2883,11 @@
                             dom.varPanelTexto.textContent = `${estado.nickname || 'Jugador'} ${dj} vs ${estado.rivalNombre} ${dr}`;
                             dom.varPanel.classList.add('visible');
                         }
-                        // Si yo aún no declaré, declaro automáticamente
+                        // Si yo aún no declaré, declaro automáticamente (con la
+                        // mano ACTUAL garantizada: ver declararVarCuandoLista)
                         if (miDeclare === null || miDeclare === undefined) {
                             varYaResolviendo = true;
-                            declararVarJugador();
+                            declararVarCuandoLista();
                             varYaResolviendo = false;
                         } else if (rivalDeclare !== null && rivalDeclare !== undefined) {
                             // Ambos ya declaramos → solo el declarante resuelve
@@ -3309,6 +3350,10 @@
             estado.juego.cantoPendiente = null;
             estado.juego.esperandoRespuestaDe = null;
             estado.juego.varDeclaraciones = { jugador: null, rival: null };
+            // Al empezar una mano nueva, AMBOS campos de declaración del VAR deben
+            // limpiarse explícitamente en Firebase (el write normal ya no toca el
+            // campo del rival, así que el reinicio se marca con este flag).
+            estado.juego.varReinicioPendiente = true;
             estado.juego.varPedidoPor = null;
             estado.juego.varPanelVisible = false;
             estado.juego.ganadorManoAnterior = null;
@@ -3567,17 +3612,39 @@
             estado.juego.varTurnoDeclarar = estado.juego.varPedidoPor;
             // Mostrar el panel VAR sincronizado para ambos jugadores
             estado.juego.varPanelVisible = true;
-            const dj = numeroMasAltoArqDel(estado.juego.manoJugador);
-            estado.juego.varDeclaraciones.jugador = dj;
             if (dom.varPanel && dom.varPanelTexto) {
-                dom.varPanelTexto.textContent = `${estado.nickname || 'Jugador'} ${dj} vs ${estado.rivalNombre} ?`;
+                dom.varPanelTexto.textContent = `${estado.nickname || 'Jugador'} ? vs ${estado.rivalNombre} ?`;
                 dom.varPanel.classList.add('visible');
             }
-            mostrarMensaje(`📺 VAR: ${estado.nickname || 'Jugador'} ${dj} vs ${estado.rivalNombre} ?`);
+            mostrarMensaje(`📺 VAR: esperando declaraciones...`);
             sincronizarJuego();
             renderizarTodo();
-            // Si el rival ya declaró, resolver
-            verificarVarResolucion();
+            // Declaro mi número cuando la mano descifrada sea la ACTUAL (nunca la
+            // mano vieja del reparto anterior): ver declararVarCuandoLista().
+            declararVarCuandoLista();
+        }
+
+        // Declara el VAR solo cuando la mano propia descifrada es la ACTUAL.
+        // Al empezar una mano la mano nueva llega cifrada y se descifra en unos
+        // milisegundos; antes, si el VAR se pedía en ese instante (el penal se
+        // canta en la ronda 0), la declaración se calculaba con la mano VIEJA
+        // y salía un número equivocado (ej. 8 teniendo un Delantero 9).
+        // Espera hasta 6 segundos (descifrado típico: < 100 ms) con reintentos.
+        let varDeclaraPendiente = false;
+        function declararVarCuandoLista(intento = 0) {
+            if (varDeclaraPendiente) return; // ya hay una declaración en curso
+            if (!clavesCrypto.manoPendiente || intento >= 40) {
+                // Mano lista, o fallback de seguridad tras 6 s: declarar igual
+                if (intento >= 40 && estado.juego.manoJugador.length &&
+                    !estado.juego.manoJugador[0].posicion) {
+                    return; // mano aún vacía/ilegible: no declarar basura
+                }
+                if (intento >= 40) clavesCrypto.manoPendiente = false;
+                varDeclaraPendiente = true;
+                try { declararVarJugador(); } finally { varDeclaraPendiente = false; }
+                return;
+            }
+            setTimeout(() => declararVarCuandoLista(intento + 1), 150);
         }
 
         function declararVarJugador() {
@@ -4296,7 +4363,7 @@
             dom.btnNoQuieroIzq.addEventListener('click', () => { if (!dom.btnNoQuieroIzq.disabled) jugadorRespondeNoQuiero(); });
             dom.btnVar.addEventListener('click', () => {
                 if (!dom.btnVar.disabled) {
-                    if (estado.juego.fase === 'var_pedido' && estado.juego.varTurnoDeclarar === 'jugador') declararVarJugador();
+                    if (estado.juego.fase === 'var_pedido' && estado.juego.varTurnoDeclarar === 'jugador') declararVarCuandoLista();
                     else if (estado.juego.fase === 'penal_pedido') jugadorRespondeVar();
                 }
             });
