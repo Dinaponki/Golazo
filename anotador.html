@@ -1,0 +1,1258 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Golazo | Anotador</title>
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="shortcut icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="Golazo" />
+    <link rel="manifest" href="/site.webmanifest" />
+
+    <style>
+        :root {
+            --verde-oscuro: #0f2b1a;
+            --verde-medio: #2d5a3f;
+            --dorado: #c8a84e;
+            --dorado-claro: #d4b356;
+            --violeta: #7b52c4;
+            --violeta-claro: #a06ee1;
+            --blanco: #f5f5f0;
+            --rojo: #e74c3c;
+            --gris-oscuro: #1a1a1a;
+            --sombra: 0 4px 20px rgba(0, 0, 0, 0.3);
+            --transicion: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(160deg, #0f2b1a 0%, #1a3c2a 30%, #163825 60%, #0d2416 100%);
+            color: var(--blanco);
+            min-height: 100vh;
+            padding: 16px 12px 40px;
+            -webkit-font-smoothing: antialiased;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        .contenedor {
+            max-width: 560px;
+            width: 100%;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 14px;
+        }
+    </style>
+
+    <style>
+        .fila-superior {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .btn-volver {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: rgba(255, 255, 255, 0.75);
+            font-size: 13px;
+            font-weight: 700;
+            padding: 8px 16px;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: var(--transicion);
+            text-decoration: none;
+            font-family: inherit;
+        }
+
+        .btn-volver:hover {
+            border-color: var(--dorado);
+            color: var(--dorado);
+        }
+
+        .titulo-pagina {
+            font-size: 15px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--violeta-claro);
+        }
+
+        /* ---------- Tarjetas ---------- */
+        .tarjeta {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.35);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 16px 14px;
+            box-shadow: var(--sombra);
+        }
+
+        /* ---------- Marcador principal ---------- */
+        .marcador {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            align-items: stretch;
+            gap: 4px;
+        }
+
+        .lado {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 8px;
+            min-width: 0;
+            padding: 6px 4px;
+        }
+
+        .nombre-jugador {
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            background: transparent;
+            border: none;
+            color: var(--blanco);
+            font-size: clamp(15px, 4vw, 19px);
+            font-weight: 800;
+            font-family: inherit;
+            padding: 6px 10px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: var(--transicion);
+        }
+
+        .nombre-jugador:hover {
+            background: rgba(200, 168, 78, 0.08);
+            color: var(--dorado);
+        }
+
+        .goles-numero {
+            font-size: clamp(52px, 16vw, 84px);
+            font-weight: 900;
+            line-height: 1;
+            font-variant-numeric: tabular-nums;
+            text-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
+        }
+
+        .lado[data-jugador="0"] .goles-numero { color: var(--dorado); }
+        .lado[data-jugador="1"] .goles-numero { color: #62b5e5; }
+
+        .etiqueta-goles {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.45);
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .estrellas-totales {
+            font-size: 11px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.55);
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 50px;
+            padding: 4px 12px;
+            white-space: nowrap;
+        }
+
+        .vs {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            font-weight: 900;
+            color: rgba(255, 255, 255, 0.25);
+            letter-spacing: 0.06em;
+            padding: 0 8px;
+            position: relative;
+        }
+
+        .vs::before,
+        .vs::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 1px;
+            height: 32%;
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        .vs::before { top: -6px; }
+        .vs::after { bottom: -6px; }
+
+    </style>
+
+    <style>
+        /* ---------- Mano actual ---------- */
+        .mano-encabezado {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .mano-titulo {
+            font-size: clamp(16px, 4.2vw, 20px);
+            font-weight: 900;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: var(--dorado);
+        }
+
+        .progreso {
+            display: flex;
+            gap: 5px;
+        }
+
+        .punto-progreso {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            transition: var(--transicion);
+        }
+
+        .punto-progreso.completa {
+            background: var(--dorado);
+            border-color: var(--dorado);
+        }
+
+        .punto-progreso.actual {
+            border-color: var(--dorado);
+            box-shadow: 0 0 6px rgba(200, 168, 78, 0.6);
+        }
+
+        .puntos-fila {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            align-items: stretch;
+            gap: 4px;
+        }
+
+        .col-puntos {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            padding: 4px;
+            min-width: 0;
+        }
+
+        .estrellas-mano {
+            font-size: clamp(26px, 8vw, 38px);
+            line-height: 1;
+            letter-spacing: 4px;
+        }
+
+        .estrella-vacia {
+            color: rgba(255, 255, 255, 0.15);
+        }
+
+        .estrella-llena {
+            color: var(--dorado);
+            text-shadow: 0 0 10px rgba(200, 168, 78, 0.55);
+        }
+
+        .contador-puntos {
+            font-size: clamp(14px, 3.6vw, 18px);
+            font-weight: 800;
+            color: rgba(255, 255, 255, 0.75);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .botones-puntos {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+            width: 100%;
+            max-width: 220px;
+        }
+
+        .btn-punto {
+            padding: 13px 6px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            background: rgba(255, 255, 255, 0.07);
+            color: var(--blanco);
+            font-size: clamp(15px, 4vw, 19px);
+            font-weight: 800;
+            cursor: pointer;
+            transition: transform 0.12s ease, box-shadow 0.3s ease, border-color 0.3s ease, opacity 0.3s ease;
+            font-family: inherit;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .btn-punto:hover:not(:disabled) {
+            border-color: var(--dorado);
+            background: rgba(200, 168, 78, 0.12);
+        }
+
+        .btn-punto:active:not(:disabled) {
+            transform: scale(0.93);
+        }
+
+        .btn-punto:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+
+        .btn-gol {
+            width: 100%;
+            max-width: 220px;
+            padding: 14px 12px;
+            border-radius: 50px;
+            border: none;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: clamp(16px, 4.4vw, 20px);
+            font-weight: 900;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            transition: transform 0.12s ease, filter 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .btn-gol:active {
+            transform: scale(0.95);
+        }
+
+        /* Gol del jugador 0 (dorado) */
+        .lado[data-jugador="0"] .btn-gol {
+            background: linear-gradient(135deg, #ddbe64 0%, var(--dorado) 50%, #b3943f 100%);
+            color: #1a2a10;
+            box-shadow: 0 6px 20px rgba(200, 168, 78, 0.35);
+        }
+
+        /* Gol del jugador 1 (azul) */
+        .lado[data-jugador="1"] .btn-gol {
+            background: linear-gradient(135deg, #3a9bdc 0%, #2980b9 50%, #1f6da0 100%);
+            color: var(--blanco);
+            box-shadow: 0 6px 20px rgba(41, 128, 185, 0.4);
+        }
+
+        .btn-gol.listo {
+            animation: pulso-gol 1.1s ease-in-out infinite;
+        }
+
+        @keyframes pulso-gol {
+
+            0%,
+            100% {
+                filter: brightness(1);
+                transform: scale(1);
+            }
+
+            50% {
+                filter: brightness(1.25);
+                transform: scale(1.04);
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .btn-gol.listo {
+                animation: none;
+                outline: 3px solid var(--dorado);
+                outline-offset: 2px;
+            }
+        }
+    </style>
+
+    <style>
+        /* ---------- Aviso de 3 puntos ---------- */
+        .aviso-gol {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            text-align: center;
+            font-size: clamp(13px, 3.4vw, 16px);
+            font-weight: 800;
+            color: #1a2a10;
+            background: linear-gradient(135deg, var(--dorado-claro), var(--dorado));
+            border-radius: 12px;
+            padding: 10px 14px;
+            margin-bottom: 12px;
+            animation: pulso-gol 1.1s ease-in-out infinite;
+        }
+
+        .aviso-gol.visible {
+            display: flex;
+        }
+
+        /* ---------- Acciones ---------- */
+        .acciones {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            width: 100%;
+        }
+
+        .btn-accion {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background: rgba(0, 0, 0, 0.35);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            padding: 12px 10px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: var(--transicion);
+            font-family: inherit;
+        }
+
+        .btn-accion:hover:not(:disabled) {
+            border-color: var(--dorado);
+            color: var(--dorado);
+        }
+
+        .btn-accion:active:not(:disabled) {
+            transform: scale(0.97);
+        }
+
+        .btn-accion:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+
+        /* ---------- Historial ---------- */
+        .historial-titulo {
+            font-size: 14px;
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--dorado);
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .historial-lista {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .mano-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 10px;
+            padding: 9px 12px;
+            font-size: 13px;
+        }
+
+        .mano-item .mano-num {
+            color: rgba(255, 255, 255, 0.45);
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .mano-item .mano-detalle {
+            flex: 1;
+            text-align: left;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: var(--blanco);
+            font-weight: 700;
+        }
+
+        .mano-item .mano-estrellas {
+            color: rgba(255, 255, 255, 0.55);
+            font-weight: 600;
+            white-space: nowrap;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .historial-vacio {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.35);
+            font-size: 13px;
+            padding: 8px;
+        }
+    </style>
+
+    <style>
+        /* ---------- Reglas rápidas ---------- */
+        .reglas-rapidas {
+            width: 100%;
+        }
+
+        .reglas-rapidas summary {
+            cursor: pointer;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.6);
+            padding: 10px;
+            border-radius: 12px;
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: var(--transicion);
+            list-style: none;
+        }
+
+        .reglas-rapidas summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .reglas-rapidas summary:hover {
+            color: var(--dorado);
+        }
+
+        .reglas-contenido {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.7;
+            text-align: left;
+            padding: 14px 8px 4px;
+        }
+
+        .reglas-contenido b {
+            color: var(--dorado);
+        }
+
+        /* ---------- Overlays ---------- */
+        .overlay {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.92);
+            z-index: 1000;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .overlay.visible {
+            display: flex;
+        }
+
+        .overlay-tarjeta {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            width: 100%;
+            max-width: 360px;
+            background: var(--gris-oscuro);
+            border-radius: 16px;
+            padding: 32px 24px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+
+        .btn-cerrar-overlay {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.6);
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            font-size: 14px;
+            cursor: pointer;
+            transition: var(--transicion);
+            font-family: inherit;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-cerrar-overlay:hover {
+            border-color: var(--dorado);
+            color: var(--dorado);
+        }
+
+        .overlay-titulo {
+            font-size: clamp(22px, 6vw, 28px);
+            font-weight: 900;
+            color: var(--dorado);
+            text-align: center;
+        }
+
+        .overlay-subtitulo {
+            font-size: clamp(13px, 3vmin, 15px);
+            color: rgba(255, 255, 255, 0.7);
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        .input-nombre {
+            width: 100%;
+            padding: 14px 16px;
+            border-radius: 12px;
+            border: 2px solid #333;
+            background: #333;
+            color: var(--blanco);
+            font-size: clamp(16px, 4vmin, 20px);
+            font-weight: 700;
+            text-align: center;
+            outline: none;
+            transition: var(--transicion);
+            font-family: inherit;
+        }
+
+        .input-nombre:focus {
+            border-color: var(--dorado);
+            background: #3a3a3a;
+        }
+    </style>
+
+    <style>
+        .btn-primario {
+            width: 100%;
+            padding: 15px 24px;
+            border-radius: 50px;
+            font-size: clamp(15px, 4vmin, 19px);
+            font-weight: 800;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            cursor: pointer;
+            border: none;
+            background: linear-gradient(135deg, #ddbe64 0%, var(--dorado) 50%, #b3943f 100%);
+            color: #1a2a10;
+            transition: var(--transicion);
+            font-family: inherit;
+        }
+
+        .btn-primario:hover {
+            filter: brightness(1.07);
+            box-shadow: 0 4px 20px rgba(200, 168, 78, 0.4);
+        }
+
+        .btn-primario:active {
+            transform: scale(0.97);
+        }
+
+        .btn-violeta {
+            background: linear-gradient(135deg, #a06ee1 0%, #7b52c4 50%, #5f3aa0 100%);
+            color: var(--blanco);
+        }
+
+        .btn-secundario {
+            background: transparent;
+            border: 2px solid rgba(255, 255, 255, 0.25);
+            color: var(--blanco);
+        }
+
+        .btn-secundario:hover {
+            border-color: var(--dorado);
+            color: var(--dorado);
+            box-shadow: none;
+        }
+
+        .grupo-botones-overlay {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 100%;
+        }
+
+        /* Resultado final */
+        .resultado-marcador {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 18px;
+            font-size: clamp(34px, 11vw, 54px);
+            font-weight: 900;
+            font-variant-numeric: tabular-nums;
+            line-height: 1;
+        }
+
+        .resultado-marcador .res-nombre {
+            display: block;
+            font-size: clamp(12px, 3.4vw, 16px);
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.65);
+            margin-bottom: 6px;
+            max-width: 130px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            text-align: center;
+        }
+
+        .resultado-separador {
+            font-size: clamp(18px, 5vw, 28px);
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        .resultado-goles {
+            text-align: center;
+        }
+
+        .resultado-goles .j0 { color: var(--dorado); }
+        .resultado-goles .j1 { color: #62b5e5; }
+
+        .resultado-estrellas {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.55);
+            text-align: center;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            background: rgba(0, 0, 0, 0.9);
+            color: var(--dorado);
+            padding: 12px 24px;
+            border-radius: 50px;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 2000;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            pointer-events: none;
+            text-align: center;
+            max-width: 90vw;
+        }
+
+        .toast.mostrar {
+            transform: translateX(-50%) translateY(0);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="contenedor">
+        <div class="fila-superior">
+            <a href="index.html" class="btn-volver">← Inicio</a>
+            <span class="titulo-pagina">📝 Anotador</span>
+            <span style="width:80px;"></span>
+        </div>
+
+        <!-- Marcador de goles -->
+        <section class="tarjeta">
+            <div class="marcador">
+                <div class="lado" data-jugador="0">
+                    <button class="nombre-jugador" id="nombreJ0" title="Tocá para editar el nombre">Jugador 1</button>
+                    <span class="goles-numero" id="golesJ0">0</span>
+                    <span class="etiqueta-goles">⚽ Goles</span>
+                    <span class="estrellas-totales" id="estrellasTotalesJ0">⭐ 0 estrellas</span>
+                </div>
+                <div class="vs">VS</div>
+                <div class="lado" data-jugador="1">
+                    <button class="nombre-jugador" id="nombreJ1" title="Tocá para editar el nombre">Jugador 2</button>
+                    <span class="goles-numero" id="golesJ1">0</span>
+                    <span class="etiqueta-goles">⚽ Goles</span>
+                    <span class="estrellas-totales" id="estrellasTotalesJ1">⭐ 0 estrellas</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Mano actual: puntos / estrellas -->
+        <section class="tarjeta">
+            <div class="mano-encabezado">
+                <span class="mano-titulo" id="tituloMano">Mano 1 de 9</span>
+                <div class="progreso" id="barraProgreso"></div>
+            </div>
+
+            <div class="aviso-gol" id="avisoGol"></div>
+
+            <div class="puntos-fila">
+                <div class="col-puntos lado-izq" data-jugador="0">
+                    <div class="estrellas-mano" id="estrellasManoJ0"></div>
+                    <div class="contador-puntos" id="contadorPuntosJ0">0 puntos</div>
+                    <div class="botones-puntos">
+                        <button class="btn-punto" data-jugador="0" data-delta="-1">−1</button>
+                        <button class="btn-punto" data-jugador="0" data-delta="1">+1</button>
+                        <button class="btn-punto" data-jugador="0" data-delta="2">+2</button>
+                    </div>
+                    <button class="btn-gol" data-jugador="0">⚽ Gol</button>
+                </div>
+                <div class="vs">·</div>
+                <div class="col-puntos" data-jugador="1">
+                    <div class="estrellas-mano" id="estrellasManoJ1"></div>
+                    <div class="contador-puntos" id="contadorPuntosJ1">0 puntos</div>
+                    <div class="botones-puntos">
+                        <button class="btn-punto" data-jugador="1" data-delta="-1">−1</button>
+                        <button class="btn-punto" data-jugador="1" data-delta="1">+1</button>
+                        <button class="btn-punto" data-jugador="1" data-delta="2">+2</button>
+                    </div>
+                    <button class="btn-gol" data-jugador="1">⚽ Gol</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Acciones -->
+        <div class="acciones">
+            <button class="btn-accion" id="btnDeshacer">↩️ Deshacer</button>
+            <button class="btn-accion" id="btnTerminar">🏁 Terminar partido</button>
+            <button class="btn-accion" id="btnVerResultado" style="display:none;">📋 Ver resultado</button>
+            <button class="btn-accion" id="btnReiniciar">🔄 Nueva partida</button>
+        </div>
+
+        <!-- Historial -->
+        <section class="tarjeta" id="tarjetaHistorial">
+            <div class="historial-titulo">📜 Manos jugadas</div>
+            <div class="historial-lista" id="listaHistorial">
+                <div class="historial-vacio">Todavía no se convirtieron goles.</div>
+            </div>
+        </section>
+
+        <!-- Reglas rápidas -->
+        <details class="reglas-rapidas tarjeta reglas-rapidas-wrap">
+            <summary>📖 ¿Cómo se anota? (recordatorio rápido)</summary>
+            <div class="reglas-contenido">
+                ✔ Ganar una ronda: <b>+1 punto (⭐)</b><br>
+                ✔ 🥅 Penal rechazado / ⚽ Gol rechazado: <b>+1 punto</b><br>
+                ✔ ⭐ Golazo rechazado: <b>+2 puntos</b><br>
+                ✔ 📺 Ganar un VAR: <b>+2 puntos</b><br>
+                ✔ 🥅 Penal atajado / ⚽ Gol defendido: <b>+2 puntos</b><br><br>
+                👉 Llegar a <b>3 puntos</b> dentro de una mano convierte automáticamente un <b>Gol</b>.<br>
+                👉 Solo puede existir <b>1 gol por mano</b> y el partido dura <b>9 manos</b>.<br>
+                👉 Gana quien convierta más goles al final.
+            </div>
+        </details>
+
+        <p class="footer-anotador" style="font-size:12px;color:rgba(255,255,255,0.35);text-align:center;letter-spacing:0.04em;">
+            El marcador se guarda solo en este dispositivo.<br>
+            © 2026 Golazo - Dinaponki
+        </p>
+
+    </div>
+
+    <!-- Overlay editar nombre -->
+    <div class="overlay" id="overlayNombre">
+        <div class="overlay-tarjeta">
+            <button class="btn-cerrar-overlay" id="btnCerrarNombre" aria-label="Cerrar">✕</button>
+            <div class="overlay-titulo" id="tituloEditarNombre">✏️ Editar nombre</div>
+            <input type="text" id="inputNombre" class="input-nombre" maxlength="14" placeholder="Nombre del jugador..." autocomplete="off">
+            <button class="btn-primario" id="btnGuardarNombre">Guardar nombre</button>
+        </div>
+    </div>
+
+    <!-- Overlay confirmar nueva partida -->
+    <div class="overlay" id="overlayConfirmar">
+        <div class="overlay-tarjeta">
+            <button class="btn-cerrar-overlay" id="btnCerrarConfirmar" aria-label="Cerrar">✕</button>
+            <div class="overlay-titulo">🔄 Nueva partida</div>
+            <div class="overlay-subtitulo">
+                Esto va a borrar el marcador actual<br>(goles, estrellas e historial).<br>¿Estás seguro?
+            </div>
+            <div class="grupo-botones-overlay">
+                <button class="btn-primario btn-violeta" id="btnConfirmarReinicio">Sí, empezar de nuevo</button>
+                <button class="btn-primario btn-secundario" id="btnCancelarReinicio">Seguir anotando</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overlay resultado final -->
+    <div class="overlay" id="overlayResultado">
+        <div class="overlay-tarjeta">
+            <button class="btn-cerrar-overlay" id="btnCerrarResultado" aria-label="Cerrar">✕</button>
+            <div class="overlay-titulo" id="resultadoTitulo">🏆 Fin del partido</div>
+            <div class="overlay-subtitulo" id="resultadoFrase"></div>
+            <div class="resultado-marcador resultado-goles">
+                <div><span class="res-nombre j0" id="resNombre0">Jugador 1</span><span class="j0" id="resGoles0">0</span></div>
+                <span class="resultado-separador">—</span>
+                <div><span class="res-nombre j1" id="resNombre1">Jugador 2</span><span class="j1" id="resGoles1">0</span></div>
+            </div>
+            <div class="resultado-estrellas" id="resEstrellas"></div>
+            <div class="grupo-botones-overlay">
+                <button class="btn-primario" id="btnNuevaDesdeResultado">🔄 Nueva partida</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        'use strict';
+
+        // ================= ANOTADOR GOLAZO =================
+        // Marcador para partidas con mazo físico. Todo se guarda en
+        // localStorage del dispositivo, así el marcador sobrevive a
+        // cierres accidentales de la pestaña o recargas de la página.
+
+        const CLAVE_STORAGE = 'golazoAnotadorEstado';
+        const MAX_MANOS = 9;         // el partido dura 9 manos (90 minutos)
+        const PTS_PARA_GOL = 3;      // llegar a 3 puntos convierte un gol
+
+        // ---------- Estado ----------
+        function estadoInicial() {
+            return {
+                nombres: ['Jugador 1', 'Jugador 2'],
+                goles: [0, 0],
+                estrellasTotales: [0, 0],
+                manos: [],           // manos cerradas: { numMano, puntos:[a,b], ganador }
+                numMano: 1,
+                puntos: [0, 0],      // estrellas de la mano en curso
+                terminada: false
+            };
+        }
+
+        let estado = cargarEstado();
+        let pilaDeshacer = [];
+        let jugadorEditando = 0;
+        let timeoutToast = null;
+
+        function cargarEstado() {
+            try {
+                const crudo = localStorage.getItem(CLAVE_STORAGE);
+                if (crudo) {
+                    const datos = JSON.parse(crudo);
+                    if (datos && Array.isArray(datos.nombres) && datos.nombres.length === 2) {
+                        return Object.assign(estadoInicial(), datos);
+                    }
+                }
+            } catch (e) { /* storage corrupto o no disponible: empezar limpio */ }
+            return estadoInicial();
+        }
+
+        function guardar() {
+            try {
+                localStorage.setItem(CLAVE_STORAGE, JSON.stringify(estado));
+            } catch (e) { /* modo privado: seguir sin persistir */ }
+        }
+
+        // Guarda una foto del estado antes de cada acción para poder deshacer
+        function snapshot() {
+            pilaDeshacer.push(JSON.stringify(estado));
+            if (pilaDeshacer.length > 80) pilaDeshacer.shift();
+        }
+
+        function deshacer() {
+            const anterior = pilaDeshacer.pop();
+            if (!anterior) {
+                mostrarToast('Nada que deshacer');
+                return;
+            }
+            try {
+                estado = JSON.parse(anterior);
+                guardar();
+                render();
+                vibrar(20);
+            } catch (e) {
+                mostrarToast('No se pudo deshacer');
+            }
+        }
+
+        // ---------- Utilidades ----------
+        function $(id) { return document.getElementById(id); }
+
+        function escaparHTML(texto) {
+            const div = document.createElement('div');
+            div.textContent = texto;
+            return div.innerHTML;
+        }
+
+        function nombre(j) { return estado.nombres[j] || ('Jugador ' + (j + 1)); }
+
+        function mostrarToast(texto) {
+            const toast = $('toast');
+            toast.textContent = texto;
+            toast.classList.add('mostrar');
+            if (timeoutToast) clearTimeout(timeoutToast);
+            timeoutToast = setTimeout(() => toast.classList.remove('mostrar'), 2600);
+        }
+
+        function vibrar(patron) {
+            try {
+                if (navigator.vibrate) navigator.vibrate(patron);
+            } catch (e) { /* sin soporte de vibración */ }
+        }
+
+        // ---------- Acciones del anotador ----------
+        function sumarPuntos(j, cantidad) {
+            if (estado.terminada) return;
+            snapshot();
+            estado.puntos[j] += cantidad;
+            estado.estrellasTotales[j] += cantidad;
+            guardar();
+            render();
+            vibrar(25);
+        }
+
+        function restarPunto(j) {
+            if (estado.terminada) return;
+            if ((estado.puntos[j] || 0) <= 0) {
+                mostrarToast(nombre(j) + ' no tiene puntos en esta mano');
+                return;
+            }
+            snapshot();
+            estado.puntos[j] -= 1;
+            estado.estrellasTotales[j] -= 1;
+            guardar();
+            render();
+            vibrar(15);
+        }
+
+        // Convierte un gol para el jugador j: cierra la mano actual con su
+        // ganador, resetea los puntos y avanza a la siguiente mano (o termina).
+        function cantarGol(j) {
+            if (estado.terminada) return;
+            snapshot();
+            estado.goles[j] += 1;
+            estado.manos.push({
+                numMano: estado.numMano,
+                puntos: [estado.puntos[0] || 0, estado.puntos[1] || 0],
+                ganador: j
+            });
+            estado.puntos = [0, 0];
+            if (estado.numMano >= MAX_MANOS) {
+                estado.numMano = MAX_MANOS;
+                estado.terminada = true;
+            } else {
+                estado.numMano += 1;
+            }
+            guardar();
+            render();
+            vibrar([60, 40, 140]);
+            if (estado.terminada) {
+                abrirResultado();
+            } else {
+                mostrarToast('⚽ ¡Gol de ' + nombre(j) + '! Mano ' + estado.numMano + ' de ' + MAX_MANOS);
+            }
+        }
+
+        // Finaliza el partido manualmente (puede quedar una mano sin gol)
+        function terminarPartido(manual) {
+            if (estado.terminada) {
+                abrirResultado();
+                return;
+            }
+            snapshot();
+            estado.terminada = true;
+            guardar();
+            render();
+            if (manual) mostrarToast('🏁 Partido finalizado');
+            abrirResultado();
+        }
+
+        function reiniciarPartida() {
+            snapshot();
+            estado = estadoInicial();
+            guardar();
+            render();
+            ocultarOverlay($('overlayConfirmar'));
+            ocultarOverlay($('overlayResultado'));
+            mostrarToast('🔄 Nueva partida lista');
+        }
+
+        // ---------- Render ----------
+        function render() {
+            // Nombres y goles
+            $('nombreJ0').textContent = nombre(0);
+            $('nombreJ1').textContent = nombre(1);
+            $('golesJ0').textContent = estado.goles[0] || 0;
+            $('golesJ1').textContent = estado.goles[1] || 0;
+            $('estrellasTotalesJ0').textContent = '⭐ ' + (estado.estrellasTotales[0] || 0) + ' estrella' + ((estado.estrellasTotales[0] === 1) ? '' : 's');
+            $('estrellasTotalesJ1').textContent = '⭐ ' + (estado.estrellasTotales[1] || 0) + ' estrella' + ((estado.estrellasTotales[1] === 1) ? '' : 's');
+
+            // Título de mano
+            if (estado.terminada) {
+                $('tituloMano').textContent = '🏁 Partido finalizado';
+            } else {
+                $('tituloMano').textContent = 'Mano ' + estado.numMano + ' de ' + MAX_MANOS;
+            }
+
+            // Barra de progreso (9 puntos)
+            const progreso = $('barraProgreso');
+            progreso.innerHTML = '';
+            for (let i = 1; i <= MAX_MANOS; i++) {
+                const punto = document.createElement('span');
+                punto.className = 'punto-progreso';
+                if (!estado.terminada && i === estado.numMano) punto.classList.add('actual');
+                else if (i < estado.numMano || estado.terminada) punto.classList.add('completa');
+                progreso.appendChild(punto);
+            }
+
+            // Puntos / estrellas de la mano en curso
+            [0, 1].forEach(j => {
+                const pts = Math.min(estado.puntos[j] || 0, PTS_PARA_GOL);
+                let estrellas = '';
+                for (let i = 0; i < PTS_PARA_GOL; i++) {
+                    estrellas += '<span class="' + (i < pts ? 'estrella-llena' : 'estrella-vacia') + '">★</span>';
+                }
+                $('estrellasManoJ' + j).innerHTML = estrellas;
+
+                const total = estado.puntos[j] || 0;
+                $('contadorPuntosJ' + j).textContent = total + ' punto' + (total === 1 ? '' : 's');
+
+                // Botón GOL: pulsa cuando el jugador llegó a 3 puntos (regla oficial)
+                const btnGol = document.querySelector('.btn-gol[data-jugador="' + j + '"]');
+                if (total >= PTS_PARA_GOL) btnGol.classList.add('listo');
+                else btnGol.classList.remove('listo');
+            });
+
+            // Aviso de 3 puntos
+            const aviso = $('avisoGol');
+            let avisado = -1;
+            [0, 1].forEach(j => { if ((estado.puntos[j] || 0) >= PTS_PARA_GOL) avisado = j; });
+            if (!estado.terminada && avisado !== -1) {
+                aviso.innerHTML = '⚠️ ' + escaparHTML(nombre(avisado)) + ' llegó a 3 puntos → convertí su GOL ⚽';
+                aviso.classList.add('visible');
+            } else {
+                aviso.classList.remove('visible');
+            }
+
+            // Estados de botones según partido terminado
+            document.querySelectorAll('.btn-punto, .btn-gol').forEach(b => {
+                b.disabled = estado.terminada;
+            });
+            $('btnDeshacer').disabled = pilaDeshacer.length === 0;
+            $('btnTerminar').style.display = estado.terminada ? 'none' : '';
+            $('btnVerResultado').style.display = estado.terminada ? '' : 'none';
+
+            // Historial
+            const lista = $('listaHistorial');
+            if (!estado.manos.length) {
+                lista.innerHTML = '<div class="historial-vacio">Todavía no se convirtieron goles.</div>';
+            } else {
+                lista.innerHTML = '';
+                estado.manos.forEach(m => {
+                    const item = document.createElement('div');
+                    item.className = 'mano-item';
+                    item.innerHTML =
+                        '<span class="mano-num">Mano ' + m.numMano + '</span>' +
+                        '<span class="mano-detalle">⚽ Gol de ' + escaparHTML(nombre(m.ganador)) + '</span>' +
+                        '<span class="mano-estrellas">' + m.puntos[0] + '★ – ' + m.puntos[1] + '★</span>';
+                    lista.appendChild(item);
+                });
+            }
+        }
+
+        // ---------- Overlays ----------
+        function abrirOverlay(overlay) { overlay.classList.add('visible'); }
+        function ocultarOverlay(overlay) { overlay.classList.remove('visible'); }
+
+        function abrirEditarNombre(j) {
+            jugadorEditando = j;
+            $('tituloEditarNombre').textContent = '✏️ Nombre del Jugador ' + (j + 1);
+            $('inputNombre').value = nombre(j);
+            abrirOverlay($('overlayNombre'));
+            setTimeout(() => { $('inputNombre').select(); }, 80);
+        }
+
+        function guardarNombre() {
+            const valor = $('inputNombre').value.trim();
+            if (!valor) {
+                mostrarToast('Ingresá un nombre');
+                return;
+            }
+            snapshot();
+            estado.nombres[jugadorEditando] = valor.slice(0, 14);
+            guardar();
+            render();
+            ocultarOverlay($('overlayNombre'));
+            mostrarToast('Nombre actualizado: ' + estado.nombres[jugadorEditando]);
+        }
+
+        function abrirResultado() {
+            const g0 = estado.goles[0] || 0;
+            const g1 = estado.goles[1] || 0;
+            $('resNombre0').textContent = nombre(0);
+            $('resNombre1').textContent = nombre(1);
+            $('resGoles0').textContent = g0;
+            $('resGoles1').textContent = g1;
+            const e0 = estado.estrellasTotales[0] || 0;
+            const e1 = estado.estrellasTotales[1] || 0;
+            $('resEstrellas').textContent = 'Estrellas totales: ' + escaparHTML(nombre(0)) + ' ' + e0 + ' · ' + escaparHTML(nombre(1)) + ' ' + e1;
+            if (g0 > g1) {
+                $('resultadoTitulo').textContent = '🏆 ¡Ganó ' + nombre(0) + '!';
+                $('resultadoFrase').textContent = 'Victoria por ' + (g0 - g1) + (g0 - g1 === 1 ? ' gol' : ' goles');
+            } else if (g1 > g0) {
+                $('resultadoTitulo').textContent = '🏆 ¡Ganó ' + nombre(1) + '!';
+                $('resultadoFrase').textContent = 'Victoria por ' + (g1 - g0) + (g1 - g0 === 1 ? ' gol' : ' goles');
+            } else {
+                $('resultadoTitulo').textContent = '🤝 Empate';
+                $('resultadoFrase').textContent = 'Ninguno se sacó ventaja. ¿Revancha?';
+            }
+            abrirOverlay($('overlayResultado'));
+        }
+
+        // ---------- Eventos ----------
+        document.querySelectorAll('.btn-punto').forEach(b => {
+            b.addEventListener('click', () => {
+                const j = parseInt(b.dataset.jugador, 10);
+                const delta = parseInt(b.dataset.delta, 10);
+                if (delta > 0) sumarPuntos(j, delta); else restarPunto(j);
+            });
+        });
+
+        document.querySelectorAll('.btn-gol').forEach(b => {
+            b.addEventListener('click', () => cantarGol(parseInt(b.dataset.jugador, 10)));
+        });
+
+        $('nombreJ0').addEventListener('click', () => abrirEditarNombre(0));
+        $('nombreJ1').addEventListener('click', () => abrirEditarNombre(1));
+        $('btnGuardarNombre').addEventListener('click', guardarNombre);
+        $('inputNombre').addEventListener('keydown', e => {
+            if (e.key === 'Enter') guardarNombre();
+        });
+        $('btnCerrarNombre').addEventListener('click', () => ocultarOverlay($('overlayNombre')));
+
+        $('btnDeshacer').addEventListener('click', deshacer);
+
+        $('btnTerminar').addEventListener('click', () => terminarPartido(true));
+        $('btnVerResultado').addEventListener('click', () => abrirResultado());
+
+        $('btnReiniciar').addEventListener('click', () => abrirOverlay($('overlayConfirmar')));
+        $('btnCerrarConfirmar').addEventListener('click', () => ocultarOverlay($('overlayConfirmar')));
+        $('btnCancelarReinicio').addEventListener('click', () => ocultarOverlay($('overlayConfirmar')));
+        $('btnConfirmarReinicio').addEventListener('click', reiniciarPartida);
+
+        $('btnNuevaDesdeResultado').addEventListener('click', reiniciarPartida);
+        $('btnCerrarResultado').addEventListener('click', () => ocultarOverlay($('overlayResultado')));
+
+        // Cerrar overlays tocando el fondo oscuro
+        ['overlayNombre', 'overlayConfirmar', 'overlayResultado'].forEach(id => {
+            $(id).addEventListener('click', e => {
+                if (e.target === $(id)) ocultarOverlay($(id));
+            });
+        });
+
+        // ---------- Inicio ----------
+        render();
+    </script>
+</body>
+</html>
