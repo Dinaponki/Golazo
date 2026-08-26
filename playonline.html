@@ -1149,6 +1149,19 @@
             return max;
         }
 
+        // Mano a la que pertenece MI declaración local. CRÍTICO: iniciarNuevaMano()
+        // solo corre en UNO de los dos clientes (el que ejecuta el flujo); el otro
+        // conservaba su declaración de la mano anterior y la volvía a publicar en
+        // la mano nueva (por eso en la 2ª mano se veían números inexistentes).
+        // Una declaración solo es válida si fue hecha EN LA MANO ACTUAL.
+        let declaracionVarEnMano = -1;
+
+        function miDeclaracionValida() {
+            const v = estado.juego.varDeclaraciones.jugador;
+            if (!esNumeroVar(v)) return null;
+            return (declaracionVarEnMano === estado.juego.manoActual) ? v : null;
+        }
+
         // ============ ANTI-REVERSIÓN DE FASES (guerra de escrituras) ============
         // Ambos clientes escriben el estado COMPLETO del juego sobre el mismo
         // nodo de Firebase, así que una escritura desactualizada del rival puede
@@ -1755,9 +1768,16 @@
             // (Antes se leía .rival cuando miLado era 'rival': eso tomaba la
             // declaración del OPONENTE y el jugador unido terminaba publicando
             // el número del otro en su propia clave → ambos veían "X - X".)
-            const miDeclaracionVar = estado.juego.varDeclaraciones.jugador;
+            // Solo publico MI declaración si corresponde a LA MANO ACTUAL:
+            // miDeclaracionValida() descarta valores heredados de otra mano,
+            // así este cliente jamás republica un número de la mano anterior.
+            const miDeclaracionVar = miDeclaracionValida();
             datos['varDeclaraciones/' + estado.miLado] =
                 esNumeroVar(miDeclaracionVar) ? miDeclaracionVar : null;
+            // Etiqueta de mano junto a MI declaración: permite al rival saber si
+            // mi número es de ESTA mano o un residuo de la anterior (los residuos
+            // se ignoran al leer, aunque hayan quedado en el servidor).
+            datos['varDeclMano/' + estado.miLado] = estado.juego.manoActual;
             // RECONCILIACIÓN DE GOLES antes de escribir: se conserva SIEMPRE el
             // valor más alto ya aceptado (los goles nunca bajan en la partida),
             // para que un write desactualizado jamás "borre" un gol del rival.
@@ -2785,21 +2805,37 @@
                         // string, undefined) se trata como "sin declarar" y se
                         // muestra "?" — jamás puede verse "[object Object]".
                         const numVar = (v) => esNumeroVar(v) ? v : null;
-                        const absDeclJ = numVar(j.varDeclaraciones.jugador);
-                        const absDeclR = numVar(j.varDeclaraciones.rival);
+                        // VALIDACIÓN POR MANO: una declaración del servidor solo
+                        // vale si su etiqueta de mano coincide con la mano actual.
+                        // Así un residuo de la mano anterior que haya quedado en
+                        // Firebase NO se muestra ni dispara la resolución.
+                        const manoServ = j.manoActual || 0;
+                        const tags = (j.varDeclMano && typeof j.varDeclMano === 'object') ? j.varDeclMano : {};
+                        const absDeclJ = (numVar(j.varDeclaraciones.jugador) !== null && numVar(tags.jugador) === manoServ) ? j.varDeclaraciones.jugador : null;
+                        const absDeclR = (numVar(j.varDeclaraciones.rival) !== null && numVar(tags.rival) === manoServ) ? j.varDeclaraciones.rival : null;
                         // Red de seguridad anti-parpadeo: si estoy en plena fase
-                        // VAR y YA declaré localmente pero un evento desactualizado
-                        // aún no trae MI clave desde el servidor, conservo mi
-                        // declaración local en vez de pisarla con null (evita que
-                        // el propio panel me muestre "?" y bucles de re-declarar).
+                        // VAR y YA declaré EN ESTA MANO pero un evento
+                        // desactualizado aún no trae MI clave desde el servidor,
+                        // conservo mi declaración local. Los valores de manos
+                        // anteriores NUNCA se conservan (ese era el bug que
+                        // mostraba números inexistentes en la 2ª mano).
                         const previas = estado.juego.varDeclaraciones;
                         const enFaseVar = estado.juego.fase === 'var_pedido';
+                        const miaLocalValida = (declaracionVarEnMano === manoServ) && esNumeroVar(previas.jugador);
                         const mia = (estado.miLado === 'jugador' ? absDeclJ : absDeclR);
                         const delRival = (estado.miLado === 'jugador' ? absDeclR : absDeclJ);
                         estado.juego.varDeclaraciones = {
-                            jugador: (mia !== null || !enFaseVar) ? mia : (esNumeroVar(previas.jugador) ? previas.jugador : null),
-                            rival: (delRival !== null || !enFaseVar) ? delRival : (esNumeroVar(previas.rival) ? previas.rival : null)
+                            jugador: (mia !== null) ? mia : ((enFaseVar && miaLocalValida) ? previas.jugador : null),
+                            rival: delRival
                         };
+                    } else {
+                        // Sin nodo de declaraciones en el evento (ej.: recién
+                        // limpiado al iniciar un VAR): si además ya no estamos en
+                        // fase VAR, limpiar local para no arrastrar valores.
+                        if (estado.juego.fase !== 'var_pedido' && !estado.juego.varPanelVisible) {
+                            estado.juego.varDeclaraciones = { jugador: null, rival: null };
+                            declaracionVarEnMano = -1;
+                        }
                     }
                     estado.juego.golEnMano = j.golEnMano || false;
                     estado.juego.ganadorManoAnterior = aRelativo(j.ganadorManoAnterior);
@@ -3699,7 +3735,7 @@
         function intentarDeclaracionVarAutomatica() {
             if (estado.fase !== 'jugando') return;
             if (estado.juego.fase !== 'var_pedido') return;
-            if (esNumeroVar(estado.juego.varDeclaraciones.jugador)) return; // ya declaré
+            if (miDeclaracionValida() !== null) return; // ya declaré en esta mano
             if (!manoPropiaListaParaVar()) return; // esperar la mano descifrada
             declararVarJugador();
         }
@@ -3721,11 +3757,12 @@
             // así que nadie podía haber declarado todavía: borrar las dos claves
             // acá es seguro y evita arrastrar valores viejos al VAR nuevo.
             if (estado.partidaId) {
-                update(ref(db, 'partidas/' + estado.partidaId + '/juego'), { varDeclaraciones: null }).catch(() => {});
+                update(ref(db, 'partidas/' + estado.partidaId + '/juego'), { varDeclaraciones: null, varDeclMano: null }).catch(() => {});
             }
             const dj = manoPropiaListaParaVar() ? declaracionVarDeMano(estado.juego.manoJugador) : null;
             if (dj !== null) {
                 estado.juego.varDeclaraciones.jugador = dj;
+                declaracionVarEnMano = estado.juego.manoActual;
             }
             if (dom.varPanel && dom.varPanelTexto) {
                 actualizarPanelVar();
@@ -3743,10 +3780,12 @@
 
         function declararVarJugador() {
             if (estado.juego.fase !== 'var_pedido') return;
-            // Ya declaré: no sobrescribir (evita bucles de re-declaración)
-            if (esNumeroVar(estado.juego.varDeclaraciones.jugador)) return;
+            // Ya declaré EN ESTA MANO: no sobrescribir (evita bucles). Una
+            // declaración de otra mano no cuenta y se vuelve a declarar bien.
+            if (miDeclaracionValida() !== null) return;
             const real = declaracionVarDeMano(estado.juego.manoJugador);
             estado.juego.varDeclaraciones.jugador = real;
+            declaracionVarEnMano = estado.juego.manoActual;
             const dr = estado.juego.varDeclaraciones.rival;
             if (dom.varPanel && dom.varPanelTexto) {
                 actualizarPanelVar();
@@ -3762,7 +3801,7 @@
             if (estado.juego.fase !== 'var_pedido') return;
             // Solo el declarante (quien pidió el VAR) resuelve para evitar doble resolución
             if (estado.juego.varTurnoDeclarar !== 'jugador') return;
-            const dj = estado.juego.varDeclaraciones.jugador;
+            const dj = miDeclaracionValida();
             const dr = estado.juego.varDeclaraciones.rival;
             // Ambas declaraciones deben ser números válidos: si falta alguna
             // (o llegó corrupta) simplemente esperar, nunca resolver con basura.
