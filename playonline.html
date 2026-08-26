@@ -2757,10 +2757,16 @@
                         estado.juego.golesJugador = Math.max(Number(estado.juego.golesJugador) || 0, servJ);
                         estado.juego.golesRival = Math.max(Number(estado.juego.golesRival) || 0, servR);
                     }
-                    estado.juego.puntosJugador = estado.miLado === 'jugador' ? (j.puntosJugador || 0) : (j.puntosRival || 0);
-                    estado.juego.puntosRival = estado.miLado === 'jugador' ? (j.puntosRival || 0) : (j.puntosJugador || 0);
-                    estado.juego.puntosManoJugador = estado.miLado === 'jugador' ? (j.puntosManoJugador || 0) : (j.puntosManoRival || 0);
-                    estado.juego.puntosManoRival = estado.miLado === 'jugador' ? (j.puntosManoRival || 0) : (j.puntosManoJugador || 0);
+                    // ANTI-REVERSIÓN también para los PUNTOS: un eco desactualizado
+                    // del rival no puede borrar los +2 recién otorgados (ej. penal
+                    // atajado) ni devolver el marcador al valor previo al canto.
+                    const esEcoFaseVieja = esEcoDeFaseVieja(j);
+                    if (!esEcoFaseVieja) {
+                        estado.juego.puntosJugador = estado.miLado === 'jugador' ? (j.puntosJugador || 0) : (j.puntosRival || 0);
+                        estado.juego.puntosRival = estado.miLado === 'jugador' ? (j.puntosRival || 0) : (j.puntosJugador || 0);
+                        estado.juego.puntosManoJugador = estado.miLado === 'jugador' ? (j.puntosManoJugador || 0) : (j.puntosManoRival || 0);
+                        estado.juego.puntosManoRival = estado.miLado === 'jugador' ? (j.puntosManoRival || 0) : (j.puntosManoJugador || 0);
+                    }
                     estado.juego.manoActual = j.manoActual || 0;
                     estado.juego.rondaActual = j.rondaActual || 0;
                     estado.juego.turnoActual = aRelativo(j.turnoActual);
@@ -2769,7 +2775,7 @@
                     // ANTI-REVERSIÓN: si este evento es un eco desactualizado de la
                     // fase que acabo de abandonar (defensa activa), NO mapear los
                     // campos de control: conservo mi estado local ya avanzado.
-                    const esEcoFaseVieja = esEcoDeFaseVieja(j);
+                    // (esEcoFaseVieja ya fue calculado arriba junto a los puntos.)
                     if (!esEcoFaseVieja) {
                     // Convertir fase: 'esperando_rival' absoluto → relativo
                     if (j.fase === 'esperando_rival') {
@@ -3154,6 +3160,7 @@
             estado.juego.penalCartas = [];
 
             if (!atacanteJugoDel) {
+                // Reglas: atacante sin Delantero -> +2 puntos para el defensor
                 const golPorPuntos = sumarPuntos(atacanteEsJugador ? 'rival' : 'jugador', 2);
                 mostrarMensaje('Atacante sin delantero - +2 defensor');
                 if (golPorPuntos) setTimeout(finalizarMano, 2200);
@@ -3168,6 +3175,8 @@
                     convertirGol(quienAtaca);
                     mostrarMensaje('⚽ ¡GOL! Penal exitoso');
                 } else {
+                    // Reglas: Arquero ataja el penal -> +2 PUNTOS (2 estrellas)
+                    // para el defensor. Nunca 1: este valor es fijo.
                     sumarPuntos(atacanteEsJugador ? 'rival' : 'jugador', 2);
                     mostrarMensaje('Arquero ataja el penal');
                 }
