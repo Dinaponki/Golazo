@@ -1697,22 +1697,25 @@
             datos.golesRival = estado.miLado === 'jugador' ? estado.juego.golesRival : estado.juego.golesJugador;
             datos.ultimaActividad = Date.now();
             // DECLARACIONES DEL VAR: cada cliente escribe SOLO su propio campo
-            // (nunca el del rival), salvo en el reinicio de mano, donde se limpian
-            // AMBOS explícitamente para que ninguna declaración vieja sobreviva.
-            if (estado.juego.varReinicioPendiente) {
-                datos.varDeclaraciones = { jugador: null, rival: null };
-                estado.juego.varReinicioPendiente = false;
-            } else {
-                const miCampoVarAbs = estado.miLado === 'jugador' ? 'jugador' : 'rival';
-                const miValVar = estado.miLado === 'jugador'
-                    ? estado.juego.varDeclaraciones.jugador
-                    : estado.juego.varDeclaraciones.rival;
-                // Escribo SOLO si es una declaración etiquetada {v, m}: 'v' es mi
-                // número y 'm' la mano a la que pertenece. Una declaración de otra
-                // mano nunca se confunde con la actual (el receptor la descarta).
-                if (miValVar && typeof miValVar === 'object' && typeof miValVar.v === 'number') {
-                    datos['varDeclaraciones/' + miCampoVarAbs] = miValVar;
-                }
+            // (nunca el del rival). NO existe limpieza explícita al cambiar de
+            // mano Y ES A PROPÓSITO: las declaraciones viajan etiquetadas con la
+            // mano de origen ({v, m}), así que cualquier valor de una mano
+            // anterior se invalida SOLO. Una limpieza tipo {jugador:null,
+            // rival:null} era DESTRUCTIVA: al ir encolada detrás del cifrado de
+            // las nuevas manos (que puede tardar segundos esperando la clave
+            // pública del rival), aterrizaba DESPUÉS de que el rival ya había
+            // declarado en la mano nueva y BORRABA su declaración → en la
+            // pantalla del otro quedaba "?" para siempre (él no la re-envía
+            // porque localmente ya se considera declarado).
+            const miCampoVarAbs = estado.miLado === 'jugador' ? 'jugador' : 'rival';
+            const miValVar = estado.miLado === 'jugador'
+                ? estado.juego.varDeclaraciones.jugador
+                : estado.juego.varDeclaraciones.rival;
+            // Escribo SOLO si es una declaración etiquetada {v, m}: 'v' es mi
+            // número y 'm' la mano a la que pertenece. Una declaración de otra
+            // mano nunca se confunde con la actual (el receptor la descarta).
+            if (miValVar && typeof miValVar === 'object' && typeof miValVar.v === 'number') {
+                datos['varDeclaraciones/' + miCampoVarAbs] = miValVar;
             }
             await update(juegoRef, datos);
             // GARANTÍA FINAL: fijar los goles con transacciones monótonas
@@ -2314,6 +2317,11 @@
         let partidaListener = null;
         let ultimoEstadoJuego = null;
         let varYaResolviendo = false;
+        // Red de seguridad de declaraciones del VAR: ¿el servidor tiene mi
+        // declaración válida para la mano actual? y ¿cuándo republicué por última
+        // vez? (evita spamear transacciones si el servidor pierde mi valor)
+        let varServidorTieneMiDecl = false;
+        let varUltimaRepublicacion = 0;
         let salidaRepentinaRegistrada = false;
         let limpiezaEsperaRegistrada = null;
         // true SOLO cuando el abandono lo inicié YO desde este dispositivo
@@ -2756,6 +2764,10 @@
                             jugador: varDeclValida(miaLocal) ? miaLocal : (servMiaRel || null),
                             rival: servRivalRel || null
                         };
+                        // ¿El servidor tiene MI declaración válida para esta mano?
+                        // Lo usa la red de seguridad de abajo para re-publicarla
+                        // si alguna escritura rezagada se la llevó puesta.
+                        varServidorTieneMiDecl = varDeclValida(servMiaRel);
                     }
                     estado.juego.golEnMano = j.golEnMano || false;
                     estado.juego.ganadorManoAnterior = aRelativo(j.ganadorManoAnterior);
@@ -2901,12 +2913,22 @@
                         // interna de pedirDeclararVar evita reintentos apilados.
                         if (!varDeclValida(miDeclare)) {
                             pedirDeclararVar();
-                        } else if (varDeclValida(rivalDeclare)) {
-                            // Ambos ya declaramos → solo el declarante resuelve
-                            if (estado.juego.varTurnoDeclarar === 'jugador') {
-                                varYaResolviendo = true;
-                                verificarVarResolucion();
-                                varYaResolviendo = false;
+                        } else {
+                            // RED DE SEGURIDAD: ya declaré localmente, pero el
+                            // servidor NO tiene mi declaración (alguna escritura
+                            // vieja la borró). Re-publico la mía, con tope de 1 vez
+                            // por segundo para no spamear transacciones.
+                            if (!varServidorTieneMiDecl && Date.now() - varUltimaRepublicacion > 1000) {
+                                varUltimaRepublicacion = Date.now();
+                                asegurarMiVarDeclaracion();
+                            }
+                            if (varDeclValida(rivalDeclare)) {
+                                // Ambos ya declaramos → solo el declarante resuelve
+                                if (estado.juego.varTurnoDeclarar === 'jugador') {
+                                    varYaResolviendo = true;
+                                    verificarVarResolucion();
+                                    varYaResolviendo = false;
+                                }
                             }
                         }
                     }
@@ -3362,10 +3384,12 @@
             estado.juego.cantoPendiente = null;
             estado.juego.esperandoRespuestaDe = null;
             estado.juego.varDeclaraciones = { jugador: null, rival: null };
-            // Al empezar una mano nueva, AMBOS campos de declaración del VAR deben
-            // limpiarse explícitamente en Firebase (el write normal ya no toca el
-            // campo del rival, así que el reinicio se marca con este flag).
-            estado.juego.varReinicioPendiente = true;
+            // NOTA: ya NO se limpian las declaraciones en Firebase al empezar la
+            // mano. Las declaraciones están etiquetadas con la mano ({v, m}), así
+            // que los valores de la mano anterior se invalidan solos. Una limpieza
+            // explícita aquí era el bug del "?": la escritura, encolada tras el
+            // cifrado lento de las manos nuevas, aterrizaba segundos después y
+            // borraba la declaración que el rival YA había hecho en esta mano.
             estado.juego.varPedidoPor = null;
             estado.juego.varPanelVisible = false;
             estado.juego.ganadorManoAnterior = null;
