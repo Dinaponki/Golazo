@@ -178,13 +178,13 @@
         }
 
         .mesa-cartas .carta-img {
-            /* Las cartas de la MESA usan el tamaño calculado para la mesa
-               (--carta-mesa): cabe SIEMPRE completa en la zona de mesa, sin
-               recortarse en móviles. Antes usaban el tamaño de la mano
-               (--carta-mano) y podían quedar cortadas. */
-            width: var(--carta-mesa);
+            /* Tamaño ORIGINAL de las cartas en la mesa (igual que siempre):
+               usan el tamaño de la mano. NO cambiar a --carta-mesa (queda más
+               grande). El recorte en móviles lo causaba un overflow:hidden,
+               ya eliminado; la mesa debe quedar SIEMPRE en overflow:visible. */
+            width: var(--carta-mano);
             height: auto;
-            max-height: var(--carta-mesa-max-h);
+            max-height: var(--carta-mano-max-h);
             filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.4));
         }
 
