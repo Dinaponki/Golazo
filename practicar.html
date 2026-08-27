@@ -1791,12 +1791,14 @@
                 dom.mesaCartas.innerHTML = '';
                 const esMovil = window.innerWidth < 768;
 
-                // Durante un canto (penal/gol/golazo) solo se muestran las cartas del canto,
-                // para que se vean bien y no se mezclen con las de rondas anteriores.
+                // Durante un canto (penal/gol/golazo) solo se muestran las cartas del
+                // canto — AUNQUE todavía no haya ninguna: así las cartas de la ronda
+                // anterior salen de la mesa en el momento en que el canto se acepta,
+                // y el canto se ejecuta limpio, sin cartas de por medio.
                 let cartasVisibles;
-                if (estado.penalActivo && estado.penalCartas.length) {
+                if (estado.penalActivo) {
                     cartasVisibles = estado.penalCartas;
-                } else if (estado.golActivo && estado.golCartas.length) {
+                } else if (estado.golActivo) {
                     cartasVisibles = estado.golCartas;
                 } else {
                     const inicio = estado.inicioRonda || 0;
@@ -2825,6 +2827,10 @@
                 estado.penalActivo = false;
                 estado.penalAtacante = null;
                 estado.penalCartas = [];
+                // El canto terminó: mover el inicio de la ronda más allá de las
+                // cartas del canto para que las cartas anteriores no vuelvan a
+                // aparecer en la mesa después de resuelto el penal.
+                estado.inicioRonda = estado.cartasEnMesa.length;
 
                 if (!atacanteJugoDel) {
                     const golPorPuntos = sumarPuntos(atacanteEsJugador ? 'cpu' : 'jugador', 2);
@@ -2875,6 +2881,10 @@
                 estado.golActivo = false;
                 estado.golAtacante = null;
                 estado.golCartas = [];
+                // El canto terminó (el gol/golazo siempre termina la mano): mover el
+                // inicio de ronda más allá de las cartas del canto para que las
+                // cartas anteriores no vuelvan a aparecer en la mesa.
+                estado.inicioRonda = estado.cartasEnMesa.length;
 
                 // Solo puede ganar el atacante si jugó un Delantero
                 if (!atacanteJugoDel) {

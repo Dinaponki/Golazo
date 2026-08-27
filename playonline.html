@@ -1396,12 +1396,14 @@
             dom.mesaCartas.innerHTML = '';
             const esMovil = window.innerWidth < 768;
 
-            // Durante un canto (penal/gol/golazo) solo se muestran las cartas del canto,
-            // para que se vean bien y no se mezclen con las de rondas anteriores.
+            // Durante un canto (penal/gol/golazo) solo se muestran las cartas del
+            // canto — AUNQUE todavía no haya ninguna: así las cartas de la ronda
+            // anterior salen de la mesa en el momento en que el canto se acepta,
+            // y el canto se ejecuta limpio, sin cartas de por medio.
             let cartasVisibles;
-            if (estado.juego.penalActivo && estado.juego.penalCartas.length) {
+            if (estado.juego.penalActivo) {
                 cartasVisibles = estado.juego.penalCartas;
-            } else if (estado.juego.golActivo && estado.juego.golCartas.length) {
+            } else if (estado.juego.golActivo) {
                 cartasVisibles = estado.juego.golCartas;
             } else {
                 const inicio = estado.juego.inicioRonda || 0;
@@ -3579,6 +3581,11 @@
             estado.juego.penalActivo = false;
             estado.juego.penalAtacante = null;
             estado.juego.penalCartas = [];
+            // El canto terminó: mover el inicio de la ronda más allá de las cartas
+            // del canto para que las cartas anteriores no vuelvan a aparecer en la
+            // mesa en ninguna renderización posterior (el listener de Firebase
+            // renderiza entre la resolución y el fin de mano).
+            estado.juego.inicioRonda = estado.juego.cartasEnMesa.length;
 
             if (!atacanteJugoDel) {
                 // Reglas: atacante sin Delantero -> +2 puntos para el defensor
@@ -3630,6 +3637,12 @@
             estado.juego.golActivo = false;
             estado.juego.golAtacante = null;
             estado.juego.golCartas = [];
+            // El canto terminó (el gol/golazo siempre termina la mano): mover el
+            // inicio de ronda más allá de las cartas del canto para que las cartas
+            // anteriores no vuelvan a aparecer en la mesa en ninguna renderización
+            // posterior (el listener de Firebase renderiza entre la resolución y
+            // el fin de mano).
+            estado.juego.inicioRonda = estado.juego.cartasEnMesa.length;
 
             if (!atacanteJugoDel) {
                 convertirGol(atacanteEsJugador ? 'rival' : 'jugador');
