@@ -551,6 +551,21 @@
             filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.35));
         }
 
+        /* Animación de reparto: las cartas entran en abanico escalonado,
+           una por una, desde el centro hacia su posición final */
+        @keyframes repartirCarta {
+            0%   { opacity: 0; transform: translateY(48px) scale(0.55) rotate(-7deg); }
+            55%  { opacity: 1; }
+            100% { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); }
+        }
+
+        .mano-jugador .carta-contenedor.repartiendo img.carta-img,
+        .mano-cpu .carta-contenedor.repartiendo img.carta-img {
+            opacity: 0;
+            animation: repartirCarta 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+            will-change: opacity, transform;
+        }
+
         /* Overlay bienvenida */
         .overlay-bienvenida {
             position: fixed;
@@ -1352,6 +1367,7 @@
                 sonidosActivados: true,
                 musicaActivada: true,
                 partidoActivo: false,
+                animarReparto: false,
             };
 
             // Referencias DOM cacheadas
@@ -1654,13 +1670,17 @@
             // --- Renderizado ---
             function renderizarManoCpu() {
                 dom.manoCpu.innerHTML = '';
-                estado.manoCpu.forEach(() => {
+                estado.manoCpu.forEach((_, idx) => {
                     const c = document.createElement('div');
                     c.className = 'carta-contenedor';
                     const img = document.createElement('img');
                     img.src = RUTA_DORSO;
                     img.className = 'carta-img dorso';
                     img.draggable = false;
+                    if (estado.animarReparto) {
+                        c.classList.add('repartiendo');
+                        img.style.animationDelay = (idx * 90) + 'ms';
+                    }
                     c.appendChild(img);
                     dom.manoCpu.appendChild(c);
                 });
@@ -1675,6 +1695,7 @@
 
                 if (!mano.length) {
                     dom.manoJugador.style.height = manoAltura + 'px';
+                    estado.animarReparto = false;
                     return;
                 }
 
@@ -1718,8 +1739,14 @@
                             seleccionarCarta(i);
                         }
                     });
+
+                    if (estado.animarReparto) {
+                        cont.classList.add('repartiendo');
+                        img.style.animationDelay = (i * 90) + 'ms';
+                    }
                     dom.manoJugador.appendChild(cont);
                 });
+                estado.animarReparto = false;
             }
 
             function renderizarMesa() {
@@ -3434,6 +3461,7 @@
                 estado.turnoInicial = nuevoTurnoInicial;
                 estado.turnoActual = estado.turnoInicial;
                 estado.fase = 'esperando_seleccion';
+                estado.animarReparto = true;
 
                 renderizarTodo();
                 if (estado.turnoActual === 'cpu') {
@@ -3552,6 +3580,7 @@
                 estado.partidoActivo = true;
 
                 estado.pausado = false;
+                estado.animarReparto = true;
                 renderizarTodo();
 
                 // Empujar un estado de historial para interceptar el botón "atrás"
@@ -3655,6 +3684,7 @@
                 estado.manoCpu = ordenarMano(manoC);
                 estado.partidoActivo = true;
                 ocultarPanelVar();
+                estado.animarReparto = true;
                 renderizarTodo();
                 reproducirAudioFondo();
                 history.pushState({ juegoIniciado: true }, '', location.href);

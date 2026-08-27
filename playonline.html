@@ -362,6 +362,21 @@
             filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.35));
         }
 
+        /* Animación de reparto: las cartas entran en abanico escalonado,
+           una por una, desde el centro hacia su posición final */
+        @keyframes repartirCarta {
+            0%   { opacity: 0; transform: translateY(48px) scale(0.55) rotate(-7deg); }
+            55%  { opacity: 1; }
+            100% { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); }
+        }
+
+        .mano-jugador .carta-contenedor.repartiendo img.carta-img,
+        .mano-cpu .carta-contenedor.repartiendo img.carta-img {
+            opacity: 0;
+            animation: repartirCarta 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+            will-change: opacity, transform;
+        }
+
         /* ============ OVERLAY LOBBY ============ */
         .overlay-lobby {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -917,6 +932,7 @@
             enPartida: false, fase: 'lobby',
             partidaTerminada: false, // true cuando ya se mostró la pantalla de fin
             esPartidaRapida: false,
+            animarReparto: false,
             sonidosActivados: true, musicaActivada: true,
             juego: {
                 manoJugador: [], manoRival: [],
@@ -1267,6 +1283,10 @@
                 img.src = RUTA_DORSO;
                 img.className = 'carta-img dorso';
                 img.draggable = false;
+                if (estado.animarReparto) {
+                    c.classList.add('repartiendo');
+                    img.style.animationDelay = (i * 90) + 'ms';
+                }
                 c.appendChild(img);
                 dom.manoCpu.appendChild(c);
             }
@@ -1278,7 +1298,7 @@
             const style = getComputedStyle(document.documentElement);
             const anchoCarta = parseFloat(style.getPropertyValue('--carta-mano')) || 100;
             const manoAltura = parseFloat(style.getPropertyValue('--mano-altura')) || 130;
-            if (!mano.length) { dom.manoJugador.style.height = manoAltura + 'px'; return; }
+            if (!mano.length) { dom.manoJugador.style.height = manoAltura + 'px'; estado.animarReparto = false; return; }
             const anchoDisponible = Math.min(window.innerWidth - 32, 920);
             let anchoCartaJugador = anchoCarta * 1.25;
             const factorSuperp = 0.85;
@@ -1312,8 +1332,13 @@
                     if (estado.juego.cartaSeleccionada === i) { jugarCartaSeleccionada(); }
                     else { estado.juego.cartaSeleccionada = i; renderizarManoJugador(); }
                 });
+                if (estado.animarReparto) {
+                    cont.classList.add('repartiendo');
+                    img.style.animationDelay = (i * 90) + 'ms';
+                }
                 dom.manoJugador.appendChild(cont);
             });
+            estado.animarReparto = false;
         }
 
         function renderizarMesa() {
@@ -1712,7 +1737,7 @@
                 estado.juego.manoJugador = mano;
                 // Si era el regalo del reparto, sobrescribirlo con mi mano cifrada
                 // con MI clave local para no dejar el sobre efímero en Firebase
-                if (paquete.tipo === 'regalo') { reescribirManoPropia().catch(() => {}); }
+                if (paquete.tipo === 'regalo') { estado.animarReparto = true; reescribirManoPropia().catch(() => {}); }
                 if (estado.fase === 'jugando' || estado.fase === 'fin') {
                     renderizarTodo();
                     // Si había un VAR esperando MI declaración, declarar ahora
@@ -3171,6 +3196,7 @@
             }
 
             reproducirAudioFondo();
+            estado.animarReparto = true;
             renderizarTodo();
             mostrarMensaje('¡Partida comenzada!');
         }
@@ -3572,6 +3598,7 @@
                 console.error('Error cifrando nueva mano:', error);
                 sincronizarJuego();
             }
+            estado.animarReparto = true;
             renderizarTodo();
         }
 
