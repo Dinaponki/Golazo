@@ -543,12 +543,12 @@
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: var(--borde-redondo);
-            padding: 16px 16px;
+            border-radius: 22px;
+            padding: 22px 18px 24px;
             box-shadow: var(--sombra);
             flex-direction: column;
             align-items: center;
-            gap: 12px;
+            gap: 18px;
         }
 
         .panel-estadisticas-usuario.visible {
@@ -556,9 +556,9 @@
         }
 
         .estadisticas-titulo {
-            font-size: 14px;
+            font-size: 15px;
             font-weight: 800;
-            letter-spacing: 0.06em;
+            letter-spacing: 0.08em;
             text-transform: uppercase;
             color: var(--dorado);
             text-align: center;
@@ -573,77 +573,102 @@
             font-weight: 700;
             color: var(--blanco);
             background: rgba(200, 168, 78, 0.08);
-            border: 1px solid rgba(200, 168, 78, 0.2);
+            border: 1px solid rgba(200, 168, 78, 0.22);
             border-radius: 50px;
-            padding: 6px 16px;
+            padding: 9px 22px;
             flex-wrap: wrap;
         }
 
         .estadisticas-posicion .posicion-numero {
-            font-size: 20px;
+            font-size: 22px;
             font-weight: 900;
             color: var(--dorado);
             font-variant-numeric: tabular-nums;
         }
 
         /* Filtros del panel de estadísticas del usuario */
+        .filtros-grupo {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 7px;
+            width: 100%;
+        }
+
+        .filtros-etiqueta {
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.45);
+        }
+
         .filtros-panel {
             display: flex;
             justify-content: center;
-            gap: 6px;
+            gap: 8px;
             flex-wrap: wrap;
+            width: 100%;
         }
 
         .filtros-panel button {
             background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            color: rgba(255, 255, 255, 0.7);
-            padding: 5px 12px;
+            border: 1.5px solid rgba(255, 255, 255, 0.15);
+            color: rgba(255, 255, 255, 0.78);
+            padding: 10px 18px;
             border-radius: 50px;
-            font-size: 11px;
+            font-size: 13px;
             font-weight: 700;
-            letter-spacing: 0.04em;
+            letter-spacing: 0.02em;
             cursor: pointer;
             transition: var(--transicion);
             font-family: inherit;
             white-space: nowrap;
+            flex: 1 1 auto;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
         }
 
         .filtros-panel button:hover {
             border-color: var(--dorado);
             color: var(--dorado);
+            background: rgba(200, 168, 78, 0.08);
+            transform: translateY(-1px);
         }
 
         .filtros-panel button.activo {
-            background: rgba(200, 168, 78, 0.15);
+            background: rgba(200, 168, 78, 0.16);
             border-color: var(--dorado);
             color: var(--dorado);
+            box-shadow: 0 4px 16px rgba(200, 168, 78, 0.25);
         }
 
         .estadisticas-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
+            gap: 10px;
             width: 100%;
         }
 
         .estadistica-item {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 10px;
-            padding: 8px 4px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 14px;
+            padding: 12px 6px 11px;
             text-align: center;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 2px;
+            gap: 3px;
             min-width: 0;
             overflow: hidden;
         }
 
         .estadistica-item .valor {
-            font-size: 17px;
+            font-size: 18px;
             font-weight: 800;
             color: var(--blanco);
             line-height: 1.2;
@@ -656,38 +681,51 @@
 
         .estadistica-item .valor.puntos-valor {
             color: var(--dorado);
-            font-size: 19px;
+            font-size: 20px;
         }
 
         .estadistica-item .etiqueta {
-            font-size: 9px;
+            font-size: 9.5px;
             font-weight: 700;
-            letter-spacing: 0.06em;
+            letter-spacing: 0.07em;
             text-transform: uppercase;
-            color: rgba(255, 255, 255, 0.5);
+            color: rgba(255, 255, 255, 0.55);
             white-space: nowrap;
+        }
+
+        /* Etiqueta de la última tarjeta (DIF): más ancha */
+        .estadistica-item:nth-child(9) .etiqueta {
+            letter-spacing: 0.04em;
         }
 
         @media (min-width: 768px) {
             .panel-estadisticas-usuario {
-                padding: 18px 20px;
+                padding: 26px 26px 28px;
             }
 
-            .estadisticas-grid {
-                grid-template-columns: repeat(3, 1fr);
+            .filtros-panel {
                 gap: 10px;
             }
 
+            .filtros-panel button {
+                padding: 11px 22px;
+                font-size: 14px;
+            }
+
+            .estadisticas-grid {
+                gap: 12px;
+            }
+
             .estadistica-item {
-                padding: 10px 6px;
+                padding: 14px 7px 13px;
             }
 
             .estadistica-item .valor {
-                font-size: 19px;
+                font-size: 20px;
             }
 
             .estadistica-item .valor.puntos-valor {
-                font-size: 21px;
+                font-size: 22px;
             }
 
             .estadistica-item .etiqueta {
@@ -753,27 +791,27 @@
         .perfil-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
+            gap: 10px;
             width: 100%;
         }
 
         .perfil-item {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 10px;
-            padding: 8px 4px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 14px;
+            padding: 12px 6px 11px;
             text-align: center;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 2px;
+            gap: 3px;
             min-width: 0;
             overflow: hidden;
         }
 
         .perfil-item .valor {
-            font-size: 17px;
+            font-size: 18px;
             font-weight: 800;
             color: var(--blanco);
             line-height: 1.2;
@@ -786,16 +824,38 @@
 
         .perfil-item .valor.puntos-valor {
             color: var(--dorado);
-            font-size: 19px;
+            font-size: 20px;
         }
 
         .perfil-item .etiqueta {
-            font-size: 9px;
+            font-size: 9.5px;
             font-weight: 700;
-            letter-spacing: 0.06em;
+            letter-spacing: 0.07em;
             text-transform: uppercase;
-            color: rgba(255, 255, 255, 0.5);
+            color: rgba(255, 255, 255, 0.55);
             white-space: nowrap;
+        }
+
+        @media (min-width: 768px) {
+            .perfil-grid {
+                gap: 12px;
+            }
+
+            .perfil-item {
+                padding: 14px 7px 13px;
+            }
+
+            .perfil-item .valor {
+                font-size: 20px;
+            }
+
+            .perfil-item .valor.puntos-valor {
+                font-size: 22px;
+            }
+
+            .perfil-item .etiqueta {
+                font-size: 10px;
+            }
         }
 
         /* ---------- Logros en perfil ---------- */
@@ -872,8 +932,8 @@
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: var(--borde-redondo);
-            padding: 24px 16px;
+            border-radius: 22px;
+            padding: 28px 18px 26px;
             box-shadow: var(--sombra);
         }
 
@@ -882,53 +942,88 @@
             font-weight: 800;
             color: var(--dorado);
             text-align: center;
-            margin-bottom: 16px;
-            letter-spacing: 0.04em;
+            margin-bottom: 20px;
+            letter-spacing: 0.05em;
         }
 
         .tabla-ranking-wrap {
             overflow-x: auto;
             width: 100%;
-            border-radius: 10px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.02);
             -webkit-overflow-scrolling: touch;
         }
 
         .tabla-ranking {
             width: 100%;
             border-collapse: collapse;
-            min-width: 580px;
+            min-width: 620px;
             font-size: 13px;
         }
 
         .tabla-ranking th,
         .tabla-ranking td {
-            padding: 10px 8px;
+            padding: 13px 10px;
             text-align: center;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.07);
             white-space: nowrap;
         }
 
         .tabla-ranking th {
-            color: rgba(255, 255, 255, 0.45);
+            color: rgba(255, 255, 255, 0.5);
             font-size: 11px;
             text-transform: uppercase;
-            letter-spacing: 0.06em;
-            font-weight: 700;
+            letter-spacing: 0.08em;
+            font-weight: 800;
+            background: rgba(255, 255, 255, 0.04);
+            padding-top: 11px;
+            padding-bottom: 11px;
+            border-bottom: 1px solid rgba(200, 168, 78, 0.2);
+        }
+
+        .tabla-ranking tbody tr:nth-child(odd) td {
+            background: rgba(255, 255, 255, 0.015);
+        }
+
+        .tabla-ranking tbody tr:last-child td {
+            border-bottom: none;
         }
 
         .tabla-ranking tr:hover td {
-            background: rgba(200, 168, 78, 0.06);
+            background: rgba(200, 168, 78, 0.09);
         }
 
         .tabla-ranking .posicion {
             font-weight: 800;
             font-size: 14px;
-            width: 30px;
+            width: 40px;
             color: rgba(255, 255, 255, 0.5);
+        }
+
+        .tabla-ranking .posicion.top1 {
+            color: #ffd75e;
         }
 
         .tabla-ranking .posicion.top3 {
             color: var(--dorado);
+            font-weight: 900;
+        }
+
+        .puesto-bloque {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 26px;
+            height: 26px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .tabla-ranking tr:hover .puesto-bloque {
+            border-color: rgba(200, 168, 78, 0.4);
         }
 
         .tabla-ranking .td-nick {
@@ -957,15 +1052,15 @@
 
         .buscador-ranking {
             width: 100%;
-            margin-bottom: 12px;
+            margin-bottom: 16px;
         }
 
         .input-buscador {
             width: 100%;
-            padding: 12px 16px;
-            border-radius: 12px;
-            border: 2px solid #333;
-            background: #333;
+            padding: 14px 18px;
+            border-radius: 50px;
+            border: 1.5px solid rgba(255, 255, 255, 0.15);
+            background: rgba(0, 0, 0, 0.3);
             color: var(--blanco);
             font-size: 14px;
             font-weight: 600;
@@ -976,29 +1071,53 @@
 
         .input-buscador:focus {
             border-color: var(--dorado);
-            background: #3a3a3a;
+            background: rgba(0, 0, 0, 0.45);
+            box-shadow: 0 0 0 3px rgba(200, 168, 78, 0.15);
         }
 
         .input-buscador::placeholder {
-            color: rgba(255, 255, 255, 0.3);
+            color: rgba(255, 255, 255, 0.35);
             font-weight: 400;
         }
 
         .filtros-ranking {
             display: flex;
             justify-content: center;
-            gap: 12px;
+            gap: 8px;
             margin-bottom: 16px;
             flex-wrap: wrap;
         }
 
         .filtros-ranking label {
-            display: flex;
+            display: inline-flex;
             align-items: center;
             gap: 6px;
             cursor: pointer;
             font-size: 13px;
-            color: rgba(255, 255, 255, 0.7);
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            color: rgba(255, 255, 255, 0.78);
+            background: rgba(255, 255, 255, 0.05);
+            border: 1.5px solid rgba(255, 255, 255, 0.15);
+            padding: 10px 18px;
+            border-radius: 50px;
+            transition: var(--transicion);
+            white-space: nowrap;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .filtros-ranking label:hover {
+            border-color: var(--dorado);
+            color: var(--dorado);
+            background: rgba(200, 168, 78, 0.08);
+            transform: translateY(-1px);
+        }
+
+        .filtros-ranking label:has(input:checked) {
+            background: rgba(200, 168, 78, 0.16);
+            border-color: var(--dorado);
+            box-shadow: 0 4px 16px rgba(200, 168, 78, 0.22);
         }
 
         .filtros-ranking input[type="radio"] {
@@ -1007,7 +1126,7 @@
 
         .filtros-ranking input[type="radio"]:checked + span {
             color: var(--dorado);
-            font-weight: 700;
+            font-weight: 800;
         }
 
         /* ---------- Panel Nickname ---------- */
@@ -1209,6 +1328,51 @@
             .boton-anotador .boton-principal {
                 font-size: 18px;
             }
+
+            .panel-estadisticas-usuario {
+                padding: 18px 14px 20px;
+                gap: 16px;
+            }
+
+            .filtros-panel {
+                gap: 6px;
+            }
+
+            .filtros-panel button {
+                padding: 9px 13px;
+                font-size: 12px;
+            }
+
+            .filtros-grupo {
+                gap: 6px;
+            }
+
+            .filtros-ranking {
+                gap: 7px;
+            }
+
+            .filtros-ranking label {
+                padding: 9px 14px;
+                font-size: 12px;
+            }
+
+            .ranking-seccion {
+                padding: 22px 12px 20px;
+            }
+
+            .tabla-ranking {
+                font-size: 12px;
+            }
+
+            .tabla-ranking th,
+            .tabla-ranking td {
+                padding: 11px 7px;
+            }
+
+            .estadisticas-grid,
+            .perfil-grid {
+                gap: 8px;
+            }
         }
 
         @media (min-width: 1200px) {
@@ -1291,15 +1455,21 @@
         <!-- Panel de estadísticas del usuario -->
         <div class="panel-estadisticas-usuario" id="panelEstadisticas">
             <div class="estadisticas-titulo">📊 Tu rendimiento</div>
-            <div class="filtros-panel" id="filtrosPanelTipo">
-                <button data-tipo="cpu">🤖 Vs CPU</button>
-                <button data-tipo="online">🌐 Online</button>
+            <div class="filtros-grupo">
+                <span class="filtros-etiqueta">Modo de juego</span>
+                <div class="filtros-panel" id="filtrosPanelTipo">
+                    <button data-tipo="cpu">🤖 Vs CPU</button>
+                    <button data-tipo="online">🌐 Online</button>
+                </div>
             </div>
-            <div class="filtros-panel" id="filtrosPanelPeriodo">
-                <button data-filtro="global">Global</button>
-                <button data-filtro="mes">Mes actual</button>
-                <button data-filtro="semana">Semana actual</button>
-                <button data-filtro="dia">Día actual</button>
+            <div class="filtros-grupo">
+                <span class="filtros-etiqueta">Período</span>
+                <div class="filtros-panel" id="filtrosPanelPeriodo">
+                    <button data-filtro="global">Todo</button>
+                    <button data-filtro="mes">Mes actual</button>
+                    <button data-filtro="semana">Semana actual</button>
+                    <button data-filtro="dia">Día actual</button>
+                </div>
             </div>
             <div class="estadisticas-posicion">
                 <span>Posición</span>
@@ -2649,8 +2819,10 @@
                 tr.title = 'Ver perfil de ' + nick;
                 tr.addEventListener('click', () => mostrarPerfilJugador(jugador.uid, filtro, tipoActual));
 
+                const clasePos = posicion === 1 ? 'posicion top1 top3' : (posicion <= 3 ? 'posicion top3' : 'posicion');
+
                 tr.innerHTML =
-                    '<td class="posicion' + (posicion <= 3 ? ' top3' : '') + '">' + posicion + '</td>' +
+                    '<td class="' + clasePos + '"><span class="puesto-bloque">' + posicion + '</span></td>' +
                     '<td class="td-nick">' + escaparHTML(nick) + '</td>' +
                     '<td class="puntos-td">' + stats.puntos + '</td>' +
                     '<td>' + stats.pj + '</td>' +
