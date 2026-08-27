@@ -2256,8 +2256,11 @@
                     !pre.creador) {
                     // Entrada FANTASMA o que apunta a una partida muerta/ya tomada
                     // (terminada, borrada, con rival...): limpiarla acá mismo para
-                    // que no envenene el matchmaking de ningún otro jugador
-                    if (!pre || pre.estado !== 'esperando') remove(ref(db, 'cola_rapido/' + rivalKey)).catch(() => {});
+                    // que no envenene el matchmaking de ningún otro jugador.
+                    // También si la partida sigue 'esperando' pero YA TIENE rival:
+                    // es un residuo de una unión recién hecha (la entrada del
+                    // anfitrión debió salir de la cola) y no sirve para nadie.
+                    if (!pre || pre.estado !== 'esperando' || (pre.unido && pre.unido.uid)) remove(ref(db, 'cola_rapido/' + rivalKey)).catch(() => {});
                     return false;
                 }
 
@@ -2492,6 +2495,10 @@
             dom.btnJugarRapido.disabled = true;
             dom.btnCrearPartida.disabled = true;
             dom.btnUnirsePartida.disabled = true;
+            // Código de la partida que ESTE intento llegue a crear: si algo falla
+            // a mitad de camino, el catch la borra para no dejar una partida
+            // fantasma en el matchmaking ni un estado colgado en este cliente.
+            let codigoCreado = null;
             try {
                 // Buscar rivales esperando en la cola de matchmaking
                 const colaRef = ref(db, 'cola_rapido');
@@ -2529,6 +2536,7 @@
                     codigo, creador: { uid: estado.usuario.uid, nickname: estado.nickname || 'Jugador', fotoURL: estado.fotoURL || '', listo: true },
                     unido: null, estado: 'esperando', rapida: true, creadoEn: Date.now(), ultimaActividad: Date.now()
                 });
+                codigoCreado = codigo;
                 // Añadir a la cola de matchmaking
                 const colaEntry = ref(db, 'cola_rapido/' + estado.usuario.uid);
                 await set(colaEntry, {
@@ -2592,6 +2600,19 @@
                 buscandoRapido = false;
             } catch (error) {
                 console.error('Error en búsqueda rápida:', error);
+                // Limpieza best-effort del intento fallido: borrar la partida que
+                // este intento creó (si llegó a crearse) y mi entrada de la cola,
+                // para no dejar fantasmas que envenenen el matchmaking de otros
+                // jugadores ni basura que nunca se limpie sola.
+                try {
+                    if (codigoCreado) await remove(ref(db, 'partidas/' + codigoCreado));
+                    if (estado.usuario) await remove(ref(db, 'cola_rapido/' + estado.usuario.uid));
+                } catch (e) { /* best effort: el barrido automático la eliminará */ }
+                if (estado.partidaId === codigoCreado) {
+                    estado.partidaId = null;
+                    estado.miLado = null;
+                    estado.fase = 'lobby';
+                }
                 // Mostrar el código de error real para diagnosticar
                 const codigoError = error && (error.code || error.message || 'desconocido');
                 console.error('Código de error Firebase:', codigoError);
@@ -4658,6 +4679,17 @@
                         // No tocar la partida VIVA en la que estoy parado; la mía
                         // ya TERMINADA sí puedo barrerla (el fin ya ocurrió)
                         if (child.key === estado.partidaId && p.estado !== 'terminada') return;
+                        // Nodo huérfano SIN creador: resto parcial de una unión
+                        // rápida interrumpida (se cortó la red entre escribir
+                        // 'unido' y confirmar la partida). No tiene actividad
+                        // propia, así que sin este barrido sobreviviría para
+                        // siempre en la base. Las reglas lo permiten: el borrado
+                        // sin creador/unido entra por la cláusula de nodos sin
+                        // ultimaActividad.
+                        if (!p.creador || !p.creador.uid) {
+                            borrados['partidas/' + child.key] = null;
+                            return;
+                        }
                         const act = p.ultimaActividad || p.creadoEn || 0;
                         if (!act) return;
                         const antiguedad = ahora - act;
