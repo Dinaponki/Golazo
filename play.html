@@ -182,6 +182,9 @@
             min-height: 0;
             padding: 12px;
             overflow: visible;
+            /* Aísla el contexto de pintado de las cartas: evita que los filtros
+               (drop-shadow) "sangren" hacia otros elementos en Firefox. */
+            isolation: isolate;
         }
 
         .mesa-fila {
@@ -198,11 +201,20 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            transition: var(--transicion);
+            /* SIN transition a propósito: los nodos de la mesa se recrean en
+               cada render (innerHTML=''), así que una transición nunca llega a
+               animar nada y en Firefox SOLO provoca artefactos: "fantasmas" o
+               reflejos de la carta desplazados y líneas del drop-shadow. */
             display: flex;
             flex-direction: column;
             align-items: center;
             margin: 0;
+            /* Capa propia de GPU: obliga a Firefox a pintar cada carta en un
+               plano separado y elimina el fantasma/reflejo que dejaba atrás al
+               reposicionarlas (artefacto conocido de filter+transform). */
+            will-change: transform, opacity, filter;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
         }
 
         .mesa-cartas .carta-contenedor.ganadora {
@@ -520,6 +532,9 @@
             background: transparent;
             object-fit: contain;
             transition: var(--transicion);
+            /* Evita líneas/costuras del drop-shadow al escalar en Firefox */
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
         }
 
         .mano-cpu .carta-img {
@@ -1897,8 +1912,11 @@
                 }
                 if (!cartasVisibles.length) return;
 
-                const filaMesa = document.createElement('div');
-                filaMesa.className = 'mesa-fila';
+                // Las cartas se agregan ABSOLUTAS sobre el contenedor .mesa-cartas
+                // (position:relative, 100% x 100%): así quedan SIEMPRE centradas en
+                // la mesa sin depender del ancho de .mesa-fila, que en algunos
+                // navegadores móviles colapsaba y dejaba las cartas pegadas a un
+                // costado o recortadas.
 
                 // Agrupar cartas por ronda (de a 2: una mía + una del CPU)
                 const rondas = [];
@@ -1917,7 +1935,7 @@
                         if (uj.carta.numero > uc.carta.numero) ganadorOrigen = 'jugador';
                         else if (uc.carta.numero > uj.carta.numero) ganadorOrigen = 'cpu';
                     }
-                    const esRondaActual = ri === rondas.length - 1;
+                    const esRondaActiva = ri === rondas.length - 1;
 
                     ronda.forEach((item) => {
                         const cont = document.createElement('div');
@@ -1931,15 +1949,23 @@
 
                         const esCpu = item.origen === 'cpu';
                         // Si ambas cartas están en la mesa, se superponen como en un juego real:
-                        // cada carta queda del lado de quien la tiró y se acercan al enfrentar.
-                        // En móvil se baja el grupo para que quede entre los textos de turno.
-                        const sep = ambos ? (esMovil ? 7 : 12) : (esMovil ? 10 : 24);
-                        const ty = esCpu ? -sep : sep;
-                        const tx = (ri % 2 === 0 ? -1 : 1) * 8;
+                        // cada carta queda del lado de quien la ubica y se acercan al enfrentar.
+                        // Se usa desplazamiento en PÍXELES desde el centro del contenedor:
+                        // así el grupo nunca se sale de la pantalla hacia los costados
+                        // (bug visual en Firefox con top:95% + translateY en %).
+                        const sepPx = ambos ? (esMovil ? 9 : 13) : 0;
+                        const tyPx = esCpu ? -sepPx : sepPx;
+                        const txPx = (ri % 2 === 0 ? -1 : 1) * (esMovil ? 6 : 9);
 
-                        cont.style.top = esMovil ? '95%' : '50%';
+                        // En MÓVIL las cartas se bajan al 92% de la zona de mesa (igual que
+                        // en el modo online): la mesa ya es overflow:visible, así que nunca
+                        // se recortan. En PC se mantienen centradas (50%).
+                        // El translateZ(0) fuerza una capa propia de GPU para la carta: evita
+                        // el "reflejo/fantasma" y las líneas que Firefox deja al repintar
+                        // cartas con drop-shadow + transform.
+                        cont.style.top = esMovil ? '92%' : '50%';
                         cont.style.left = '50%';
-                        cont.style.transform = `translate(-50%, -50%) translateX(${tx}px) translateY(${ty}%)`;
+                        cont.style.transform = `translate(-50%, -50%) translateZ(0) translateX(${txPx}px) translateY(${tyPx}px)`;
 
                         // Resaltar quién mata a quién
                         if (ganadorOrigen === item.origen) {
@@ -1947,13 +1973,13 @@
                         } else if (ganadorOrigen) {
                             cont.classList.add('perdedora-ronda');
                         }
-                        // Rondas anteriores se atenúan
-                        if (!esRondaActual) cont.style.opacity = '0.45';
+                        // Rondas anteriores se atenúan (pero no tanto como para que
+                        // parezcan "una carta rara a la izquierda con baja opacidad")
+                        if (!esRondaActiva) cont.style.opacity = '0.6';
 
-                        filaMesa.appendChild(cont);
+                        dom.mesaCartas.appendChild(cont);
                     });
                 });
-                dom.mesaCartas.appendChild(filaMesa);
             }
 
             function renderizarEstrellas(mostrarTresEstrellas) {
