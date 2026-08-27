@@ -568,6 +568,32 @@
         }
         .mensaje-flotante.mostrar { transform: translate(-50%, -50%) scale(1); }
 
+        /* Reloj de turno (modo online) */
+        .reloj-turno {
+            position: fixed;
+            top: clamp(6px, 1.5vh, 14px);
+            right: clamp(10px, 2.5vw, 20px);
+            z-index: 260;
+            background: rgba(0, 0, 0, 0.78);
+            color: var(--dorado);
+            border: 2px solid var(--dorado);
+            padding: clamp(5px, 1vh, 8px) clamp(12px, 2.5vw, 18px);
+            border-radius: 50px;
+            font-size: clamp(14px, 3.2vmin, 18px);
+            font-weight: 800; letter-spacing: 0.04em;
+            display: flex; align-items: center;
+            gap: 4px;
+            box-shadow: var(--sombra-suave);
+            pointer-events: none;
+            user-select: none; -webkit-user-select: none;
+        }
+        .reloj-turno[hidden] { display: none; }
+        .reloj-turno.medio { color: #f1c40f; border-color: #f1c40f; }
+        .reloj-turno.bajo {
+            color: #e74c3c; border-color: #e74c3c;
+            animation: latido 0.6s ease-in-out infinite;
+        }
+
         /* Panel VAR */
         .var-panel {
             background: rgba(0, 0, 0, 0.85);
@@ -743,6 +769,9 @@
     <!-- Mensaje flotante -->
     <div class="mensaje-flotante" id="mensajeFlotante"></div>
 
+    <!-- Reloj de turno (modo online) -->
+    <div class="reloj-turno" id="relojTurno" hidden>⏱️ 30s</div>
+
     <!-- Audio -->
     <audio id="audioFondo" loop preload="auto"><source src="sounds/background.mp3" type="audio/mpeg"></audio>
     <audio id="sndCarta" preload="auto"><source src="sounds/carta.mp3" type="audio/mpeg"></audio>
@@ -875,6 +904,10 @@
         const RUTA_IMAGENES = 'img/';
         const RUTA_DORSO = 'img/Dorso.png';
         const CODIGO_LENGTH = 6;
+        // Reloj de turno online: máximo de segundos para actuar por turno.
+        // Si el turno se agota sin que el jugador haga su movimiento, se
+        // registra automáticamente un abandono (el rival gana la partida).
+        const TIEMPO_TURNO_MS = 30000;
 
         // ============ ESTADO ============
         const estado = {
@@ -947,6 +980,7 @@
             dom.btnCancelarSalida = document.getElementById('btnCancelarSalida');
             dom.btnConfirmarSalida = document.getElementById('btnConfirmarSalida');
             dom.mensajeFlotante = document.getElementById('mensajeFlotante');
+            dom.relojTurno = document.getElementById('relojTurno');
             dom.manoCpu = document.getElementById('manoCpu');
             dom.manoJugador = document.getElementById('manoJugador');
             dom.mesaCartas = document.getElementById('mesaCartas');
@@ -1445,6 +1479,80 @@
                     else { dom.btnVar.textContent = '📺 VAR'; }
                     break;
                 default: dom.btnVar.textContent = '📺 VAR';
+            }
+        }
+
+        // ============ RELOJ DE TURNO (modo online, ~30 s por turno) ============
+        // Cada jugador tiene 30 segundos para hacer SU movimiento. Si el turno
+        // se agota sin actuar (jugar carta, responder un canto Quiero/No/VAR/Golazo
+        // o declarar en el VAR), se registra automáticamente un abandono y el
+        // rival gana la partida. El reloj corre SOLO en el cliente al que le toca
+        // jugar; cuando no es mi turno, está oculto y su contador queda descartado.
+        let relojTurnoInicio = 0;       // Date.now() cuando empezó MI turno actual
+        let relojAccionPrevia = null;   // qué debía hacer en mi turno anterior (para reiniciar)
+        let relojAbandonoEnCurso = false;
+
+        // Devuelve una clave con lo que debo hacer AHORA, o null si no es mi turno.
+        // Cambia de valor al pasar de una obligación a otra dentro del mismo turno.
+        function miAccionTurno() {
+            if (estado.fase !== 'jugando' || estado.partidaTerminada) return null;
+            const j = estado.juego;
+            switch (j.fase) {
+                case 'esperando_seleccion':
+                    return j.turnoActual === 'jugador' ? 'jugartr' : null;
+                case 'penal_pedido':
+                case 'gol_pedido':
+                case 'golazo_pedido':
+                case 'var_decision':
+                    return j.esperandoRespuestaDe === 'jugador' ? ('respuesta-' + j.fase) : null;
+                case 'var_pedido':
+                    return j.varTurnoDeclarar === 'jugador' ? 'var-declarar' : null;
+                default:
+                    return null;
+            }
+        }
+
+        function actualizarRelojTurno(segundos) {
+            if (!dom.relojTurno) return;
+            dom.relojTurno.hidden = false;
+            dom.relojTurno.textContent = '⏱️ ' + segundos + 's';
+            segundos <= 5
+                ? (dom.relojTurno.classList.add('bajo'), dom.relojTurno.classList.remove('medio'))
+                : segundos <= 10
+                    ? (dom.relojTurno.classList.add('medio'), dom.relojTurno.classList.remove('bajo'))
+                    : dom.relojTurno.classList.remove('bajo', 'medio');
+        }
+
+        function ocultarRelojTurno() {
+            if (!dom.relojTurno) return;
+            dom.relojTurno.hidden = true;
+            dom.relojTurno.classList.remove('bajo', 'medio');
+        }
+
+        function tickRelojTurno() {
+            // Evitar dobles abandonos mientras se procesa uno
+            if (relojAbandonoEnCurso) return;
+            const accion = miAccionTurno();
+            if (accion === null) {
+                ocultarRelojTurno();
+                relojAccionPrevia = null;
+                return;
+            }
+            // Si cambió la acción (o mi turno arrancó recién), reiniciar el reloj
+            if (relojAccionPrevia !== accion) {
+                relojAccionPrevia = accion;
+                relojTurnoInicio = Date.now();
+            }
+            const transcurrido = Date.now() - relojTurnoInicio;
+            const restante = Math.max(0, Math.ceil((TIEMPO_TURNO_MS - transcurrido) / 1000));
+            actualizarRelojTurno(restante);
+            if (transcurrido >= TIEMPO_TURNO_MS) {
+                console.warn('Reloj de turno agotado: se registra abandono');
+                relojAbandonoEnCurso = true;
+                mostrarMensaje('⏱️ Tiempo de turno agotado');
+                const p = abandonarPartida();
+                if (p && typeof p.then === 'function') { p.finally(() => { relojAbandonoEnCurso = false; }); }
+                else relojAbandonoEnCurso = false;
             }
         }
 
@@ -4691,6 +4799,10 @@ ${link}`;
             });
 
             window.addEventListener('resize', () => { if (estado.fase === 'jugando') renderizarTodo(); });
+
+            // Reloj de turno online: verificar una vez por segundo si toca actuar.
+            // Solo cuenta cuando es MI turno; nada interfiere con la vida normal.
+            setInterval(tickRelojTurno, 1000);
 
             renderizarTodo();
         }
