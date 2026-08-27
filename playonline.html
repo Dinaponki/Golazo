@@ -583,10 +583,12 @@
         }
         .mensaje-flotante.mostrar { transform: translate(-50%, -50%) scale(1); }
 
-        /* Reloj de turno (modo online) */
+        /* Reloj de turno (modo online): DOS relojes visibles para ambos jugadores.
+           El reloj del RIVAL se muestra ARRIBA (cerca de sus dorsos) y el MÍO
+           ABAJO (sobre el marcador, cerca de mi mano). Así cada jugador ve en
+           todo momento cuánto queda en AMBOS turnos. */
         .reloj-turno {
             position: fixed;
-            top: clamp(6px, 1.5vh, 14px);
             right: clamp(10px, 2.5vw, 20px);
             z-index: 260;
             background: rgba(0, 0, 0, 0.78);
@@ -603,6 +605,14 @@
             user-select: none; -webkit-user-select: none;
         }
         .reloj-turno[hidden] { display: none; }
+        /* Reloj del rival: arriba, junto a su zona de cartas */
+        .reloj-turno.reloj-rival {
+            top: clamp(6px, 1.5vh, 14px);
+        }
+        /* Reloj propio: abajo, flotando sobre el marcador */
+        .reloj-turno.reloj-mio {
+            bottom: clamp(74px, 12vh, 118px);
+        }
         .reloj-turno.medio { color: #f1c40f; border-color: #f1c40f; }
         .reloj-turno.bajo {
             color: #e74c3c; border-color: #e74c3c;
@@ -784,8 +794,10 @@
     <!-- Mensaje flotante -->
     <div class="mensaje-flotante" id="mensajeFlotante"></div>
 
-    <!-- Reloj de turno (modo online) -->
-    <div class="reloj-turno" id="relojTurno" hidden>⏱️ 30s</div>
+    <!-- Relojes de turno (modo online): el de ARRIBA es el del RIVAL,
+         el de ABAJO es el MÍO. Ambos jugadores ven los dos. -->
+    <div class="reloj-turno reloj-rival" id="relojTurnoRival" hidden>⏱️ 30s</div>
+    <div class="reloj-turno reloj-mio" id="relojTurno" hidden>⏱️ 30s</div>
 
     <!-- Audio -->
     <audio id="audioFondo" loop preload="auto"><source src="sounds/background.mp3" type="audio/mpeg"></audio>
@@ -997,6 +1009,7 @@
             dom.btnConfirmarSalida = document.getElementById('btnConfirmarSalida');
             dom.mensajeFlotante = document.getElementById('mensajeFlotante');
             dom.relojTurno = document.getElementById('relojTurno');
+            dom.relojTurnoRival = document.getElementById('relojTurnoRival');
             dom.manoCpu = document.getElementById('manoCpu');
             dom.manoJugador = document.getElementById('manoJugador');
             dom.mesaCartas = document.getElementById('mesaCartas');
@@ -1549,11 +1562,18 @@
         // Cada jugador tiene 30 segundos para hacer SU movimiento. Si el turno
         // se agota sin actuar (jugar carta, responder un canto Quiero/No/VAR/Golazo
         // o declarar en el VAR), se registra automáticamente un abandono y el
-        // rival gana la partida. El reloj corre SOLO en el cliente al que le toca
-        // jugar; cuando no es mi turno, está oculto y su contador queda descartado.
+        // rival gana la partida. El abandono lo aplica SIEMPRE el cliente del
+        // jugador en deuda; el otro cliente SOLO muestra el reloj del rival
+        // (arriba) como referencia visual, junto al propio (abajo).
         let relojTurnoInicio = 0;       // Date.now() cuando empezó MI turno actual
         let relojAccionPrevia = null;   // qué debía hacer en mi turno anterior (para reiniciar)
         let relojAbandonoEnCurso = false;
+        // Reloj del RIVAL (solo visual): arranca cuando detecto que el estado
+        // sincronizado le exige actuar. La detección tiene ±1 s de granularidad
+        // (tick de 1 s) más la latencia del listener de Firebase, pero es solo
+        // informativa: el corte real lo hace el propio cliente del rival.
+        let relojRivalInicio = 0;
+        let relojRivalAccionPrevia = null;
 
         // Devuelve una clave con lo que debo hacer AHORA, o null si no es mi turno.
         // Cambia de valor al pasar de una obligación a otra dentro del mismo turno.
@@ -1570,6 +1590,29 @@
                     return j.esperandoRespuestaDe === 'jugador' ? ('respuesta-' + j.fase) : null;
                 case 'var_pedido':
                     return j.varTurnoDeclarar === 'jugador' ? 'var-declarar' : null;
+                default:
+                    return null;
+            }
+        }
+
+        // Espejo de miAccionTurno() pero para el RIVAL: devuelve una clave con lo
+        // que el rival debe hacer AHORA, o null si el turno no es suyo.
+        // IMPORTANTE: la fase local 'esperando_rival' es la que ve este cliente
+        // cuando el estado sincronizado dice que le toca tirar al rival.
+        function miAccionRival() {
+            if (estado.fase !== 'jugando' || estado.partidaTerminada) return null;
+            const j = estado.juego;
+            switch (j.fase) {
+                case 'esperando_seleccion':
+                case 'esperando_rival':
+                    return j.turnoActual === 'rival' ? 'jugartr' : null;
+                case 'penal_pedido':
+                case 'gol_pedido':
+                case 'golazo_pedido':
+                case 'var_decision':
+                    return j.esperandoRespuestaDe === 'rival' ? ('respuesta-' + j.fase) : null;
+                case 'var_pedido':
+                    return j.varTurnoDeclarar === 'rival' ? 'var-declarar' : null;
                 default:
                     return null;
             }
@@ -1592,30 +1635,66 @@
             dom.relojTurno.classList.remove('bajo', 'medio');
         }
 
+        function actualizarRelojRival(segundos) {
+            if (!dom.relojTurnoRival) return;
+            dom.relojTurnoRival.hidden = false;
+            dom.relojTurnoRival.textContent = '⏱️ ' + segundos + 's';
+            segundos <= 5
+                ? (dom.relojTurnoRival.classList.add('bajo'), dom.relojTurnoRival.classList.remove('medio'))
+                : segundos <= 10
+                    ? (dom.relojTurnoRival.classList.add('medio'), dom.relojTurnoRival.classList.remove('bajo'))
+                    : dom.relojTurnoRival.classList.remove('bajo', 'medio');
+        }
+
+        function ocultarRelojRival() {
+            if (!dom.relojTurnoRival) return;
+            dom.relojTurnoRival.hidden = true;
+            dom.relojTurnoRival.classList.remove('bajo', 'medio');
+        }
+
         function tickRelojTurno() {
             // Evitar dobles abandonos mientras se procesa uno
             if (relojAbandonoEnCurso) return;
+            // ---- Reloj PROPIO (abajo): si me toca actuar, cuenta y castiga ----
             const accion = miAccionTurno();
             if (accion === null) {
                 ocultarRelojTurno();
                 relojAccionPrevia = null;
-                return;
+            } else {
+                // Si cambió la acción (o mi turno arrancó recién), reiniciar el reloj
+                if (relojAccionPrevia !== accion) {
+                    relojAccionPrevia = accion;
+                    relojTurnoInicio = Date.now();
+                }
+                const transcurrido = Date.now() - relojTurnoInicio;
+                const restante = Math.max(0, Math.ceil((TIEMPO_TURNO_MS - transcurrido) / 1000));
+                actualizarRelojTurno(restante);
+                if (transcurrido >= TIEMPO_TURNO_MS) {
+                    console.warn('Reloj de turno agotado: se registra abandono');
+                    relojAbandonoEnCurso = true;
+                    mostrarMensaje('⏱️ Tiempo de turno agotado');
+                    const p = abandonarPartida();
+                    if (p && typeof p.then === 'function') { p.finally(() => { relojAbandonoEnCurso = false; }); }
+                    else relojAbandonoEnCurso = false;
+                }
             }
-            // Si cambió la acción (o mi turno arrancó recién), reiniciar el reloj
-            if (relojAccionPrevia !== accion) {
-                relojAccionPrevia = accion;
-                relojTurnoInicio = Date.now();
-            }
-            const transcurrido = Date.now() - relojTurnoInicio;
-            const restante = Math.max(0, Math.ceil((TIEMPO_TURNO_MS - transcurrido) / 1000));
-            actualizarRelojTurno(restante);
-            if (transcurrido >= TIEMPO_TURNO_MS) {
-                console.warn('Reloj de turno agotado: se registra abandono');
-                relojAbandonoEnCurso = true;
-                mostrarMensaje('⏱️ Tiempo de turno agotado');
-                const p = abandonarPartida();
-                if (p && typeof p.then === 'function') { p.finally(() => { relojAbandonoEnCurso = false; }); }
-                else relojAbandonoEnCurso = false;
+            // ---- Reloj del RIVAL (arriba): SOLO visual, nunca castiga ----
+            const accionRival = miAccionRival();
+            if (accionRival === null) {
+                ocultarRelojRival();
+                relojRivalAccionPrevia = null;
+            } else {
+                // Si cambió la acción del rival (o su turno arrancó recién),
+                // reiniciar su reloj. El arranque se detecta con la precisión
+                // del tick (±1 s) + latencia del listener: suficiente para
+                // una referencia visual.
+                if (relojRivalAccionPrevia !== accionRival) {
+                    relojRivalAccionPrevia = accionRival;
+                    relojRivalInicio = Date.now();
+                }
+                const transcurridoR = Date.now() - relojRivalInicio;
+                const restanteR = Math.max(0, Math.ceil((TIEMPO_TURNO_MS - transcurridoR) / 1000));
+                actualizarRelojRival(restanteR);
             }
         }
 
