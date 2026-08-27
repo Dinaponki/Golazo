@@ -1409,6 +1409,19 @@
             }
             if (!cartasVisibles.length) return;
 
+            // Seguridad anti-duplicados: si por una desincronización llegara a
+            // haber la MISMA carta repetida (mismo origen + mismo id), se muestra
+            // una sola vez. Evita la pila de cartas superpuestas y semitrans-
+            // parentes cuando el estado del juego se corrompe.
+            const vistas = new Set();
+            cartasVisibles = cartasVisibles.filter((it) => {
+                const clave = (it.origen || '') + '|' + ((it.carta && it.carta.id) || '') + '|' + ((it.carta && it.carta.numero) ?? '');
+                if (vistas.has(clave)) return false;
+                vistas.add(clave);
+                return true;
+            });
+            if (!cartasVisibles.length) return;
+
             // Las cartas se agregan ABSOLUTAS sobre el contenedor .mesa-cartas
             // (position:relative, 100% x 100%): así quedan SIEMPRE centradas en
             // la mesa sin depender del ancho de .mesa-fila, que en algunos
@@ -3007,12 +3020,41 @@
                     const jAnterior = ultimoEstadoJuego;
                     ultimoEstadoJuego = j;
 
+                    // ============ ANTI-REVERSIÓN VISUAL DE LA MESA ============
+                    // Ambos clientes escriben el estado COMPLETO del juego sobre el
+                    // MISMO nodo, así que un write desactualizado del rival podía
+                    // llegar DESPUÉS y REPONER cartas de rondas o de la mano
+                    // anterior justo cuando la mesa ya estaba más avanzada (o
+                    // limpia). Visualmente eso se ve exactamente como el bug
+                    // reportado: las cartas del centro superpuestas "una debajo de
+                    // la otra" y semitransparentes (las rondas viejas se pintan con
+                    // opacity 0.6). Los goles ya tenían garantía monótona; acá se
+                    // blinda también la información VISUAL de la mesa.
+                    const manoServidor = j.manoActual || 0;
+                    const manoLocal = estado.juego.manoActual || 0;
+                    // Snapshot de una mano ANTERIOR: todo su contenido es viejo
+                    // (las manos solo avanzan, nunca vuelven atrás).
+                    const esSnapshotManoAnterior = manoServidor < manoLocal;
+                    // Snapshot de una mano POSTERIOR: voy atrasado (ej. mi cadena
+                    // local se cortó), aceptar todo tal cual llega.
+                    const avanzoMano = manoServidor > manoLocal;
+                    // manoActual NUNCA baja durante la partida (misma garantía
+                    // monótona que ya tienen los goles).
+                    estado.juego.manoActual = Math.max(manoLocal, manoServidor);
+
                     // Convertir datos absolutos a relativos
                     // Cartas ocultas: la mano propia NUNCA se lee en claro de Firebase
                     // (llega cifrada y se descifra más abajo). Del rival solo se sabe
                     // CUÁNTAS cartas le quedan, nunca cuáles son.
-                    const nCartasRival = estado.miLado === 'jugador' ? (j.nCartasRival || 0) : (j.nCartasJugador || 0);
-                    estado.juego.manoRival = crearManoFantasma(nCartasRival);
+                    if (!esSnapshotManoAnterior) {
+                        const nCartasRival = estado.miLado === 'jugador' ? (j.nCartasRival || 0) : (j.nCartasJugador || 0);
+                        // Misma mano: la cantidad de cartas del rival SOLO BAJA
+                        // (va jugando sus cartas). Un eco viejo que la aumente es
+                        // un eco desactualizado: conservar la local.
+                        if (avanzoMano || nCartasRival <= estado.juego.manoRival.length) {
+                            estado.juego.manoRival = crearManoFantasma(nCartasRival);
+                        }
+                    }
                     // GOLES MONÓTONOS TAMBIÉN EN LOCAL: dentro de una partida los
                     // goles NUNCA bajan, así que el listener debe conservar el
                     // MÁXIMO entre lo que ya tengo y lo que trae el servidor.
@@ -3029,22 +3071,37 @@
                     // del rival no puede borrar los +2 recién otorgados (ej. penal
                     // atajado) ni devolver el marcador al valor previo al canto.
                     const esEcoFaseVieja = esEcoDeFaseVieja(j);
-                    if (!esEcoFaseVieja) {
+                    if (!esEcoFaseVieja && !esSnapshotManoAnterior) {
                         estado.juego.puntosJugador = estado.miLado === 'jugador' ? (j.puntosJugador || 0) : (j.puntosRival || 0);
                         estado.juego.puntosRival = estado.miLado === 'jugador' ? (j.puntosRival || 0) : (j.puntosJugador || 0);
                         estado.juego.puntosManoJugador = estado.miLado === 'jugador' ? (j.puntosManoJugador || 0) : (j.puntosManoRival || 0);
                         estado.juego.puntosManoRival = estado.miLado === 'jugador' ? (j.puntosManoRival || 0) : (j.puntosManoJugador || 0);
                     }
-                    estado.juego.manoActual = j.manoActual || 0;
-                    estado.juego.rondaActual = j.rondaActual || 0;
-                    estado.juego.turnoActual = aRelativo(j.turnoActual);
-                    estado.juego.turnoInicial = aRelativo(j.turnoInicial);
-                    estado.juego.cartasEnMesa = (j.cartasEnMesa || []).map(c => ({ ...c, origen: aRelativo(c.origen) }));
+                    // manoActual ya fue actualizado arriba con garantía monótona.
+                    // MESA MONÓTONA DENTRO DE LA MISMA MANO: cartasEnMesa solo
+                    // acumula cartas y rondaActual/inicioRonda solo avanzan hasta
+                    // que empieza la mano siguiente. Un eco viejo que reverte
+                    // cualquiera de estos valores repone cartas ya retiradas de
+                    // la mesa (la pila semitransparente del bug).
+                    if (!esSnapshotManoAnterior) {
+                        const servMesa = (j.cartasEnMesa || []).map(c => ({ ...c, origen: aRelativo(c.origen) }));
+                        if (avanzoMano || servMesa.length >= estado.juego.cartasEnMesa.length) {
+                            estado.juego.cartasEnMesa = servMesa;
+                        }
+                        if (avanzoMano || (j.rondaActual || 0) >= (estado.juego.rondaActual || 0)) {
+                            estado.juego.rondaActual = j.rondaActual || 0;
+                        }
+                        if (avanzoMano || (j.inicioRonda || 0) >= (estado.juego.inicioRonda || 0)) {
+                            estado.juego.inicioRonda = j.inicioRonda || 0;
+                        }
+                        estado.juego.turnoActual = aRelativo(j.turnoActual);
+                        estado.juego.turnoInicial = aRelativo(j.turnoInicial);
+                    }
                     // ANTI-REVERSIÓN: si este evento es un eco desactualizado de la
                     // fase que acabo de abandonar (defensa activa), NO mapear los
                     // campos de control: conservo mi estado local ya avanzado.
                     // (esEcoFaseVieja ya fue calculado arriba junto a los puntos.)
-                    if (!esEcoFaseVieja) {
+                    if (!esEcoFaseVieja && !esSnapshotManoAnterior) {
                     // Convertir fase: 'esperando_rival' absoluto → relativo
                     if (j.fase === 'esperando_rival') {
                         const turnoRelativo = aRelativo(j.turnoActual);
@@ -3073,7 +3130,7 @@
                     estado.juego.varTurnoDeclarar = aRelativo(j.varTurnoDeclarar);
                     estado.juego.varPanelVisible = j.varPanelVisible || false;
                     }
-                    if (j.varDeclaraciones && typeof j.varDeclaraciones === 'object') {
+                    if (!esSnapshotManoAnterior && j.varDeclaraciones && typeof j.varDeclaraciones === 'object') {
                         // Sanitizar: SOLO un número finito cuenta como declaración.
                         // Cualquier otra cosa (nodo corrupto por escrituras viejas,
                         // string, undefined) se trata como "sin declarar" y se
@@ -3102,28 +3159,30 @@
                             jugador: (mia !== null) ? mia : ((enFaseVar && miaLocalValida) ? previas.jugador : null),
                             rival: delRival
                         };
-                    } else {
+                    } else if (!esSnapshotManoAnterior) {
                         // Sin nodo de declaraciones en el evento (ej.: recién
                         // limpiado al iniciar un VAR): si además ya no estamos en
                         // fase VAR, limpiar local para no arrastrar valores.
+                        // (En un snapshot de mano anterior NO se toca nada: es todo eco.)
                         if (estado.juego.fase !== 'var_pedido' && !estado.juego.varPanelVisible) {
                             estado.juego.varDeclaraciones = { jugador: null, rival: null };
                             declaracionVarEnMano = -1;
                         }
                     }
-                    estado.juego.golEnMano = j.golEnMano || false;
-                    estado.juego.ganadorManoAnterior = aRelativo(j.ganadorManoAnterior);
-                    estado.juego.inicioRonda = j.inicioRonda || 0;
-                    estado.juego.historialManos = (j.historialManos || []).map(h => ({
-                        ...h,
-                        turnoInicial: aRelativo(h.turnoInicial),
-                        golesJugador: estado.miLado === 'jugador' ? h.golesJugador : h.golesRival,
-                        golesRival: estado.miLado === 'jugador' ? h.golesRival : h.golesJugador,
-                        puntosJugador: estado.miLado === 'jugador' ? h.puntosJugador : h.puntosRival,
-                        puntosRival: estado.miLado === 'jugador' ? h.puntosRival : h.puntosJugador,
-                    }));
-                    estado.juego.golesInicioManoJugador = estado.miLado === 'jugador' ? (j.golesInicioManoJugador || 0) : (j.golesInicioManoRival || 0);
-                    estado.juego.golesInicioManoRival = estado.miLado === 'jugador' ? (j.golesInicioManoRival || 0) : (j.golesInicioManoJugador || 0);
+                    if (!esSnapshotManoAnterior) {
+                        estado.juego.golEnMano = j.golEnMano || false;
+                        estado.juego.ganadorManoAnterior = aRelativo(j.ganadorManoAnterior);
+                        estado.juego.historialManos = (j.historialManos || []).map(h => ({
+                            ...h,
+                            turnoInicial: aRelativo(h.turnoInicial),
+                            golesJugador: estado.miLado === 'jugador' ? h.golesJugador : h.golesRival,
+                            golesRival: estado.miLado === 'jugador' ? h.golesRival : h.golesJugador,
+                            puntosJugador: estado.miLado === 'jugador' ? h.puntosJugador : h.puntosRival,
+                            puntosRival: estado.miLado === 'jugador' ? h.puntosRival : h.puntosJugador,
+                        }));
+                        estado.juego.golesInicioManoJugador = estado.miLado === 'jugador' ? (j.golesInicioManoJugador || 0) : (j.golesInicioManoRival || 0);
+                        estado.juego.golesInicioManoRival = estado.miLado === 'jugador' ? (j.golesInicioManoRival || 0) : (j.golesInicioManoJugador || 0);
+                    }
 
                     // Descifrar la mano propia si llegó una versión nueva cifrada
                     // (incluye el "regalo" del reparto inicial, que solo yo puedo abrir)
