@@ -1,7 +1,7 @@
 {
   "rules": {
     "usuarios": {
-      ".read": "auth != null",
+      ".read": true,
       "$uid": {
         ".write": "auth != null && auth.uid === $uid",
         ".validate": "newData.hasChildren(['nickname'])",
@@ -17,8 +17,8 @@
         "partidosPerdidos": { ".validate": "newData.isNumber() && newData.val() >= 0 && (newData.val() == 0 || (data.exists() && (newData.val() == data.val() || newData.val() == data.val() + 1)))" },
         "puntos": { ".validate": "newData.isNumber() && (!data.exists() ? (newData.val() >= -5 && newData.val() <= 3) : (newData.val() >= data.val() - 5 && newData.val() <= data.val() + 3))" },
         "efectividad": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100" },
-        "golesFavor": { ".validate": "newData.isNumber() && newData.val() >= 0 && (newData.val() == 0 || (data.exists() && newData.val() <= data.val() + 15))" },
-        "golesContra": { ".validate": "newData.isNumber() && newData.val() >= 0 && (newData.val() == 0 || (data.exists() && newData.val() <= data.val() + 15))" },
+        "golesFavor": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= (data.exists() ? data.val() + 15 : 15)" },
+        "golesContra": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= (data.exists() ? data.val() + 15 : 15)" },
         "enPartida": { ".validate": "newData.isBoolean()" },
         "logros": {
           "$logroId": { ".validate": "newData.isNumber() && newData.val() >= 0" }
