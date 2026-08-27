@@ -1796,6 +1796,33 @@
                 return mano.length ? mano.reduce((a, b) => a.numero > b.numero ? a : b) : null;
             }
 
+            // --- Precarga de imágenes de cartas ---
+            // Las cartas son PNG grandes (~740x1040 px) y el render recrea todos los
+            // nodos <img> en cada transición de juego. Si la imagen aún se está cargando
+            // o decodificando justo en ese momento, el navegador llega a pintar un cuadro
+            // en blanco y recién después la carta se ve -> ese es el típico "parpadeo"
+            // (flicker) al jugar. Acá se precargan y decodifican todas de antemano: al
+            // usarlas ya están en la caché de memoria y se pintan al instante.
+            function precargarImagenes() {
+                const nombresPos = { Arq: 'Arquero', Def: 'Defensor', Vol: 'Volante', Del: 'Delantero' };
+                const srcs = [];
+                for (const pos of POSICIONES) {
+                    for (const num of NUMEROS) {
+                        srcs.push(RUTA_IMAGENES + nombresPos[pos] + num + '.png');
+                    }
+                }
+                srcs.push(RUTA_DORSO);
+                srcs.forEach((src) => {
+                    try {
+                        const img = new Image();
+                        img.src = src;
+                        if (typeof img.decode === 'function') {
+                            img.decode().catch(() => {});
+                        }
+                    } catch (e) { /* noop */ }
+                });
+            }
+
             // --- Escalado dinámico al viewport ---
             function actualizarEscalado() {
                 const vh = window.innerHeight;
@@ -1826,16 +1853,27 @@
                 const manoAltura = cartaMano * aspectRatio + (isWide ? 18 : 14);
 
                 const root = document.documentElement;
-                root.style.setProperty('--carta-mesa', cartaMesa + 'px');
-                root.style.setProperty('--carta-mesa-max-h', (cartaMesa * aspectRatio) + 'px');
-                root.style.setProperty('--carta-mano', cartaMano + 'px');
-                root.style.setProperty('--carta-mano-max-h', (cartaMano * aspectRatio) + 'px');
-                root.style.setProperty('--carta-cpu', cartaCpu + 'px');
-                root.style.setProperty('--carta-cpu-max-h', (cartaCpu * aspectRatio) + 'px');
-                root.style.setProperty('--mano-altura', manoAltura + 'px');
-                root.style.setProperty('--btn-font', btnFont + 'px');
-                root.style.setProperty('--btn-pad-y', btnPadY + 'px');
-                root.style.setProperty('--btn-pad-x', btnPadX + 'px');
+                const valores = {
+                    '--carta-mesa': cartaMesa + 'px',
+                    '--carta-mesa-max-h': (cartaMesa * aspectRatio) + 'px',
+                    '--carta-mano': cartaMano + 'px',
+                    '--carta-mano-max-h': (cartaMano * aspectRatio) + 'px',
+                    '--carta-cpu': cartaCpu + 'px',
+                    '--carta-cpu-max-h': (cartaCpu * aspectRatio) + 'px',
+                    '--mano-altura': manoAltura + 'px',
+                    '--btn-font': btnFont + 'px',
+                    '--btn-pad-y': btnPadY + 'px',
+                    '--btn-pad-x': btnPadX + 'px',
+                };
+                // SOLO se reescriben las variables cuando su valor realmente cambió.
+                // Re-escribirlas en cada render() obligaba al navegador a recalcular
+                // estilo y layout de TODA la página en cada transición (y si coincidía
+                // con el re-decode de las cartas, se veía un "parpadeo"/salto).
+                for (const prop of Object.keys(valores)) {
+                    if (root.style.getPropertyValue(prop) !== valores[prop]) {
+                        root.style.setProperty(prop, valores[prop]);
+                    }
+                }
             }
 
             // --- Renderizado ---
@@ -3947,6 +3985,7 @@
 
             function inicializarJuego() {
                 cacheDom();
+                precargarImagenes();
                 
                 const mazo = mezclarMazo(crearMazo());
                 const { manoJ, manoC } = repartir(mazo);
