@@ -4,7 +4,7 @@
       ".read": "auth != null",
       "$uid": {
         ".write": "auth != null && auth.uid === $uid",
-        ".validate": "newData.hasChildren(['nickname']) && ((newData.child('partidosJugados').val() == data.child('partidosJugados').val() && newData.child('partidosGanados').val() == data.child('partidosGanados').val() && newData.child('partidosEmpatados').val() == data.child('partidosEmpatados').val() && newData.child('partidosPerdidos').val() == data.child('partidosPerdidos').val()) || (newData.child('ultimaActualizacion').val() === now && (!data.child('ultimaActualizacion').exists() || newData.child('ultimaActualizacion').val() - data.child('ultimaActualizacion').val() > 30000)))",
+        ".validate": "newData.hasChildren(['nickname'])",
         "nickname": {
           ".validate": "newData.isString() && newData.val().length >= 0 && newData.val().length <= 12"
         },
@@ -56,7 +56,7 @@
             }
           }
         },
-        "ultimaActualizacion": { ".validate": "newData.isNumber() && newData.val() === now" },
+        "ultimaActualizacion": { ".validate": "newData.isNumber() && newData.val() >= 0" },
         "$other": { ".validate": false }
       }
     },
