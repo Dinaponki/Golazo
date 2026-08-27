@@ -1,0 +1,21 @@
+# robots.txt de GOLAZO - https://golazojuego.vercel.app/
+# El truco del fútbol: juego de cartas de fútbol
+
+User-agent: *
+Allow: /
+Disallow: /temp_sim/
+
+# Rastreadores públicos de Google y otros buscadores: permitidos explícitamente
+User-agent: Googlebot
+Allow: /
+
+User-agent: Googlebot-Image
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+# No se bloquean recursos CSS, JS ni imágenes necesarios para el renderizado
+# (favicon, iconos, carpeta img y carpeta sounds quedan accesibles).
+
+Sitemap: https://golazojuego.vercel.app/sitemap.xml

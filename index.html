@@ -1,9 +1,76 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es-AR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Golazo | Dinaponki</title>
+    <title>GOLAZO | Juego de cartas de fútbol – El Truco del Fútbol</title>
+    <meta name="description" content="GOLAZO es el juego de cartas de fútbol estilo truco: jugá online 1 vs 1, contra la CPU o practicá gratis. Penales, VAR, goles y ranking global. ¡Sumate a jugar!">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <link rel="canonical" href="https://golazojuego.vercel.app/">
+    <meta name="theme-color" content="#1a3c2a">
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="GOLAZO">
+    <meta property="og:title" content="GOLAZO | Juego de cartas de fútbol – El Truco del Fútbol">
+    <meta property="og:description" content="El truco del fútbol: jugá GOLAZO online 1 vs 1, contra la CPU o practicá gratis. Penales, VAR, goles y ranking global de jugadores.">
+    <meta property="og:url" content="https://golazojuego.vercel.app/">
+    <meta property="og:image" content="https://golazojuego.vercel.app/web-app-manifest-512x512.png">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:width" content="512">
+    <meta property="og:image:height" content="512">
+    <meta property="og:image:alt" content="Logo de GOLAZO, el juego de cartas de fútbol">
+    <meta property="og:locale" content="es_AR">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="GOLAZO | Juego de cartas de fútbol – El Truco del Fútbol">
+    <meta name="twitter:description" content="El truco del fútbol: jugá GOLAZO online 1 vs 1, contra la CPU o practicá gratis. Penales, VAR, goles y ranking global de jugadores.">
+    <meta name="twitter:image" content="https://golazojuego.vercel.app/web-app-manifest-512x512.png">
+    <meta name="twitter:image:alt" content="Logo de GOLAZO, el juego de cartas de fútbol">
+
+    <!-- Datos estructurados Schema.org -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@graph": [
+            {
+                "@type": "Organization",
+                "@id": "https://golazojuego.vercel.app/#organization",
+                "name": "Dinaponki",
+                "url": "https://golazojuego.vercel.app/",
+                "email": "dinaponkioficial@gmail.com",
+                "sameAs": ["https://www.instagram.com/silvaa_ariel"]
+            },
+            {
+                "@type": "WebSite",
+                "@id": "https://golazojuego.vercel.app/#website",
+                "url": "https://golazojuego.vercel.app/",
+                "name": "GOLAZO",
+                "alternateName": "GOLAZO – El Truco del Fútbol",
+                "description": "Juego de cartas de fútbol estilo truco: jugá online 1 vs 1, contra la CPU o practicá gratis.",
+                "inLanguage": "es-AR",
+                "publisher": { "@id": "https://golazojuego.vercel.app/#organization" }
+            },
+            {
+                "@type": "WebApplication",
+                "@id": "https://golazojuego.vercel.app/#webapp",
+                "name": "GOLAZO",
+                "alternateName": "El Truco del Fútbol",
+                "url": "https://golazojuego.vercel.app/",
+                "applicationCategory": "Game",
+                "applicationSubCategory": "Juego de cartas de fútbol",
+                "operatingSystem": "Web",
+                "browserRequirements": "Requiere JavaScript",
+                "inLanguage": "es-AR",
+                "genre": ["Cartas", "Deportes", "Estrategia"],
+                "description": "GOLAZO es un juego de cartas de fútbol inspirado en el truco: enfrentá tu mazo de arqueros, defensores, volantes y delanteros en partidos de 9 manos, cantá penal, gol, golazo y usá el VAR para ganar.",
+                "keywords": "GOLAZO, juego de cartas de fútbol, truco de fútbol, truco del fútbol, juego de cartas argentino, fútbol online, jugar truco",
+                "publisher": { "@id": "https://golazojuego.vercel.app/#organization" }
+            }
+        ]
+    }
+    </script>
     <link rel="icon" href="favicon.ico" type="image/x-icon">
     <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -400,6 +467,21 @@
             color: rgba(255, 255, 255, 0.35);
             letter-spacing: 0.04em;
             margin-top: 8px;
+        }
+
+        /* ---------- Texto descriptivo SEO ---------- */
+        .seo-texto {
+            font-size: 13px;
+            line-height: 1.7;
+            color: rgba(255, 255, 255, 0.55);
+            text-align: center;
+            max-width: 520px;
+            padding: 0 6px;
+        }
+
+        .seo-texto strong {
+            color: rgba(255, 255, 255, 0.75);
+            font-weight: 700;
         }
 
         /* ---------- Sesión ---------- */
@@ -1443,7 +1525,7 @@
                 <span id="textoBotonGoogle">Iniciar sesión con Google</span>
             </button>
             <div class="usuario-logueado" id="panelUsuario">
-                <img id="fotoUsuario" class="foto" alt="Foto de perfil">
+                <img id="fotoUsuario" class="foto" alt="Foto de perfil del jugador">
                 <div class="info-usuario" id="infoUsuarioEditable" title="Editar tu nickname">
                     <span class="nombre" id="nombreUsuario"></span>
                     <span class="editar-nick">✏️ Editar nickname</span>
@@ -1763,6 +1845,16 @@
                 (adsbygoogle = window.adsbygoogle || []).push({});
             </script>
         </div>
+
+        <p class="seo-texto">
+            <strong>GOLAZO</strong> es un <strong>juego de cartas de fútbol</strong> argentino,
+            conocido como <strong>el truco del fútbol</strong>: un duelo de mazo con arqueros,
+            defensores, volantes y delanteros donde se cantan penales, goles, golazos y VAR
+            en partidos de 9 manos. Jugá <strong>online 1 vs 1</strong> en tiempo real,
+            <strong>contra la CPU</strong>, practicá sin puntos en juego o usá el anotador
+            para tus partidas con el mazo físico. Todo gratis, desde el navegador y con
+            ranking global de jugadores.
+        </p>
 
         <p class="footer">
     © 2026 Golazo - Dinaponki<br>
