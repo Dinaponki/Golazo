@@ -1892,20 +1892,30 @@
                 .catch((error) => console.error('Error sincronizando:', error));
         }
 
-        // Reconcilia los GOLES del marcador local con los ya aceptados en
-        // Firebase. Cada cliente re-escribe el estado COMPLETO del juego sobre
+        // Reconcilia los GOLES y los PUNTOS del estado local con los ya aceptados
+        // en Firebase. Cada cliente re-escribe el estado COMPLETO del juego sobre
         // el MISMO nodo, así que una escritura apenas más vieja podía llegar
         // DESPUÉS y pisar el gol recién convertido por el rival (marcadores que
-        // perdían goles: "debería haber salido 3-4 y quedó 4-1"). Como los goles
-        // son CUMULATIVOS y nunca bajan durante la partida, siempre se conserva
-        // el máximo entre lo local y lo ya aceptado en el servidor.
+        // perdían goles: "debería haber salido 3-4 y quedó 4-1") o los puntos
+        // recién otorgados por un canto (no quiso, golazo rechazado, penal
+        // atajado, VAR): el clásico "el canto no sumó". Como los goles son
+        // CUMULATIVOS y nunca bajan durante la partida, se conserva el máximo.
+        // Los puntos de la mano solo suben hasta que se convierte un gol (se
+        // reinician a 0) o empieza una mano nueva: en esos dos casos el valor
+        // del servidor es el legítimo y se adopta tal cual.
         async function reconciliarGolesConFirebase() {
             if (!estado.partidaId || !estado.miLado) return;
             try {
                 const base = 'partidas/' + estado.partidaId + '/juego';
-                const [sgj, sgr] = await Promise.all([
+                const [sgj, sgr, spj, spr, spmj, spmr, sm, sgm] = await Promise.all([
                     get(ref(db, base + '/golesJugador')).catch(() => null),
-                    get(ref(db, base + '/golesRival')).catch(() => null)
+                    get(ref(db, base + '/golesRival')).catch(() => null),
+                    get(ref(db, base + '/puntosJugador')).catch(() => null),
+                    get(ref(db, base + '/puntosRival')).catch(() => null),
+                    get(ref(db, base + '/puntosManoJugador')).catch(() => null),
+                    get(ref(db, base + '/puntosManoRival')).catch(() => null),
+                    get(ref(db, base + '/manoActual')).catch(() => null),
+                    get(ref(db, base + '/golEnMano')).catch(() => null)
                 ]);
                 const remotoJ = sgj && sgj.exists() ? (Number(sgj.val()) || 0) : null;
                 const remotoR = sgr && sgr.exists() ? (Number(sgr.val()) || 0) : null;
@@ -1915,6 +1925,44 @@
                 const nuevoR = remotoR === null ? absR : Math.max(absR, remotoR);
                 estado.juego.golesJugador = estado.miLado === 'jugador' ? nuevoJ : nuevoR;
                 estado.juego.golesRival = estado.miLado === 'jugador' ? nuevoR : nuevoJ;
+                // ---- Puntos de la mano (los campos del servidor son absolutos) ----
+                const remPJ = spj && spj.exists() ? (Number(spj.val()) || 0) : null;
+                const remPR = spr && spr.exists() ? (Number(spr.val()) || 0) : null;
+                const remPMJ = spmj && spmj.exists() ? (Number(spmj.val()) || 0) : null;
+                const remPMR = spmr && spmr.exists() ? (Number(spmr.val()) || 0) : null;
+                const remM = sm && sm.exists() ? (Number(sm.val()) || 0) : null;
+                const remGolEnMano = sgm && sgm.exists() ? (sgm.val() === true) : null;
+                const servPJ = estado.miLado === 'jugador' ? remPJ : remPR;
+                const servPR = estado.miLado === 'jugador' ? remPR : remPJ;
+                const servPMJ = estado.miLado === 'jugador' ? remPMJ : remPMR;
+                const servPMR = estado.miLado === 'jugador' ? remPMR : remPMJ;
+                const locGolEnMano = estado.juego.golEnMano === true;
+                if (remM !== null && remM > (estado.juego.manoActual || 0)) {
+                    // La mano ya avanzó en el servidor: los puntos se reiniciaron
+                    // legítimamente con la mano nueva, adoptar tal cual.
+                    if (servPJ !== null) estado.juego.puntosJugador = servPJ;
+                    if (servPR !== null) estado.juego.puntosRival = servPR;
+                    if (servPMJ !== null) estado.juego.puntosManoJugador = servPMJ;
+                    if (servPMR !== null) estado.juego.puntosManoRival = servPMR;
+                    if (remGolEnMano !== null) estado.juego.golEnMano = remGolEnMano;
+                } else if (remGolEnMano === true && !locGolEnMano) {
+                    // El rival ya convirtió un gol en el servidor y este cliente
+                    // todavía no lo procesó: sus puntos quedaron en 0, adoptar.
+                    if (servPJ !== null) estado.juego.puntosJugador = servPJ;
+                    if (servPR !== null) estado.juego.puntosRival = servPR;
+                    if (servPMJ !== null) estado.juego.puntosManoJugador = servPMJ;
+                    if (servPMR !== null) estado.juego.puntosManoRival = servPMR;
+                    estado.juego.golEnMano = true;
+                } else if (!locGolEnMano) {
+                    // Misma mano sin gol convertido: los puntos solo suben, se
+                    // conserva el máximo (un write viejo jamás borra un canto).
+                    if (servPJ !== null) estado.juego.puntosJugador = Math.max(estado.juego.puntosJugador || 0, servPJ);
+                    if (servPR !== null) estado.juego.puntosRival = Math.max(estado.juego.puntosRival || 0, servPR);
+                    if (servPMJ !== null) estado.juego.puntosManoJugador = Math.max(estado.juego.puntosManoJugador || 0, servPMJ);
+                    if (servPMR !== null) estado.juego.puntosManoRival = Math.max(estado.juego.puntosManoRival || 0, servPMR);
+                }
+                // Si golEnMano local es true y el servidor aún no lo sabe (eco
+                // previo al gol), se conservan los valores locales ya reiniciados.
             } catch (e) { /* sin red: se conserva lo local */ }
         }
 
@@ -2047,6 +2095,13 @@
             await reconciliarGolesConFirebase();
             datos.golesJugador = estado.miLado === 'jugador' ? estado.juego.golesJugador : estado.juego.golesRival;
             datos.golesRival = estado.miLado === 'jugador' ? estado.juego.golesRival : estado.juego.golesJugador;
+            // Re-publicar también los PUNTOS reconciliados: la escritura nunca
+            // lleva un valor de puntos más viejo que el ya aceptado en el
+            // servidor (los cantos jamás pierden sus puntos ni su gol).
+            datos.puntosJugador = estado.miLado === 'jugador' ? estado.juego.puntosJugador : estado.juego.puntosRival;
+            datos.puntosRival = estado.miLado === 'jugador' ? estado.juego.puntosRival : estado.juego.puntosJugador;
+            datos.puntosManoJugador = estado.miLado === 'jugador' ? estado.juego.puntosManoJugador : estado.juego.puntosManoRival;
+            datos.puntosManoRival = estado.miLado === 'jugador' ? estado.juego.puntosManoRival : estado.juego.puntosManoJugador;
             datos.ultimaActividad = Date.now();
             await update(juegoRef, datos);
             // GARANTÍA FINAL: fijar los goles con transacciones monótonas
@@ -3069,14 +3124,42 @@
                         estado.juego.golesRival = Math.max(Number(estado.juego.golesRival) || 0, servR);
                     }
                     // ANTI-REVERSIÓN también para los PUNTOS: un eco desactualizado
-                    // del rival no puede borrar los +2 recién otorgados (ej. penal
-                    // atajado) ni devolver el marcador al valor previo al canto.
+                    // del rival no puede borrar los +1/+2 recién otorgados por un
+                    // canto (no quiso, golazo rechazado, penal atajado, VAR...)
+                    // ni devolver el marcador al valor previo al canto. Dentro de
+                    // una misma mano y sin gol convertido, los puntos SOLO SUBEN,
+                    // así que se conserva el MÁXIMO entre lo local y lo que trae
+                    // el servidor. Los únicos reinicios legítimos son: gol ya
+                    // convertido (golEnMano=true → puntos a 0) y mano nueva
+                    // (manoActual avanza): en esos casos se adopta el valor del
+                    // servidor tal cual. Si el gol lo convertí YO (golEnMano local
+                    // en true), ningún eco viejo puede revivir los puntos previos.
                     const esEcoFaseVieja = esEcoDeFaseVieja(j);
-                    if (!esEcoFaseVieja && !esSnapshotManoAnterior) {
-                        estado.juego.puntosJugador = estado.miLado === 'jugador' ? (j.puntosJugador || 0) : (j.puntosRival || 0);
-                        estado.juego.puntosRival = estado.miLado === 'jugador' ? (j.puntosRival || 0) : (j.puntosJugador || 0);
-                        estado.juego.puntosManoJugador = estado.miLado === 'jugador' ? (j.puntosManoJugador || 0) : (j.puntosManoRival || 0);
-                        estado.juego.puntosManoRival = estado.miLado === 'jugador' ? (j.puntosManoRival || 0) : (j.puntosManoJugador || 0);
+                    if (!esSnapshotManoAnterior) {
+                        const servPJ = Number(estado.miLado === 'jugador' ? (j.puntosJugador || 0) : (j.puntosRival || 0)) || 0;
+                        const servPR = Number(estado.miLado === 'jugador' ? (j.puntosRival || 0) : (j.puntosJugador || 0)) || 0;
+                        const servPMJ = Number(estado.miLado === 'jugador' ? (j.puntosManoJugador || 0) : (j.puntosManoRival || 0)) || 0;
+                        const servPMR = Number(estado.miLado === 'jugador' ? (j.puntosManoRival || 0) : (j.puntosManoJugador || 0)) || 0;
+                        const servGolEnMano = j.golEnMano === true;
+                        if (avanzoMano || servGolEnMano) {
+                            // Gol ya convertido en el servidor (o mano nueva): los
+                            // puntos se reiniciaron legítimamente, adoptar tal cual.
+                            estado.juego.puntosJugador = servPJ;
+                            estado.juego.puntosRival = servPR;
+                            estado.juego.puntosManoJugador = servPMJ;
+                            estado.juego.puntosManoRival = servPMR;
+                            estado.juego.golEnMano = servGolEnMano;
+                        } else if (!estado.juego.golEnMano) {
+                            // Misma mano sin gol convertido: los puntos solo suben.
+                            estado.juego.puntosJugador = Math.max(Number(estado.juego.puntosJugador) || 0, servPJ);
+                            estado.juego.puntosRival = Math.max(Number(estado.juego.puntosRival) || 0, servPR);
+                            estado.juego.puntosManoJugador = Math.max(Number(estado.juego.puntosManoJugador) || 0, servPMJ);
+                            estado.juego.puntosManoRival = Math.max(Number(estado.juego.puntosManoRival) || 0, servPMR);
+                            // golEnMano es monótono dentro de la mano: un eco viejo
+                            // (golEnMano=false) no puede des-hacer un gol ya
+                            // convertido localmente. (Si golEnMano local es true y
+                            // el servidor aún trae false, se conserva lo local.)
+                        }
                     }
                     // manoActual ya fue actualizado arriba con garantía monótona.
                     // MESA MONÓTONA DENTRO DE LA MISMA MANO: cartasEnMesa solo
@@ -3171,9 +3254,15 @@
                         }
                     }
                     if (!esSnapshotManoAnterior) {
-                        estado.juego.golEnMano = j.golEnMano || false;
-                        estado.juego.ganadorManoAnterior = aRelativo(j.ganadorManoAnterior);
-                        estado.juego.historialManos = (j.historialManos || []).map(h => ({
+                        // golEnMano ya se reconcilió arriba (monótono dentro de la mano).
+                        // ganadorManoAnterior: solo se adopta si el servidor trae un
+                        // valor (un eco viejo con null no borra el recién seteado al
+                        // convertir un gol); al avanzar de mano se adopta siempre.
+                        const gma = aRelativo(j.ganadorManoAnterior);
+                        if (avanzoMano || gma) estado.juego.ganadorManoAnterior = gma;
+                        // historialManos solo crece durante la partida: un eco viejo
+                        // con menos manos no puede truncar el historial local.
+                        const servHist = (j.historialManos || []).map(h => ({
                             ...h,
                             turnoInicial: aRelativo(h.turnoInicial),
                             golesJugador: estado.miLado === 'jugador' ? h.golesJugador : h.golesRival,
@@ -3181,6 +3270,9 @@
                             puntosJugador: estado.miLado === 'jugador' ? h.puntosJugador : h.puntosRival,
                             puntosRival: estado.miLado === 'jugador' ? h.puntosRival : h.puntosJugador,
                         }));
+                        if (servHist.length >= estado.juego.historialManos.length) {
+                            estado.juego.historialManos = servHist;
+                        }
                         estado.juego.golesInicioManoJugador = estado.miLado === 'jugador' ? (j.golesInicioManoJugador || 0) : (j.golesInicioManoRival || 0);
                         estado.juego.golesInicioManoRival = estado.miLado === 'jugador' ? (j.golesInicioManoRival || 0) : (j.golesInicioManoJugador || 0);
                     }
@@ -3574,13 +3666,20 @@
         //   - Atacante sin carta  -> gana el que defendía (quien patea, patea).
         //   - Defensor sin carta  -> convierte el atacante (no pudo atajar).
         // Solo lo lanza el cliente dueño del lado sin cartas y UNA sola vez.
+        // Cubre AMBOS casos trabados:
+        //   1) Ya tiró el rival (1 carta en la definición) y no tengo cartas:
+        //      se sintetiza la fantasma y se resuelve el canto de inmediato.
+        //   2) Me toca tirar PRIMERO y no tengo cartas (0 cartas en la
+        //      definición): antes el juego quedaba congelado esperando mi carta
+        //      que nunca iba a llegar (y terminaba en abandono por reloj). Ahora
+        //      se sintetiza la fantasma, queda en la mesa y se le pasa el turno
+        //      al rival, que tira su carta real y resuelve normalmente.
         function verificarCantoFaltado() {
             if (estado.fase !== 'jugando' || !estado.partidaId) return;
             const j = estado.juego;
-            // Solo cuando hay un canto en curso con EXACTAMENTE una carta tirada.
             if (!j.golActivo && !j.penalActivo) return;
             const arr = j.golActivo ? j.golCartas : j.penalCartas;
-            if (arr.length !== 1) return;
+            if (arr.length > 1) return;
             // Si no me toca tirar o todavía tengo cartas, no es un caso trabado.
             if (j.fase !== 'esperando_seleccion' || j.turnoActual !== 'jugador') return;
             if (j.manoJugador.length > 0) return;
@@ -3588,11 +3687,22 @@
             if (arr.some(c => c.origen === 'jugador')) return;
             console.warn('Canto trabado: sin cartas para definir. Se resuelve con carta 0.');
             const cartaFantasma = { posicion: 'Del', numero: 0, nombre: '', imagen: RUTA_DORSO };
+            const faltabaLaPrimera = arr.length === 0;
             arr.push({ carta: cartaFantasma, origen: 'jugador' });
-            estado.juego.fase = 'resolviendo';
-            sincronizarJuego();
-            renderizarTodo();
-            setTimeout(resolverRonda, 400);
+            if (faltabaLaPrimera) {
+                // Nadie tiró todavía y soy el primero: mi carta fantasma queda en
+                // la mesa y le toca tirar al rival (él resuelve el canto).
+                estado.juego.fase = 'esperando_rival';
+                estado.juego.turnoActual = 'rival';
+                sincronizarJuego();
+                renderizarTodo();
+            } else {
+                // La carta del rival ya estaba: resolver el canto ahora.
+                estado.juego.fase = 'resolviendo';
+                sincronizarJuego();
+                renderizarTodo();
+                setTimeout(resolverRonda, 400);
+            }
         }
 
         function verificarGolPorPuntos() {
