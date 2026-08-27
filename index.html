@@ -2203,7 +2203,9 @@
                             const partidosJugados = (datos.partidosJugados || 0) + 1;
                             const partidosPerdidos = (datos.partidosPerdidos || 0) + 1;
                             const puntos = (datos.puntos || 0) - 5;
-                            const efectividad = partidosJugados > 0 ? Math.round(((datos.partidosGanados || 0) / partidosJugados) * 1000) / 10 : 0;
+                            // EFECTIVIDAD = puntos obtenidos / puntos posibles × 100:
+                            // (PG×3 + PE×1) / (PJ×3) × 100, piso 0% (los -5 no cuentan)
+                            const efectividad = partidosJugados > 0 ? Math.max(0, Math.round((((datos.partidosGanados || 0) * 3 + (datos.partidosEmpatados || 0)) / (partidosJugados * 3)) * 1000) / 10) : 0;
                             const historialPartidos = datos.historialPartidos || [];
                             historialPartidos.push({
                                 fecha: Date.now(),
@@ -2266,7 +2268,8 @@
                     // Restar los 5 puntos INCREMENTALMENTE sobre el acumulado existente,
                     // igual que guardarResultadoPartidoOnline (playonline.html).
                     on.puntos = (on.puntos || 0) - 5;
-                    on.efectividad = partidosJugados > 0 ? Math.round((partidosGanados / partidosJugados) * 1000) / 10 : 0;
+                    // EFECTIVIDAD = (PG×3 + PE) / (PJ×3) × 100 (piso 0%)
+                    on.efectividad = partidosJugados > 0 ? Math.max(0, Math.round(((partidosGanados * 3 + (on.partidosEmpatados || 0)) / (partidosJugados * 3)) * 1000) / 10) : 0;
                     const historial = Array.isArray(on.historialPartidos) ? on.historialPartidos : [];
                     historial.push({
                         fecha: Date.now(),
@@ -2582,7 +2585,7 @@
             const gc = on.golesContra || 0;
             return {
                 pj, pg, pe, pp, gf, gc,
-                efectividad: pj > 0 ? Math.round((pg / pj) * 1000) / 10 : 0,
+                efectividad: pj > 0 ? Math.max(0, Math.round(((pg * 3 + pe) / (pj * 3)) * 1000) / 10) : 0,
                 pjOnline: pj,
                 diasConsecutivos: base.loginStreak || 0
             };
@@ -2785,7 +2788,8 @@
                 return {
                     pj, pg, pe, pp, gf, gc,
                     puntos: (pg * 3) + (pe * 1) - (pp * 5),
-                    efectividad: pj > 0 ? Math.round((pg / pj) * 1000) / 10 : 0
+                    // EFECTIVIDAD = (PG×3 + PE) / (PJ×3) × 100 (piso 0%)
+                    efectividad: pj > 0 ? Math.max(0, Math.round(((pg * 3 + pe) / (pj * 3)) * 1000) / 10) : 0
                 };
             }
 
@@ -2823,7 +2827,8 @@
             return {
                 pj, pg, pe, pp, gf, gc,
                 puntos: (pg * 3) + (pe * 1) - (pp * 5),
-                efectividad: pj > 0 ? Math.round((pg / pj) * 1000) / 10 : 0
+                // EFECTIVIDAD = (PG×3 + PE) / (PJ×3) × 100 (piso 0%)
+                efectividad: pj > 0 ? Math.max(0, Math.round(((pg * 3 + pe) / (pj * 3)) * 1000) / 10) : 0
             };
         }
 

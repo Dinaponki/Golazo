@@ -2859,7 +2859,8 @@
                 const partidosJugados = (datos.partidosJugados || 0) + 1;
                 const partidosPerdidos = (datos.partidosPerdidos || 0) + 1;
                 const partidosGanados = datos.partidosGanados || 0;
-                const efectividad = partidosJugados > 0 ? Math.round((partidosGanados / partidosJugados) * 1000) / 10 : 0;
+                // EFECTIVIDAD = (PG×3 + PE) / (PJ×3) × 100 (piso 0%)
+                const efectividad = partidosJugados > 0 ? Math.max(0, Math.round(((partidosGanados * 3 + (datos.partidosEmpatados || 0)) / (partidosJugados * 3)) * 1000) / 10) : 0;
                 const historial = datos.historialPartidos || [];
                 historial.push({
                     fecha: Date.now(),
@@ -4270,7 +4271,9 @@
                 const partidosEmpatados = (datos.partidosEmpatados || 0) + (resultadoJugador === 'empate' ? 1 : 0);
                 const partidosPerdidos = (datos.partidosPerdidos || 0) + (resultadoJugador === 'perder' ? 1 : 0);
 
-                const efectividad = partidosJugados > 0 ? Math.round((partidosGanados / partidosJugados) * 1000) / 10 : 0;
+                // EFECTIVIDAD = puntos obtenidos / puntos posibles × 100:
+                // (PG×3 + PE×1) / (PJ×3) × 100, piso 0% (los -5 no cuentan)
+                const efectividad = partidosJugados > 0 ? Math.max(0, Math.round(((partidosGanados * 3 + partidosEmpatados) / (partidosJugados * 3)) * 1000) / 10) : 0;
                 // Sumar los puntos INCREMENTALMENTE sobre el acumulado existente:
                 // así el abandono (-5) resta siempre y no se pierde si el jugador
                 // ya tenía una derrota previa (que la fórmula reconstruida pisaba).
@@ -4353,7 +4356,8 @@
                     on.partidosJugados = partidosJugados;
                     on.partidosPerdidos = partidosPerdidos;
                     on.puntos = (on.puntos || 0) - 5;
-                    on.efectividad = partidosJugados > 0 ? Math.round((partidosGanados / partidosJugados) * 1000) / 10 : 0;
+                    // EFECTIVIDAD = (PG×3 + PE) / (PJ×3) × 100 (piso 0%)
+                    on.efectividad = partidosJugados > 0 ? Math.max(0, Math.round(((partidosGanados * 3 + (on.partidosEmpatados || 0)) / (partidosJugados * 3)) * 1000) / 10) : 0;
                     const historial = Array.isArray(on.historialPartidos) ? on.historialPartidos : [];
                     historial.push({
                         fecha: Date.now(),
@@ -4437,7 +4441,7 @@
                 pp: on.partidosPerdidos || 0,
                 gf: on.golesFavor || 0,
                 gc: on.golesContra || 0,
-                efectividad: pj > 0 ? Math.round((pg / pj) * 1000) / 10 : 0,
+                efectividad: pj > 0 ? Math.max(0, Math.round(((pg * 3 + pe) / (pj * 3)) * 1000) / 10) : 0,
                 pjOnline: pj,
                 diasConsecutivos: (datos && datos.loginStreak) || 0
             };

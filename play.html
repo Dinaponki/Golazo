@@ -1375,7 +1375,9 @@
                 const partidosEmpatados = (datos.partidosEmpatados || 0) + (resultado === 'empate' ? 1 : 0);
                 const partidosPerdidos = (datos.partidosPerdidos || 0) + (resultado === 'perder' ? 1 : 0);
 
-                const efectividad = partidosJugados > 0 ? Math.round((partidosGanados / partidosJugados) * 1000) / 10 : 0;
+                // EFECTIVIDAD = puntos obtenidos / puntos posibles × 100:
+                // (PG×3 + PE×1) / (PJ×3) × 100, piso 0% (los -5 no cuentan)
+                const efectividad = partidosJugados > 0 ? Math.max(0, Math.round(((partidosGanados * 3 + partidosEmpatados) / (partidosJugados * 3)) * 1000) / 10) : 0;
                 const puntos = (partidosGanados * 3) + (partidosEmpatados * 1) - (partidosPerdidos * 5);
 
                 // Goles a favor y en contra
@@ -1458,7 +1460,7 @@
             return {
                 pj, pg, pe,
                 gf: (cpu.golesFavor || 0) + (on.golesFavor || 0),
-                efectividad: pj > 0 ? Math.round((pg / pj) * 1000) / 10 : 0,
+                efectividad: pj > 0 ? Math.max(0, Math.round(((pg * 3 + pe) / (pj * 3)) * 1000) / 10) : 0,
                 pjCpu: cpu.partidosJugados || 0,
                 pjOnline: on.partidosJugados || 0,
                 diasConsecutivos: (datos && datos.loginStreak) || 0
@@ -3801,7 +3803,8 @@
                         const partidosJugados = (datos.partidosJugados || 0) + 1;
                         const partidosPerdidos = (datos.partidosPerdidos || 0) + 1;
                         const puntos = (datos.puntos || 0) - 5;
-                        const efectividad = partidosJugados > 0 ? Math.round(((datos.partidosGanados || 0) / partidosJugados) * 1000) / 10 : 0;
+                        // EFECTIVIDAD = (PG×3 + PE) / (PJ×3) × 100 (piso 0%)
+                        const efectividad = partidosJugados > 0 ? Math.max(0, Math.round((((datos.partidosGanados || 0) * 3 + (datos.partidosEmpatados || 0)) / (partidosJugados * 3)) * 1000) / 10) : 0;
                         const historialPartidos = datos.historialPartidos || [];
                         historialPartidos.push({
                             fecha: Date.now(),
