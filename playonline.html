@@ -2020,6 +2020,14 @@
         async function escribirEstadoJuego(manosCifradas) {
             if (!estado.partidaId) return;
             await asegurarClavesCifradas();
+            // RECONCILIACIÓN DE GOLES ANTES de armar el payload. Antes se hacía
+            // DESPUÉS de tomar el snapshot del estado: los gets de la reconcilia-
+            // ción dejaban la escritura ~1 RTT "en el aire" con estado VIEJO y, si
+            // el rival actuaba en ese medio, nuestro write aterriza DESPUÉS y
+            // REVERTÍA el estado (fases viejas, cartas de cantos borradas: "tiré
+            // la carta y desapareció"). Reconciliando primero, el snapshot se
+            // arma y se escribe prácticamente sin demora entre medio.
+            await reconciliarGolesConFirebase();
             const juegoRef = ref(db, 'partidas/' + estado.partidaId + '/juego');
             const datos = {};
             // Manos: cada cliente escribe SOLO la suya, cifrada con su clave local.
@@ -2091,10 +2099,8 @@
             // mi número es de ESTA mano o un residuo de la anterior (los residuos
             // se ignoran al leer, aunque hayan quedado en el servidor).
             datos['varDeclMano/' + estado.miLado] = estado.juego.manoActual;
-            // RECONCILIACIÓN DE GOLES antes de escribir: se conserva SIEMPRE el
-            // valor más alto ya aceptado (los goles nunca bajan en la partida),
-            // para que un write desactualizado jamás "borre" un gol del rival.
-            await reconciliarGolesConFirebase();
+            // Goles y PUNTOS ya reconciliados contra Firebase (arriba, antes de
+            // armar el payload): se republican tal cual quedaron.
             datos.golesJugador = estado.miLado === 'jugador' ? estado.juego.golesJugador : estado.juego.golesRival;
             datos.golesRival = estado.miLado === 'jugador' ? estado.juego.golesRival : estado.juego.golesJugador;
             // Re-publicar también los PUNTOS reconciliados: la escritura nunca
@@ -3201,14 +3207,31 @@
                     estado.juego.esperandoRespuestaDe = aRelativo(j.esperandoRespuestaDe);
                     estado.juego.penalUsado = j.penalUsado || false;
                     estado.juego.penalCantadoPor = aRelativo(j.penalCantadoPor);
-                    estado.juego.penalActivo = j.penalActivo || false;
-                    estado.juego.penalAtacante = aRelativo(j.penalAtacante);
-                    estado.juego.penalCartas = (j.penalCartas || []).map(c => ({ ...c, origen: aRelativo(c.origen) }));
                     estado.juego.golUsado = j.golUsado || false;
-                    estado.juego.golActivo = j.golActivo || false;
-                    estado.juego.golAtacante = aRelativo(j.golAtacante);
-                    estado.juego.golCartas = (j.golCartas || []).map(c => ({ ...c, origen: aRelativo(c.origen) }));
                     estado.juego.golazoUsado = j.golazoUsado || false;
+                    // ANTI-REVERSIÓN de las cartas del canto (penal/gol), igual que
+                    // ya se hacía con cartasEnMesa: un write desactualizado del
+                    // rival que llegue SIN la carta recién tirada (o con el canto
+                    // aún vacío) NO puede borrarla. Antes penalCartas/golCartas se
+                    // mapeaban sin protección: la carta tirada para definir el
+                    // canto DESAPARECÍA de la mesa y había que tirar otra ("no la
+                    // tomó"). Lo del servidor se adopta solo si: avanzó la mano,
+                    // el canto ya terminó en el servidor, o el servidor tiene
+                    // >= cartas que este cliente. penalActivo/penalAtacante y
+                    // golActivo/golAtacante se adoptan junto a sus cartas para que
+                    // nunca queden desincronizados entre sí.
+                    const servPenalCartas = (j.penalCartas || []).map(c => ({ ...c, origen: aRelativo(c.origen) }));
+                    if (avanzoMano || !j.penalActivo || servPenalCartas.length >= estado.juego.penalCartas.length) {
+                        estado.juego.penalActivo = j.penalActivo || false;
+                        estado.juego.penalAtacante = aRelativo(j.penalAtacante);
+                        estado.juego.penalCartas = servPenalCartas;
+                    }
+                    const servGolCartas = (j.golCartas || []).map(c => ({ ...c, origen: aRelativo(c.origen) }));
+                    if (avanzoMano || !j.golActivo || servGolCartas.length >= estado.juego.golCartas.length) {
+                        estado.juego.golActivo = j.golActivo || false;
+                        estado.juego.golAtacante = aRelativo(j.golAtacante);
+                        estado.juego.golCartas = servGolCartas;
+                    }
                     // VAR también protegido del eco: si se mapeara desde un evento
                     // viejo, varPanelVisible volvería a false (el panel parpadea)
                     // y varTurnoDeclarar volvería a null (rompería la resolución).
@@ -3304,6 +3327,18 @@
                                 reproducirSonido('penalcpu');
                                 mostrarMensaje(`🥅 PENAL de ${estado.rivalNombre}`);
                             }
+                        }
+                        // Aviso de canto aceptado con ronda incompleta: si el que
+                        // aceptó tenía YA una carta en la mesa de la ronda, primero
+                        // se completa la ronda normal (esa carta cuenta para la
+                        // ronda) y recién DESPUÉS se ejecuta el canto (cantoPendien-
+                        // te), igual que vs CPU. Sin este aviso, el que cantaba
+                        // tiraba su carta creyendo que ya iba la definición del
+                        // canto, la veía desaparecer cuando la mesa se limpiaba y
+                        // pensaba que el juego "no se la tomó".
+                        if (!jAnterior.cantoPendiente && j.cantoPendiente) {
+                            const nombreCantoPend = { penal: 'PENAL', gol: 'GOL', golazo: 'GOLAZO' }[j.cantoPendiente.tipo] || 'canto';
+                            mostrarMensaje('⚠ Primero se completa la ronda, después va el ' + nombreCantoPend);
                         }
                         // Sonido de gol del rival
                         if (!jAnterior.golUsado && j.golUsado) {
@@ -4045,6 +4080,12 @@
         }
 
         function ejecutarCanto(tipo, pedidoPor) {
+            // Blindaje anti-doble-ejecución: si el canto ya está en ejecución
+            // (penal/gol activos, con sus cartas en la mesa), un "Quiero" repetido
+            // o una fase revertida transitoriamente por un write desactualizado
+            // NO debe reiniciarlo: reiniciarlo ponía penalCartas/golCartas en []
+            // y BORRABA la carta ya tirada para el canto.
+            if (estado.juego.penalActivo || estado.juego.golActivo) return;
             defenderFase(estado.juego.fase);
             // La respuesta del rival al canto YA llegó: nadie queda esperándola.
             // Si no se borra acá, el "✓ Quiero / ✗ No quiso" del rival (que cada
@@ -4077,6 +4118,10 @@
         }
 
         function iniciarEjecucionCanto(tipo, pedidoPor) {
+            // Mismo blindaje que ejecutarCanto: nunca reiniciar un canto ya en
+            // marcha (reiniciarlo vaciaba penalCartas/golCartas y se perdía la
+            // carta ya tirada por el jugador).
+            if (estado.juego.penalActivo || estado.juego.golActivo) return;
             defenderFase(estado.juego.fase);
             estado.juego.esperandoRespuestaDe = null;
             estado.juego.cantoActual = null;
