@@ -1316,17 +1316,45 @@
             // Re-escribirlas en cada render() obligaba al navegador a recalcular
             // estilo y layout de TODA la página en cada transición (y si coincidía
             // con el re-decode de las cartas, se veía un "parpadeo"/salto).
+            // Si algo cambió (tamaños o ventana), se avanza la ÉPOCA de render:
+            // las zonas ya dibujadas quedaron obsoletas y deben reconstruirse.
+            let cambioEscalado = (vw + 'x' + vh) !== ultimaVentanaEscalado;
+            ultimaVentanaEscalado = vw + 'x' + vh;
             for (const prop of Object.keys(valores)) {
                 if (root.style.getPropertyValue(prop) !== valores[prop]) {
                     root.style.setProperty(prop, valores[prop]);
+                    cambioEscalado = true;
                 }
             }
+            if (cambioEscalado) epocaRender++;
         }
+
+        // ============ RENDER INCREMENTAL (anti "pantallazo") ============
+        // El listener de Firebase dispara renderizarTodo() en CADA cambio del
+        // nodo de la partida: los LATIDOS (cada 5 s por jugador), cada sync del
+        // rival y cada update de actividad. Reconstruir TODO el DOM de las
+        // cartas (PNG grandes) en cada evento producía un flash visible de toda
+        // la pantalla ("pantallazo"). Ahora cada zona solo se reconstruye si su
+        // CONTENIDO realmente cambió: se compara una FIRMA por zona y la ÉPOCA
+        // de render (que avanza cuando cambian tamaños/ventana, forzando
+        // reconstrucción en un resize o cambio de escala).
+        let epocaRender = 0;          // avanza cuando cambian tamaños/ventana
+        let ultimaVentanaEscalado = '';
+        let firmaManoRival = null;    // firma de la última mano rival dibujada
+        let firmaManoJugador = null;  // firma de la última mano propia dibujada
+        let firmaMesa = null;         // firma de la última mesa dibujada
 
         // ============ RENDERIZADO ============
         function renderizarManoRival() {
-            dom.manoCpu.innerHTML = '';
             const cantidad = estado.juego.manoRival.length;
+            const firma = String(cantidad) + '|' + epocaRender;
+            const conAnimacion = estado.animarReparto && cantidad > 0;
+            // Dorsos idénticos (mismo estado, misma época): nada que redibujar.
+            // Este early-return elimina el rebuild completo en los latidos y en
+            // cada evento de Firebase que no toca las cartas.
+            if (firma === firmaManoRival && !conAnimacion) return;
+            firmaManoRival = firma;
+            dom.manoCpu.innerHTML = '';
             for (let i = 0; i < cantidad; i++) {
                 const c = document.createElement('div');
                 c.className = 'carta-contenedor';
@@ -1344,12 +1372,20 @@
         }
 
         function renderizarManoJugador() {
-            dom.manoJugador.innerHTML = '';
             const mano = estado.juego.manoJugador;
+            // Firma: contenido de la mano + carta seleccionada + época.
+            // El reparto animado FUERZA un rebuild (conAnimacion) pero la firma
+            // guardada no incluye la animación: así el siguiente evento con el
+            // mismo contenido NO vuelve a reconstruir y cortar la animación.
+            const firma = mano.map(c => (c && c.id) || '?').join(',') + '|' +
+                (estado.juego.cartaSeleccionada === null ? '-' : estado.juego.cartaSeleccionada) + '|' + epocaRender;
+            const conAnimacion = estado.animarReparto && mano.length > 0;
+            if (firma === firmaManoJugador && !conAnimacion) return;
+            dom.manoJugador.innerHTML = '';
             const style = getComputedStyle(document.documentElement);
             const anchoCarta = parseFloat(style.getPropertyValue('--carta-mano')) || 100;
             const manoAltura = parseFloat(style.getPropertyValue('--mano-altura')) || 130;
-            if (!mano.length) { dom.manoJugador.style.height = manoAltura + 'px'; estado.animarReparto = false; return; }
+            if (!mano.length) { dom.manoJugador.style.height = manoAltura + 'px'; estado.animarReparto = false; firmaManoJugador = firma; return; }
             const anchoDisponible = Math.min(window.innerWidth - 32, 920);
             let anchoCartaJugador = anchoCarta * 1.25;
             const factorSuperp = 0.85;
@@ -1390,10 +1426,10 @@
                 dom.manoJugador.appendChild(cont);
             });
             estado.animarReparto = false;
+            firmaManoJugador = firma;
         }
 
         function renderizarMesa() {
-            dom.mesaCartas.innerHTML = '';
             const esMovil = window.innerWidth < 768;
 
             // Durante un canto (penal/gol/golazo) solo se muestran las cartas del
@@ -1409,6 +1445,17 @@
                 const inicio = estado.juego.inicioRonda || 0;
                 cartasVisibles = estado.juego.cartasEnMesa.slice(inicio);
             }
+            // Render incremental: reconstruir la mesa SOLO si cambió su contenido
+            // (cartas visibles, canto activo, inicio de ronda, breakpoint móvil
+            // o época de escalado). Los latidos y los syncs que no tocan la mesa
+            // ya no redibujan nada (fin del "pantallazo").
+            const firma = (estado.juego.penalActivo ? 'P' : (estado.juego.golActivo ? 'G' : 'N')) +
+                '|' + (estado.juego.inicioRonda || 0) + '|' + (estado.juego.cartasEnMesa.length || 0) +
+                '|' + cartasVisibles.map(it => (it.origen || '') + ':' + ((it.carta && it.carta.id) || '') + '#' + ((it.carta && it.carta.numero) ?? '')).join(';') +
+                '|' + (esMovil ? 1 : 0) + '|' + epocaRender;
+            if (firma === firmaMesa) return;
+            firmaMesa = firma;
+            dom.mesaCartas.innerHTML = '';
             if (!cartasVisibles.length) return;
 
             // Seguridad anti-duplicados: si por una desincronización llegara a
@@ -1761,6 +1808,20 @@
             inicializando: null, ultimaFirmaVista: null
         };
         let tokenManoRemota = 0;
+        // Firma del CONTENIDO de mi mano la última vez que la escribí a Firebase.
+        // ESCRITURA DE LA MANO SOLO SI CAMBIÓ: antes CADA sincronización volvía a
+        // escribir manos/<miLado> con la mano actual, y ese write podía aterrizar
+        // DESPUÉS del reparto de la mano nueva (write demorado del final de la
+        // mano anterior) y PISAR en el servidor la mano nueva con la VIEJA → el
+        // jugador veía que "se reiniciaban las cartas" y le llegaban OTRAS
+        // diferentes a las del reparto. Con la firma, un sync que no cambia mi
+        // mano JAMÁS vuelve a escribir el nodo de manos (el rival nunca lo lee:
+        // de mi mano solo publica la CANTIDAD vía nCartasJugador/nCartasRival).
+        let ultimaManoEscrita = null;
+
+        function firmaManoPropia() {
+            return (estado.juego.manoJugador || []).map(c => (c && c.id) || '').join(',');
+        }
 
         function u8aABase64(bytes) { let s = ''; for (const b of bytes) s += String.fromCharCode(b); return btoa(s); }
         function base64AU8a(b64) { const s = atob(b64); const out = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i); return out; }
@@ -1883,6 +1944,7 @@
         function reescribirManoPropia() {
             return cifrarManoPropia(estado.juego.manoJugador).then((cifrada) => {
                 if (!estado.partidaId) return;
+                ultimaManoEscrita = firmaManoPropia();
                 return update(ref(db, 'partidas/' + estado.partidaId + '/juego'), { ['manos/' + estado.miLado]: cifrada });
             });
         }
@@ -2032,8 +2094,21 @@
             const datos = {};
             // Manos: cada cliente escribe SOLO la suya, cifrada con su clave local.
             // Del rival solo se publica cuántas cartas le quedan, nunca cuáles son.
-            if (manosCifradas) Object.assign(datos, manosCifradas);
-            else datos['manos/' + estado.miLado] = await cifrarManoPropia(estado.juego.manoJugador);
+            if (manosCifradas) {
+                Object.assign(datos, manosCifradas);
+                ultimaManoEscrita = firmaManoPropia();
+            } else {
+                // Solo reescribir mi mano si su CONTENIDO cambió desde la última
+                // escritura (jugué una carta / reparto nuevo). Reescribirla en
+                // cada sync hacía que un write demorado del final de la mano
+                // anterior pisara la mano NUEVA recién publicada por el
+                // repartidor: las cartas "se reiniciaban" y cambiaban solas.
+                const firma = firmaManoPropia();
+                if (firma !== ultimaManoEscrita) {
+                    datos['manos/' + estado.miLado] = await cifrarManoPropia(estado.juego.manoJugador);
+                    ultimaManoEscrita = firma;
+                }
+            }
             datos.nCartasJugador = estado.miLado === 'jugador' ? estado.juego.manoJugador.length : estado.juego.manoRival.length;
             datos.nCartasRival = estado.miLado === 'jugador' ? estado.juego.manoRival.length : estado.juego.manoJugador.length;
             Object.assign(datos, {
@@ -3114,8 +3189,15 @@
                         const nCartasRival = estado.miLado === 'jugador' ? (j.nCartasRival || 0) : (j.nCartasJugador || 0);
                         // Misma mano: la cantidad de cartas del rival SOLO BAJA
                         // (va jugando sus cartas). Un eco viejo que la aumente es
-                        // un eco desactualizado: conservar la local.
-                        if (avanzoMano || nCartasRival <= estado.juego.manoRival.length) {
+                        // un eco desactualizado: conservar la local... SALVO que
+                        // la local esté en 0: ese es el caso de INICIALIZACIÓN.
+                        // El jugador que se une arranca con 0 dorsos mientras el
+                        // servidor ya anuncia 4; con la condición anterior
+                        // (4 <= 0 → falso y avanzoMano falso, ambos en mano 0)
+                        // NUNCA adoptaba el 4 y no veía los dorsos del rival en
+                        // TODA la primera mano (recién aparecían en la 2ª, cuando
+                        // avanzoMano forzaba la adopción).
+                        if (avanzoMano || estado.juego.manoRival.length === 0 || nCartasRival < estado.juego.manoRival.length) {
                             estado.juego.manoRival = crearManoFantasma(nCartasRival);
                         }
                     }
