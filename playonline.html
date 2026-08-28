@@ -969,6 +969,10 @@
                 ganadorManoAnterior: null,
                 golEnMano: false,
                 golesInicioManoJugador: 0, golesInicioManoRival: 0,
+                // Último número de mano cuyas CARTAS este cliente ya tiene cargadas y
+                // confirmadas (props/por listener). Es el ancla para detectar un REPARTO
+                // NUEVO del servidor aunque mi manoActual local ya se haya incrementado.
+                manoCargada: 0,
             }
         };
 
@@ -3200,9 +3204,20 @@
                     // Snapshot de una mano POSTERIOR: voy atrasado (ej. mi cadena
                     // local se cortó), aceptar todo tal cual llega.
                     const avanzoMano = manoServidor > manoLocal;
-                    // manoActual NUNCA baja durante la partida (misma garantía
+                    // manActual actual NUNCA baja durante la partida (misma garantía
                     // monótona que ya tienen los goles).
                     estado.juego.manoActual = Math.max(manoLocal, manoServidor);
+                    // DETECCIÓN DE REPARTO NUEVO (ancla por cliente): ambos clientes
+                    // incrementan su manoActual LOCAL al cerrar la mano (antes de saber
+                    // quién reparte), así que "manoServidor > manoLocal" ya NO alcanza
+                    // para distinguir un reparto nuevo: para el perdedor de la carrera
+                    // manoServidor === manoLocal. ManoCargada es el último número para
+                    // el que YA tengo las cartas confirmadas: si el servidor trae una
+                    // mano MÁS nueva, es un reparto nuevo que exige adoptar TODO el
+                    // estado fresco (dorsos, fase, turno, ronda, mesa, cantos).
+                    const manoCargadaLocal = estado.juego.manoCargada || 0;
+                    const esRepartoNuevo = !esSnapshotManoAnterior && manoServidor > manoCargadaLocal;
+                    if (esRepartoNuevo) estado.juego.manoCargada = manoServidor;
 
                     // Convertir datos absolutos a relativos
                     // Cartas ocultas: la mano propia NUNCA se lee en claro de Firebase
@@ -3220,13 +3235,12 @@
                         // NUNCA adoptaba el 4 y no veía los dorsos del rival en
                         // TODA la primera mano (recién aparecían en la 2ª, cuando
                         // avanzoMano forzaba la adopción).
-                        if (avanzoMano || estado.juego.manoRival.length === 0 || nCartasRival < estado.juego.manoRival.length) {
+                        if (esRepartoNuevo || avanzoMano || estado.juego.manoRival.length === 0 || nCartasRival < estado.juego.manoRival.length) {
                             // Un nCartas=0 solo se acepta si el rival realmente
                             // tiró todas sus cartas (visibles en la mesa). Un 0
                             // espurio de un eco viejo vaciaba los dorsos y hacía
-                            // que alguienSinCartas() diera la mano por terminada
-                            // a mitad de camino (reparto sorpresa de 4 cartas).
-                            if (nCartasRival > 0 || avanzoMano || cartasTiradasPorRival() >= CARTAS_POR_JUGADOR) {
+                            // a mano por terminada a mitad de camino (reparto sorpresa de 4 cartas).
+                            if (esRepartoNuevo || nCartasRival > 0 || avanzoMano || cartasTiradasPorRival() >= CARTAS_POR_JUGADOR) {
                                 estado.juego.manoRival = crearManoFantasma(nCartasRival);
                             }
                         }
@@ -3281,8 +3295,45 @@
                             // el servidor aún trae false, se conserva lo local.)
                         }
                     }
-                    // manoActual ya fue actualizado arriba con garantía monótona.
-                    // MESA MONÓTONA DENTRO DE LA MISMA MANO: cartasEnMesa solo
+                    if (esRepartoNuevo) {
+                        // ADOPCIÓN ÍNTEGRA del reparto nuevo del servidor (vale para el
+                        // cliente que reparte y para el que hereda la mano del otro).
+                        // Soluciona: "1 solo dorsal del rival" (el contador se quedaba
+                        // con el valor viejo de la 1ª mano) y "no se podía cantar penal
+                        // en la primer ronda" (la fase nunca volvía a esperando_seleccion
+                        // con ronda=0, así que el botón no se habilitaba).
+                        const turnoRelativoNuevo = aRelativo(j.turnoActual);
+                        if (j.fase === 'esperando_rival') {
+                            estado.juego.fase = turnoRelativoNuevo === 'jugador' ? 'esperando_seleccion' : 'esperando_rival';
+                        } else {
+                            estado.juego.fase = j.fase || 'esperando_seleccion';
+                        }
+                        estado.juego.turnoActual = turnoRelativoNuevo;
+                        estado.juego.turnoInicial = aRelativo(j.turnoInicial);
+                        estado.juego.rondaActual = j.rondaActual || 0;
+                        estado.juego.cartasEnMesa = [];
+                        estado.juego.inicioRonda = 0;
+                        estado.juego.cartaSeleccionada = null;
+                        estado.juego.penalUsado = false;
+                        estado.juego.penalCantadoPor = null;
+                        estado.juego.penalActivo = false;
+                        estado.juego.penalAtacante = null;
+                        estado.juego.penalCartas = [];
+                        estado.juego.golActivo = false;
+                        estado.juego.golAtacante = null;
+                        estado.juego.golCartas = [];
+                        estado.juego.golUsado = false;
+                        estado.juego.golazoUsado = false;
+                        estado.juego.cantoActual = null;
+                        estado.juego.cantoPedidoPor = null;
+                        estado.juego.cantoPendiente = null;
+                        estado.juego.esperandoRespuestaDe = null;
+                        estado.juego.varDeclaraciones = { jugador: null, rival: null };
+                        estado.juego.varPedidoPor = null;
+                        estado.juego.varPanelVisible = false;
+                        declaracionVarEnMano = -1;
+                        if (dom.varPanel) dom.varPanel.classList.remove('visible');
+                    }
                     // acumula cartas y rondaActual/inicioRonda solo avanzan hasta
                     // que empieza la mano siguiente. Un eco viejo que reverte
                     // cualquiera de estos valores repone cartas ya retiradas de
@@ -4110,6 +4161,10 @@
             // sincronizará las cartas oficiales del ganador.
             const soyDueno = await reclamarAvanceDeMano(manoNueva === undefined ? estado.juego.manoActual : manoNueva);
             if (!soyDueno) return;
+            // Este cliente quedó dueño: marca la mano como "ya cargada por mí" para
+            // que su propio listener (que leerá el reparto que acaba de publicar) no
+            // la trate como un reparto externo y pise las cartas que recién repartió.
+            estado.juego.manoCargada = manoNueva === undefined ? estado.juego.manoActual : manoNueva;
 
             const mazo = mezclarMazo(crearMazo());
             const { manoJ, manoR } = repartir(mazo);
