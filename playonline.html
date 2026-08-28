@@ -4033,10 +4033,46 @@
                 setTimeout(() => mostrarFinPartido(resultado), 600);
                 return;
             }
-            iniciarNuevaMano();
+            await iniciarNuevaMano(estado.juego.manoActual);
         }
 
-        async function iniciarNuevaMano() {
+        // ============ REPARTO DE MANO CON DUEÑO ÚNICO ============
+        // CAUSA RAÍZ DEFINITIVA DEL "REINICIO DE CARTAS": ambos clientes ejecutan
+        // su flujo local de cierre de mano y CADA UNO puede generar su propio mazo
+        // de 4 cartas para la NUEVA mano. Como cada cliente reparte un mazo
+        // aleatorio distinto y ambos escriben manos/<miLado> sobre el mismo nodo,
+        // el listener del otro termina adoptando cartas que NO son las suyas (y
+        // que cambian a cada sync): "se reiniciaron las cartas que tenía".
+        // Solución: el AVANCE de mano y el REPARTO pasan por una transacción
+        // atómica sobre 'manoActual': solo el cliente que logra subir
+        // manoActual al valor esperado reparte y publica AMBAS manos. El que
+        // pierde NO reparte (evita el mazo duplicado) y adopta por el listener
+        // la mano oficial del ganador. Es imposible que existan 2 mazos para la
+        // misma mano. Si la transacción falla (red), se reparte igual (best-effort).
+        async function reclamarAvanceDeMano(manoNueva) {
+            if (!estado.partidaId) return true;
+            try {
+                const reMano = ref(db, 'partidas/' + estado.partidaId + '/juego/manoActual');
+                const res = await runTransaction(reMano, (actual) => {
+                    const v = (typeof actual === 'number' && isFinite(actual)) ? actual : -1;
+                    // Ya existe una mano NUEVA firmada por el otro cliente: yo no
+                    // reparto, adopto la suya (la aplica el listener).
+                    if (v >= manoNueva) return undefined;
+                    return manoNueva;
+                });
+                if (res.committed) {
+                    console.log('Reparto: cliente avanzó a mano ' + manoNueva, estado.miLado);
+                    return true;
+                }
+                console.warn('Reparto: otro cliente ya avaló la mano ' + manoNueva + ', adopto la suya');
+                return false;
+            } catch (e) {
+                console.warn('Reclamo de mano sin transacción (red):', e && (e.message || e.code));
+                return true; // best-effort: continuar el reparto local
+            }
+        }
+
+        async function iniciarNuevaMano(manoNueva) {
             const nuevoTurnoInicial = estado.juego.ganadorManoAnterior || estado.juego.turnoInicial;
             estado.juego.golesInicioManoJugador = estado.juego.golesJugador;
             estado.juego.golesInicioManoRival = estado.juego.golesRival;
@@ -4068,6 +4104,12 @@
             estado.juego.varPanelVisible = false;
             estado.juego.ganadorManoAnterior = null;
             if (dom.varPanel) dom.varPanel.classList.remove('visible');
+
+            // GARANTÍA DE DUEÑO ÚNICO: antes de repartir, reclamar el avance.
+            // Si otro cliente ya repartió esta mano, NO reparto: el listener me
+            // sincronizará las cartas oficiales del ganador.
+            const soyDueno = await reclamarAvanceDeMano(manoNueva === undefined ? estado.juego.manoActual : manoNueva);
+            if (!soyDueno) return;
 
             const mazo = mezclarMazo(crearMazo());
             const { manoJ, manoR } = repartir(mazo);
