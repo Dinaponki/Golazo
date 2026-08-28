@@ -1875,7 +1875,11 @@
 
         async function cifrarManoPropia(mano) {
             await asegurarClavesCifradas();
-            return cifrarCon(clavesCrypto.claveManoAES, JSON.stringify(mano));
+            // La mano viaja ETIQUETADA con el número de mano a la que pertenece.
+            // Al descifrar, un paquete de OTRA mano (reparto viejo cuya escritura
+            // aterrizó tarde) se DESCARTA: aplicarlo reemplazaba la mano actual
+            // por 4 cartas viejas ("tenía 2 y de repente tenía 4 de nuevo").
+            return cifrarCon(clavesCrypto.claveManoAES, JSON.stringify({ m: estado.juego.manoActual, c: mano }));
         }
 
         // ============ CIFRADO DE MANOS (Web Crypto) 2/2 ============
@@ -1889,7 +1893,7 @@
             const efimera = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
             const bits = await crypto.subtle.deriveBits({ name: 'ECDH', public: pubDestino }, efimera.privateKey, 256);
             const claveRegalo = await crypto.subtle.importKey('raw', bits, 'AES-GCM', false, ['encrypt']);
-            const paquete = await cifrarCon(claveRegalo, JSON.stringify(mano));
+            const paquete = await cifrarCon(claveRegalo, JSON.stringify({ m: estado.juego.manoActual, c: mano }));
             const epk = u8aABase64(new Uint8Array(await crypto.subtle.exportKey('raw', efimera.publicKey)));
             return { tipo: 'regalo', epk, d: paquete.d, i: paquete.i };
         }
@@ -1925,7 +1929,20 @@
             }
             clavesCrypto.ultimaFirmaVista = firma;
             const token = ++tokenManoRemota;
-            descifrarManoPropia(paquete).then((mano) => {
+            descifrarManoPropia(paquete).then((datos) => {
+                // VALIDACIÓN POR MANO: el paquete legítimo viaja como
+                // { m: <número de mano>, c: <cartas> }. Un paquete de OTRA mano
+                // (reparto viejo cuya escritura aterrizó tarde) se DESCARTA:
+                // aplicarlo reemplazaba la mano actual por 4 cartas viejas
+                // ("tenía 2 y de repente tenía 4 de nuevo").
+                let mano = datos;
+                if (datos && !Array.isArray(datos) && typeof datos === 'object' && Array.isArray(datos.c)) {
+                    if (datos.m !== estado.juego.manoActual) {
+                        console.warn('Mano cifrada descartada: pertenece a otra mano (', datos.m, '≠', estado.juego.manoActual, ')');
+                        return;
+                    }
+                    mano = datos.c;
+                }
                 if (token !== tokenManoRemota || !Array.isArray(mano) || !mano.length) return;
                 estado.juego.manoJugador = mano;
                 // Si era el regalo del reparto, sobrescribirlo con mi mano cifrada
@@ -1942,9 +1959,15 @@
 
         // Reescribe mi mano cifrada con MI clave (reemplaza cualquier regalo)
         function reescribirManoPropia() {
+            const firmaAlLlamar = firmaManoPropia();
             return cifrarManoPropia(estado.juego.manoJugador).then((cifrada) => {
                 if (!estado.partidaId) return;
-                ultimaManoEscrita = firmaManoPropia();
+                // Si mi mano cambió desde el llamado (jugué una carta / hubo
+                // reparto nuevo), el regalo ya fue reemplazado por una escritura
+                // más nueva: reescribir el contenido VIEJO aterrizaría tarde y
+                // "reiniciaría" las cartas al reparto anterior.
+                if (firmaManoPropia() !== firmaAlLlamar) return;
+                ultimaManoEscrita = firmaAlLlamar;
                 return update(ref(db, 'partidas/' + estado.partidaId + '/juego'), { ['manos/' + estado.miLado]: cifrada });
             });
         }
@@ -3198,7 +3221,14 @@
                         // TODA la primera mano (recién aparecían en la 2ª, cuando
                         // avanzoMano forzaba la adopción).
                         if (avanzoMano || estado.juego.manoRival.length === 0 || nCartasRival < estado.juego.manoRival.length) {
-                            estado.juego.manoRival = crearManoFantasma(nCartasRival);
+                            // Un nCartas=0 solo se acepta si el rival realmente
+                            // tiró todas sus cartas (visibles en la mesa). Un 0
+                            // espurio de un eco viejo vaciaba los dorsos y hacía
+                            // que alguienSinCartas() diera la mano por terminada
+                            // a mitad de camino (reparto sorpresa de 4 cartas).
+                            if (nCartasRival > 0 || avanzoMano || cartasTiradasPorRival() >= CARTAS_POR_JUGADOR) {
+                                estado.juego.manoRival = crearManoFantasma(nCartasRival);
+                            }
                         }
                     }
                     // GOLES MONÓTONOS TAMBIÉN EN LOCAL: dentro de una partida los
@@ -3623,8 +3653,25 @@
             return cartasDeRondaActual().some(c => c.origen === 'jugador');
         }
 
+        // Cartas REALES que ya tiró el rival: cada carta que el rival tira
+        // (ronda normal o definición de canto) termina en cartasEnMesa, así que
+        // este contador NO puede ser manipulado por un eco viejo.
+        function cartasTiradasPorRival() {
+            return (estado.juego.cartasEnMesa || []).filter(c => c && c.origen === 'rival').length;
+        }
+
         function alguienSinCartas() {
-            return estado.juego.manoJugador.length === 0 || estado.juego.manoRival.length === 0;
+            if (estado.juego.manoJugador.length === 0) return true;
+            // "Rival sin cartas" SOLO se acepta si es coherente con las cartas
+            // que realmente tiró. El contador fantasma (nCartasRival) lo
+            // escriben AMBOS clientes sobre el mismo nodo y un eco viejo puede
+            // publicar un 0 de la mano anterior DESPUÉS del reparto: adoptarlo
+            // y dar la mano por terminada repartía 4 cartas nuevas A MITAD DE
+            // MANO ("tenía 2 y de repente tenía 4 de nuevo").
+            if (estado.juego.manoRival.length === 0) {
+                return cartasTiradasPorRival() >= CARTAS_POR_JUGADOR;
+            }
+            return false;
         }
 
         function resolverRonda() {
